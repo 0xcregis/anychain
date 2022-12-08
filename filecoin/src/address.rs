@@ -534,17 +534,4 @@ mod tests {
         let addr = FilecoinAddress::from_str("f2qexjxohk7c7j6r2tud6kgab6yd62fhdszjukcra").unwrap();
         println!("{}", addr);
     }
-
-    #[test]
-    fn private_key_to_address() {
-        let privkey = FilecoinPrivateKey::new_secp256k1().unwrap();
-        let addr = privkey.to_address(&FilecoinFormat::Base32).unwrap();
-        println!("secp private key = {}", privkey);
-        println!("secp address = {}\n", addr);
-
-        let privkey = FilecoinPrivateKey::new_bls().unwrap();
-        let addr = privkey.to_address(&FilecoinFormat::Base32).unwrap();
-        println!("bls private key = {}", privkey);
-        println!("bls address = {}", addr);
-    }
 }
