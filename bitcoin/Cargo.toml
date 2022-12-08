@@ -1,0 +1,21 @@
+[package]
+name = "bitcoin"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chainlib-core = { path = "../core", version = "0.0.1"}
+base58 = { version = "0.2" }
+bech32 = { version = "0.9.0" }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+sha2 = { version = "0.10.2", default-features = false }
+rand = { version = "0.8.5"}
+hex = "0.4"
+thiserror = "1.0"
+
+[features]
+default = ["std"]
+std = ["chainlib-core/std"]

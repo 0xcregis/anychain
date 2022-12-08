@@ -1,0 +1,23 @@
+[package]
+name = "ethereum"
+version = "0.0.1"
+authors = [
+    "Shawn"
+]
+description = "A library for generating Ethereum wallets"
+keywords = ["blockchain", "crypto", "cryptocurrency", "ethereum", "wallet"]
+readme = "README.md"
+license = "MIT/Apache-2.0"
+edition = "2018"
+
+[dependencies]
+chainlib-core = { path = "../core", version = "0.0.1"}
+rand = { version = "0.8.5", default-features = false }
+regex = { version = "1.3" }
+rlp = { version = "0.5.1", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+ethabi = "17.2.0"
+
+[features]
+default = ["std"]
+std = ["chainlib-core/std"]
