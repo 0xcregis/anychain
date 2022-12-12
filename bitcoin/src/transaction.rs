@@ -154,6 +154,7 @@ pub fn create_script_op_return(amount: i64) -> Result<Vec<u8>, TransactionError>
     let property_id: u32 = 1; // OMNI coin id
 
     script.push(Opcode::OP_RETURN as u8);
+    script.push(Opcode::OP_PUSHBYTES_20 as u8);
     script.push('o' as u8);
     script.push('m' as u8);
     script.push('n' as u8);
@@ -229,6 +230,7 @@ pub enum Opcode {
     OP_EQUAL = 0x87,
     OP_EQUALVERIFY = 0x88,
     OP_RETURN = 0x6a,
+    OP_PUSHBYTES_20 = 0x14,
 }
 
 impl fmt::Display for Opcode {
@@ -240,6 +242,7 @@ impl fmt::Display for Opcode {
             Opcode::OP_EQUAL => write!(f, "OP_EQUAL"),
             Opcode::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
             Opcode::OP_RETURN => write!(f, "OP_RETURN"),
+            Opcode::OP_PUSHBYTES_20 => write!(f, "OP_PUSHBYTES_20"),
         }
     }
 }
