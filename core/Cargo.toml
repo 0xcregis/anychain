@@ -16,7 +16,6 @@ base58 = { version = "0.2", optional = true }
 bech32 = { version = "0.9.0" }
 hex = { version = "0.4.2" }
 libsecp256k1 = { version = "0.7.1" }
-bls-signatures = { version = "0.13.0" }
 rand = { version = "0.8.5", default-features = false }
 rand_core = { version = "0.6.3", default-features = false }
 rlp = { version = "0.5.1", default-features = false }
