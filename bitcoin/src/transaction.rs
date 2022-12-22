@@ -143,15 +143,15 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(address: &BitcoinAddress<N>) -> 
     }
 }
 
-/// Construct and return the OP_RETURN script for the data output of a tx
-/// that spends 'amount' basic units of OMNI coins.
-pub fn create_script_op_return(amount: i64) -> Result<Vec<u8>, TransactionError> {
+/// Construct and return the OP_RETURN script for the data
+/// output of a tx that spends 'amount' basic units of omni
+/// layer asset as indicated by 'property_id'.
+pub fn create_script_op_return(property_id: u32, amount: i64) -> Result<Vec<u8>, TransactionError> {
 
     let mut script = vec![];
     
     let msg_type: u16 = 0;
     let msg_version: u16 = 0;
-    let property_id: u32 = 1; // OMNI coin id
 
     script.push(Opcode::OP_RETURN as u8);
     script.push(Opcode::OP_PUSHBYTES_20 as u8);
@@ -497,12 +497,13 @@ impl BitcoinTransactionOutput {
         })
     }
     
-    /// Returns the data output for a tx that spends 'amount' basic units of OMNI coins. 
-    pub fn omni_data_output(amount: BitcoinAmount) -> Result<Self, TransactionError> {
+    /// Returns the data output for a tx that spends 'amount' basic
+    /// units of omni-layer asset as indicated by 'property_id'. 
+    pub fn omni_data_output(property_id: u32, amount: BitcoinAmount) -> Result<Self, TransactionError> {
 
         let data_output = BitcoinTransactionOutput {
             amount: BitcoinAmount(0),
-            script_pub_key: create_script_op_return(amount.0)?,
+            script_pub_key: create_script_op_return(property_id, amount.0)?,
         };
 
         Ok(data_output)
