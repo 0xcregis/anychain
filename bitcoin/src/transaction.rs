@@ -646,7 +646,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinTransaction<N: BitcoinNetwork> {
     /// The transaction parameters (version, inputs, outputs, lock_time, segwit_flag)
-    parameters: BitcoinTransactionParameters<N>,
+    pub parameters: BitcoinTransactionParameters<N>,
 }
 
 impl<N: BitcoinNetwork> fmt::Display for BitcoinTransaction<N> {
