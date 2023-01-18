@@ -892,6 +892,12 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         
         self.to_bytes()
     }
+
+    pub fn txid_p2pkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
+        let sighash = self.parameters.inputs[index as usize].sighash_code;
+        let preimage = self.p2pkh_hash_preimage(index as usize, sighash)?;
+        Ok(Sha256::digest(&Sha256::digest(&preimage)).to_vec())
+    }
 }
 
 impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {

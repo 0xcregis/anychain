@@ -111,7 +111,7 @@ impl fmt::Display for EthereumAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chainlib_core::public_key::PublicKey;
+    use chainlib_core::{public_key::PublicKey, ethereum_types::Public};
 
     fn test_from_secret_key(expected_address: &str, secret_key: &SecretKey) {
         let address = EthereumAddress::from_secret_key(secret_key, &EthereumFormat::Standard).unwrap();
@@ -130,6 +130,23 @@ mod tests {
 
     fn test_to_str(expected_address: &str, address: &EthereumAddress) {
         assert_eq!(expected_address, address.to_string());
+    }
+
+    #[test]
+    fn test_public_key_bytes_to_address() {
+
+        let public_key = &[
+            48, 197, 53, 33, 226, 92, 169, 86, 37, 63, 188, 254, 37, 235, 20, 135,
+            106, 56, 177, 59, 236, 29, 192, 201, 164, 68, 243, 209, 167, 158, 75, 249,
+            32, 161, 71, 27, 58, 76, 240, 10, 117, 87, 201, 40, 236, 137, 172, 167,
+            140, 5, 65, 94, 239, 146, 230, 155, 0, 250, 200, 93, 219, 69, 123, 168
+        ];
+
+        let public_key = libsecp256k1::PublicKey::parse_slice(public_key, None).unwrap();
+        let public_key = EthereumPublicKey::from_secp256k1_public_key(public_key);
+        let address = public_key.to_address(&EthereumFormat::Standard).unwrap();
+
+        println!("adress = {}", address);
     }
 
     mod checksum_address {
