@@ -315,7 +315,7 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
         self.parameters.data.clone()
     }
     
-    pub fn get_signature(&self) -> Result<Vec<u8>, TransactionError> {
+    pub fn get_signature_hex(&self) -> Result<String, TransactionError> {
         match self.signature.clone() {
             Some(sig) => {
                 let v = from_bytes(&sig.v)?;
@@ -323,7 +323,7 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
                 let mut ret = sig.r;
                 ret.append(&mut sig.s.clone());
                 ret.push(recid);
-                Ok(ret)
+                Ok(hex::encode(ret))
             },
             None => Err(TransactionError::MissingSignature),
         }
