@@ -285,6 +285,51 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 }
 
+impl<N: EthereumNetwork> EthereumTransaction<N> {
+
+    pub fn get_from(&self) -> EthereumAddress {
+        self.sender.clone().unwrap()
+    }
+
+    pub fn get_to(&self) -> EthereumAddress {
+        self.parameters.receiver.clone()
+    }
+
+    pub fn get_amount(&self) -> EthereumAmount {
+        self.parameters.amount
+    }
+
+    pub fn get_fee(&self) -> EthereumAmount {
+        self.parameters.gas_price
+    }
+
+    pub fn get_gas(&self) -> U256 {
+        self.parameters.gas
+    }
+
+    pub fn get_nonce(&self) -> U256 {
+        self.parameters.nonce
+    }
+
+    pub fn get_data(&self) -> Vec<u8> {
+        self.parameters.data.clone()
+    }
+    
+    pub fn get_signature(&self) -> Result<Vec<u8>, TransactionError> {
+        match self.signature.clone() {
+            Some(sig) => {
+                let v = from_bytes(&sig.v)?;
+                let recid = (v - N::CHAIN_ID * 2 - 35) as u8;
+                let mut ret = sig.r;
+                ret.append(&mut sig.s.clone());
+                ret.push(recid);
+                Ok(ret)
+            },
+            None => Err(TransactionError::MissingSignature),
+        }
+    }
+}
+
 impl<N: EthereumNetwork> FromStr for EthereumTransaction<N> {
     type Err = TransactionError;
 

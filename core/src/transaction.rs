@@ -126,6 +126,9 @@ pub enum TransactionError {
     #[error("missing spend parameters")]
     MissingSpendParameters,
 
+    #[error("missing signature")]
+    MissingSignature,
+
     #[error("Null Error")]
     NullError(()),
 
