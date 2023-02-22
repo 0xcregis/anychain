@@ -902,11 +902,25 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     pub fn get_inputs(&self) -> Result<Vec<String>, TransactionError> {
         let mut inputs: Vec<String> = vec![];
         for input in self.parameters.inputs.iter() {
+            let mut sequence: u32 = 0;
+            let p: *mut u32 = &mut sequence;
+            let mut p = p as *mut u8;
+            unsafe {
+                for i in 0..4 {
+                    *p = input.sequence[i];
+                    p = p.add(1);
+                }
+            }
             let outpoint = &input.outpoint;
             let mut txid = outpoint.reverse_transaction_id.clone();
             txid.reverse();
             let txid = hex::encode(&txid);
-            let input = format!("txid: {}, index: {}", txid, outpoint.index);
+            let input = format!(
+                "sequence: {}, txid: {}, index: {}",
+                sequence,
+                txid,
+                outpoint.index,
+            );
             inputs.push(input);
         }
         Ok(inputs)
@@ -922,6 +936,10 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             outputs.push(address.to_string());
         }
         Ok(outputs)
+    }
+
+    pub fn get_version(&self) -> Result<u32, TransactionError> {
+        Ok(self.parameters.version)
     }
 }
 
