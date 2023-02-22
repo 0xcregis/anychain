@@ -899,6 +899,10 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(Sha256::digest(&Sha256::digest(&preimage)).to_vec())
     }
 
+    pub fn get_version(&self) -> Result<u32, TransactionError> {
+        Ok(self.parameters.version)
+    }
+
     pub fn get_inputs(&self) -> Result<Vec<String>, TransactionError> {
         let mut inputs: Vec<String> = vec![];
         for input in self.parameters.inputs.iter() {
@@ -933,14 +937,11 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             // 'OP_DUP', 'OP_HASH160', 'pkhash_len' all occupy one byte memory 
             let pkhash = &output.script_pub_key[3..23];
             let address = BitcoinAddress::<N>::from_hash160(pkhash)?;
-            outputs.push(address.to_string());
+            let output = format!("to: {}, amount: {}", address, output.amount);
+            outputs.push(output);
         }
         Ok(outputs)
-    }
-
-    pub fn get_version(&self) -> Result<u32, TransactionError> {
-        Ok(self.parameters.version)
-    }
+    }    
 }
 
 impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
