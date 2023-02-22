@@ -903,7 +903,9 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         let mut inputs: Vec<String> = vec![];
         for input in self.parameters.inputs.iter() {
             let outpoint = &input.outpoint;
-            let txid = hex::encode(&outpoint.reverse_transaction_id.reverse());
+            let mut txid = outpoint.reverse_transaction_id.clone();
+            txid.reverse();
+            let txid = hex::encode(&txid);
             let input = format!("txid: {}, index: {}", txid, outpoint.index);
             inputs.push(input);
         }
