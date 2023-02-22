@@ -919,11 +919,13 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             let mut txid = outpoint.reverse_transaction_id.clone();
             txid.reverse();
             let txid = hex::encode(&txid);
+            let signature = hex::encode(&input.script_sig);
             let input = format!(
-                "sequence: {}, txid: {}, index: {}",
+                "sequence: {}, txid: {}, index: {}, signature: {}",
                 sequence,
                 txid,
                 outpoint.index,
+                signature
             );
             inputs.push(input);
         }
