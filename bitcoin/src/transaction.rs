@@ -898,6 +898,29 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         let preimage = self.p2pkh_hash_preimage(index as usize, sighash)?;
         Ok(Sha256::digest(&Sha256::digest(&preimage)).to_vec())
     }
+
+    pub fn get_inputs(&self) -> Result<Vec<String>, TransactionError> {
+        let mut inputs: Vec<String> = vec![];
+        for input in self.parameters.inputs.iter() {
+            let outpoint = &input.outpoint;
+            let txid = hex::encode(&outpoint.reverse_transaction_id);
+            let input = format!("txid: {}, index: {}", txid, outpoint.index);
+            inputs.push(input);
+        }
+        Ok(inputs)
+    }
+
+    pub fn get_outputs(&self) -> Result<Vec<String>, TransactionError> {
+        let mut outputs: Vec<String> = vec![];
+        for output in self.parameters.outputs.iter() {
+            // p2pkh script = [OP_DUP] [OP_HASH160] [pkhash_len(20)] pkhash ...
+            // 'OP_DUP', 'OP_HASH160', 'pkhash_len' all occupy one byte memory 
+            let pkhash = &output.script_pub_key[3..23];
+            let address = BitcoinAddress::<N>::from_hash160(pkhash)?;
+            outputs.push(address.to_string());
+        }
+        Ok(outputs)
+    }
 }
 
 impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
