@@ -15,10 +15,9 @@ use chainlib_core::utilities::crypto;
 use chainlib_core::TransactionId;
 use protobuf::{Message};
 use crate::trx;
-use chainlib_core::libsecp256k1;
 
 
-/// Represents the parameters for an Ethereum transaction
+/// Represents the parameters for a Tron transaction
 #[derive(Debug, Clone, PartialEq)]
 pub struct TronTransactionParameters {
     pub ref_block_hash: Vec<u8>,
