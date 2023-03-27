@@ -25,7 +25,7 @@
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_2_0;
 
-#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 // @@protoc_insertion_point(enum:protocol.ResourceCode)
 pub enum ResourceCode {
     // @@protoc_insertion_point(enum_value:protocol.ResourceCode.BANDWIDTH)

@@ -1,5 +1,5 @@
 use chainlib_core::{
-    libsecp256k1::{self, SecretKey},
+    libsecp256k1::SecretKey,
     Address,
     AddressError,
     PublicKey,
