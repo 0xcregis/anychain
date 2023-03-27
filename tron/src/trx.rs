@@ -99,7 +99,7 @@ pub fn build_trc20_func_contract(
         )?;
     let data = abi::encode_transfer(func_name, &address, amount);
     
-    build_trigger_contract(owner,contract, data)
+    build_trigger_contract(owner, contract, data)
 }
 
 pub fn build_trc20_transfer_contract(
@@ -120,7 +120,7 @@ pub fn build_trc20_transfer_contract(
 pub fn build_transfer_contract(
     owner: &str,
     recipient: &str,
-    amount: i64
+    amount: &str,
 ) -> Result<Contract, Error> {
     let sender: TronAddress = owner.parse()?;
     let recipient: TronAddress = recipient.parse()?;
@@ -129,7 +129,7 @@ pub fn build_transfer_contract(
     
     transfer_contract.owner_address = sender.as_bytes().to_owned();
     transfer_contract.to_address = recipient.as_bytes().to_owned();
-    transfer_contract.amount = amount;
+    transfer_contract.amount = amount.parse::<i64>()?;
     
     build_contract(&transfer_contract)
 }
@@ -149,16 +149,16 @@ pub fn build_account_create(
 
 pub fn build_freeze_balance_contract(
     owner: &str,
-    freeze_balance: i64,
-    freeze_duration: i64,
+    freeze_balance: &str,
+    freeze_duration: &str,
     resource: ResourceCode,
     recipient: &str
 ) -> Result<Contract, Error> {
     let mut fb_contract = FreezeBalanceContract::new();
 
     fb_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
-    fb_contract.frozen_balance = freeze_balance;
-    fb_contract.frozen_duration = freeze_duration;
+    fb_contract.frozen_balance = freeze_balance.parse::<i64>()?;
+    fb_contract.frozen_duration = freeze_duration.parse::<i64>()?;
     fb_contract.resource = EnumOrUnknown::<ResourceCode>::new(resource);
     fb_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
 
