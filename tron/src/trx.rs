@@ -1,3 +1,4 @@
+use core::panic;
 use std::str::FromStr;
 use chrono::Utc;
 use chainlib_core::Error;
@@ -53,6 +54,14 @@ impl_contract_pb_ext_for!(TriggerSmartContract);
 impl_contract_pb_ext_for!(AccountCreateContract);
 impl_contract_pb_ext_for!(FreezeBalanceContract);
 impl_contract_pb_ext_for!(UnfreezeBalanceContract);
+
+fn to_resource_code(r: u8) -> ResourceCode {
+    match r {
+        0 => ResourceCode::BANDWIDTH,
+        1 => ResourceCode::ENERGY,
+        _ => panic!("Undefined resource"),
+    }
+}
 
 pub fn timestamp_millis() -> i64 {
     Utc::now().timestamp_millis()
@@ -151,7 +160,7 @@ pub fn build_freeze_balance_contract(
     owner: &str,
     freeze_balance: &str,
     freeze_duration: &str,
-    resource: ResourceCode,
+    resource: u8,
     recipient: &str
 ) -> Result<Contract, Error> {
     let mut fb_contract = FreezeBalanceContract::new();
@@ -159,7 +168,7 @@ pub fn build_freeze_balance_contract(
     fb_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
     fb_contract.frozen_balance = freeze_balance.parse::<i64>()?;
     fb_contract.frozen_duration = freeze_duration.parse::<i64>()?;
-    fb_contract.resource = EnumOrUnknown::<ResourceCode>::new(resource);
+    fb_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
     fb_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
 
     build_contract(&fb_contract)
@@ -167,13 +176,13 @@ pub fn build_freeze_balance_contract(
 
 pub fn build_unfreeze_balance_contract(
     owner: &str,
-    resource: ResourceCode,
+    resource: u8,
     recipient: &str,
 ) -> Result<Contract, Error> {
     let mut ub_contract = UnfreezeBalanceContract::new();
 
     ub_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
-    ub_contract.resource = EnumOrUnknown::<ResourceCode>::new(resource);
+    ub_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
     ub_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
 
     build_contract(&ub_contract)
