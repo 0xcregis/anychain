@@ -1,6 +1,10 @@
 [package]
 name = "anychain"
 version = "0.0.1"
+edition = "2021"
+description = "A Rust library for multi-chain cryptowallet, support Bitcoin, Ethereum, Tron, Filecoin, etc"
+repository = "https://github.com/uduncloud/anychain"
+keywords = ["multi-chain", "cryptocurrency", "bitcoin", "ethereum"]
 
 [lib]
 path = "lib.rs"
@@ -20,3 +24,8 @@ members = [
     "tron",
     # "filecoin",
 ]
+
+[profile.release]
+debug = true
+lto = true
+codegen-units = 1
