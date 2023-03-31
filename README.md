@@ -31,3 +31,6 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 ### Build the source
 	
     cargo build --release
+
+### Status
+[![Rust CI](https://github.com/uduncloud/anychain/actions/workflows/rust.yml/badge.svg)](https://github.com/uduncloud/anychain/actions/workflows/rust.yml)
