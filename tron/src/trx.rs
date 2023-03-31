@@ -107,6 +107,19 @@ pub fn build_trc20_transfer_contract(
     )
 }
 
+pub fn build_trc20_approve_contract(
+    owner: &str,
+    contract: &str,
+    recipient: &str,
+    amount: &str
+) -> Result<Contract, Error> {
+    build_trigger_contract(
+        owner,
+        contract,
+        abi::trc20_approve(recipient, amount)
+    )
+}
+
 pub fn build_transfer_contract(
     owner: &str,
     recipient: &str,
