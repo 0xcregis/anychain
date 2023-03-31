@@ -13,7 +13,7 @@ use crate::protocol::Tron::transaction::{
 use crate::protocol::Tron::Transaction as TransactionProto;
 use chainlib_core::utilities::crypto;
 use chainlib_core::TransactionId;
-use protobuf::{Message};
+use protobuf::Message;
 use crate::trx;
 
 
@@ -204,7 +204,7 @@ mod tests {
     pub fn build_trx_transaction() -> TronTransaction{
         let addr_from = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr";
         let addr_to = "TFk5LfscQv8hYM11mZYmi3ZcnRfFc4LLap";
-        let amount = 10*1000000;
+        let amount = "10000000";
         let ct =  trx::build_transfer_contract(addr_from, addr_to, amount).unwrap();
         let mut param = TronTransactionParameters::default();
         param.set_timestamp(trx::timestamp_millis());
@@ -242,7 +242,7 @@ mod tests {
     fn test_build_tx2() {
         let from_addr = "TYn6xn1aY3hrsDfLzpyPQtDiKjHEU8Hsxm";
         let to_addr = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr";
-        let amount = 1*1000000;// 以Sun为单位
+        let amount = "1000000";// 以Sun为单位
         let block_height = 27007120;
         let block_hash = "00000000019c1890f87d110a81d815b9a38a3e62d44a00a7c8fd50a7b322a2df";
 

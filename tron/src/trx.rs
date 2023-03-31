@@ -94,35 +94,16 @@ pub fn build_trigger_contract(
     build_contract(&ts_contract)
 }
 
-pub fn build_trc20_func_contract(
-    owner: &str,
-    contract: &str,
-    func_name: &str,
-    recipient: &str,
-    amount: &str
-) -> Result<Contract, Error> {
-    let address = TronAddress::from_str(recipient)?;
-    let amount = U256::from_dec_str(amount)
-        .map_err(
-            |e| Error::RuntimeError(e.to_string())
-        )?;
-    let data = abi::encode_transfer(func_name, &address, amount);
-    
-    build_trigger_contract(owner, contract, data)
-}
-
 pub fn build_trc20_transfer_contract(
     owner: &str,
     contract: &str,
     recipient: &str,
     amount: &str
 ) -> Result<Contract, Error> {
-    build_trc20_func_contract(
+    build_trigger_contract(
         owner,
         contract,
-        "transfer",
-        recipient,
-        amount,
+        abi::trc20_transfer(recipient, amount)
     )
 }
 

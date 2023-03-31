@@ -1,56 +1,108 @@
+use std::str::FromStr;
 use ethabi::{Token, encode};
-use chainlib_core::{utilities::crypto::keccak256, ethereum_types::U256};
-
+use chainlib_core::{
+    utilities::crypto::keccak256,
+    ethereum_types::U256,
+};
 use crate::TronAddress;
 
-pub struct InputParam {
-    pub param_type: String,
-    pub param_value: Token
+/// Represents a parameter that's fed to a
+/// function of an on-chain contract
+pub struct Param {
+    pub type_: String,
+    pub value: Token
 }
 
-impl From<&TronAddress> for InputParam {
+impl From<&TronAddress> for Param {
     fn from(address: &TronAddress) -> Self {
-        InputParam{param_type: "address".to_string(), param_value: address.to_token()}
+        Param {
+            type_: "address".to_string(),
+            value: address.to_token(),
+        }
     }
-} 
+}
 
-impl From<U256> for InputParam {
+impl From<U256> for Param {
     fn from(amount: U256) -> Self {
-        InputParam{param_type: "uint256".to_string(), param_value: Token::Uint(amount)}
+        Param {
+            type_: "uint256".to_string(),
+            value: Token::Uint(amount),
+        }
     }
-} 
+}
 
-
-pub fn encode_fn(name: &str, inputs: &[InputParam]) -> Vec<u8> {
+pub fn contract_function_call(function_name: &str, params: &[Param]) -> Vec<u8> {
     let mut data = Vec::<u8>::new();
-    let param_types = inputs.iter().map(|input|{
-        input.param_type.as_str()
-    }).collect::<Vec<&str>>().join(",");
-    let function_selector = format!("{}({})", name, param_types);
-    data.extend_from_slice( &keccak256(function_selector.as_bytes())[..4]);
-    let tokens = inputs.iter().map(|input | input.param_value.clone()).collect::<Vec<Token>>();
+    
+    let param_types = params.iter().map(
+        |param| param.type_.as_str()
+    ).collect::<Vec<&str>>().join(",");
+    
+    let function_selector = format!("{}({})", function_name, param_types);
+    
+    data.extend_from_slice(&keccak256(function_selector.as_bytes())[..4]);
+    
+    let tokens = params.iter().map(
+        |param| param.value.clone()
+    ).collect::<Vec<Token>>();
+    
     data.extend_from_slice(&encode(&tokens));
+    
     data
 }
 
-pub fn encode_transfer(func_name: &str, address: &TronAddress, amount: U256) -> Vec<u8>{
-    let inputs = vec![InputParam::from(address),InputParam::from(amount)];
-    encode_fn(func_name, &inputs)
+pub fn trc20_transfer(address: &str, amount: &str) -> Vec<u8> {
+    let address = TronAddress::from_str(address).unwrap();
+    let amount = U256::from_dec_str(amount).unwrap();
+    
+    contract_function_call(
+        "transfer",
+        &vec![
+            Param::from(&address),
+            Param::from(amount),
+        ],
+    )
+}
+
+pub fn trc20_approve(address: &str, amount: &str) -> Vec<u8> {
+    let address = TronAddress::from_str(address).unwrap();
+    let amount = U256::from_dec_str(amount).unwrap();
+    
+    contract_function_call(
+        "approve",
+        &vec![
+            Param::from(&address),
+            Param::from(amount),
+        ],
+    )
 }
 
 #[cfg(test)]
-mod test_mod{
-    use super::encode_fn;
-    use super::InputParam;
-    use ethabi::ethereum_types::U256;
+mod test_mod {
+    use std::str::FromStr;
+
     use crate::TronAddress;
-    use hex;
+    use super::{Param, contract_function_call};
+    use ethabi::ethereum_types::U256;
 
     #[test]
-    fn test_encode_fn(){
-        let address: TronAddress = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr".parse().unwrap();
-        let inputs = vec![InputParam::from(&address),InputParam::from(U256::from_dec_str("20000000000000000000").unwrap())];
-        let bytes = encode_fn("transfer", &inputs);
-        assert_eq!("a9059cbb000000000000000000000041436d74fc1577266b7290b85801145d9c5287e194000000000000000000000000000000000000000000000001158e460913d00000",hex::encode(bytes))
+    fn test_contract_function_call() {
+        let address = TronAddress::from_str("TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr").unwrap();
+        let amount = U256::from_dec_str("20000000000000000000").unwrap();
+        
+        let call_data = contract_function_call(
+            "transfer",
+            &vec![
+                Param::from(&address),
+                Param::from(amount)
+            ],
+        );
+
+        assert_eq!(
+            "a9059cbb000000000000000000000041436d74fc1577266b7\
+             290b85801145d9c5287e19400000000000000000000000000\
+             0000000000000000000001158e460913d00000",
+            hex::encode(call_data)
+        )
     }
 }

@@ -108,8 +108,6 @@ impl TryFrom<Vec<u8>> for TronAddress {
     }
 }
 
-
-
 impl TryFrom<&Vec<u8>> for TronAddress {
     type Error = AddressError;
 
@@ -133,7 +131,6 @@ impl FromHex for TronAddress {
         TronAddress::try_from(hex.as_ref())
     }
 }
-
 
 impl FromStr for TronAddress {
     type Err = AddressError;
