@@ -45,6 +45,7 @@ pub use error::*;
 
 // export common crate
 pub use libsecp256k1;
+pub use bls_signatures;
 
 pub use hex;
 
