@@ -1,4 +1,4 @@
-# anychain
+# Anychain
 
 A Rust library for multi-chain cryptowallet, supporting transactions of crypto assets on many different
 public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
