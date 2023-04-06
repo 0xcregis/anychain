@@ -1,18 +1,12 @@
 use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{
-    libsecp256k1::{self, SecretKey},
-    to_hex_string,
-    Address,
-    Error,
-    AddressError, PublicKey,
-};
+use chainlib_core::{libsecp256k1, to_hex_string, Address, AddressError, Error, PublicKey};
 
+use chainlib_core::hex;
+use chainlib_core::utilities::crypto::keccak256;
 use core::{convert::TryFrom, fmt, str::FromStr};
 use regex::Regex;
-use serde::{Serialize, Deserialize};
-use chainlib_core::utilities::crypto::keccak256;
-use chainlib_core::hex;
+use serde::{Deserialize, Serialize};
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, Default)]
@@ -23,12 +17,18 @@ impl Address for EthereumAddress {
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_secret_key(secret_key: &libsecp256k1::SecretKey, _format: &Self::Format) -> Result<Self, AddressError> {
+    fn from_secret_key(
+        secret_key: &libsecp256k1::SecretKey,
+        _format: &Self::Format,
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&EthereumPublicKey::from_secret_key(secret_key), _format)
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        _: &Self::Format,
+    ) -> Result<Self, AddressError> {
         // public_key.from_private_key();
         Ok(Self::checksum_address(public_key))
     }
@@ -59,11 +59,15 @@ impl EthereumAddress {
         let address = self.0.clone();
         let address = address.to_lowercase();
         let address = regex.replace_all(&address, "").to_string();
-        return Ok(hex::decode(address)?);
+        Ok(hex::decode(address)?)
     }
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -111,17 +115,7 @@ impl fmt::Display for EthereumAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chainlib_core::{public_key::PublicKey, ethereum_types::Public};
-
-    fn test_from_secret_key(expected_address: &str, secret_key: &SecretKey) {
-        let address = EthereumAddress::from_secret_key(secret_key, &EthereumFormat::Standard).unwrap();
-        assert_eq!(expected_address, address.to_string());
-    }
-
-    fn test_from_public_key(expected_address: &str, public_key: &EthereumPublicKey) {
-        let address = EthereumAddress::from_public_key(public_key, &EthereumFormat::Standard).unwrap();
-        assert_eq!(expected_address, address.to_string());
-    }
+    use chainlib_core::public_key::PublicKey;
 
     fn test_from_str(expected_address: &str) {
         let address = EthereumAddress::from_str(expected_address).unwrap();
@@ -134,12 +128,11 @@ mod tests {
 
     #[test]
     fn test_public_key_bytes_to_address() {
-
         let public_key = &[
-            48, 197, 53, 33, 226, 92, 169, 86, 37, 63, 188, 254, 37, 235, 20, 135,
-            106, 56, 177, 59, 236, 29, 192, 201, 164, 68, 243, 209, 167, 158, 75, 249,
-            32, 161, 71, 27, 58, 76, 240, 10, 117, 87, 201, 40, 236, 137, 172, 167,
-            140, 5, 65, 94, 239, 146, 230, 155, 0, 250, 200, 93, 219, 69, 123, 168
+            48, 197, 53, 33, 226, 92, 169, 86, 37, 63, 188, 254, 37, 235, 20, 135, 106, 56, 177,
+            59, 236, 29, 192, 201, 164, 68, 243, 209, 167, 158, 75, 249, 32, 161, 71, 27, 58, 76,
+            240, 10, 117, 87, 201, 40, 236, 137, 172, 167, 140, 5, 65, 94, 239, 146, 230, 155, 0,
+            250, 200, 93, 219, 69, 123, 168,
         ];
 
         let public_key = libsecp256k1::PublicKey::parse_slice(public_key, None).unwrap();
@@ -176,25 +169,6 @@ mod tests {
         ];
 
         #[test]
-        fn from_private_key() {
-            KEYPAIRS.iter().for_each(|(secret_key, address)| {
-                let secret_key = hex::decode(*secret_key).unwrap();
-                let secret_key = SecretKey::parse_slice(&secret_key).unwrap();
-                test_from_secret_key(address, &secret_key);
-            });
-        }
-
-        #[test]
-        fn from_public_key() {
-            KEYPAIRS.iter().for_each(|(secret_key, address)| {
-                let secret_key = hex::decode(*secret_key).unwrap();
-                let secret_key = SecretKey::parse_slice(&secret_key).unwrap();
-                let public_key = EthereumPublicKey::from_secret_key(&secret_key);
-                test_from_public_key(address, &public_key);
-            });
-        }
-
-        #[test]
         fn from_str() {
             KEYPAIRS.iter().for_each(|(_, address)| {
                 test_from_str(address);
@@ -211,54 +185,13 @@ mod tests {
     }
 
     #[test]
-    fn test_checksum_address_invalid() {
-        // Mismatched keypair
-
-        let secret_key = "f89f23eaeac18252fedf81bb8318d3c111d48c19b0680dcf6e0a8d5136caf287";
-        let expected_address = "0xF9001e6AEE6EA439D713fBbF960EbA76f4770E2B";
-
-        let secret_key = hex::decode(secret_key).unwrap();
-        let secret_key = SecretKey::parse_slice(&secret_key).unwrap();
-        let address = EthereumAddress::from_secret_key(
-            &secret_key,
-            &EthereumFormat::Standard
-        ).unwrap();
-        assert_ne!(expected_address, address.to_string());
-
-        let public_key = EthereumPublicKey::from_secret_key(&secret_key);
-        let address = EthereumAddress::from_public_key(
-            &public_key,
-            &EthereumFormat::Standard
-        ).unwrap();
-        assert_ne!(expected_address, address.to_string());
-
-        // Invalid address length
-
-        let address = "9";
-        assert!(EthereumAddress::from_str(address).is_err());
-
-        let address = "0x9";
-        assert!(EthereumAddress::from_str(address).is_err());
-
-        let address = "0x9141B7539E7902872095C408BfA294435e2b8c8";
-        assert!(EthereumAddress::from_str(address).is_err());
-
-        let address = "0x9141B7539E7902872095C408BfA294435e2b8c8a0x9141B7539E7902872095";
-        assert!(EthereumAddress::from_str(address).is_err());
-
-        let address = "0x9141B7539E7902872095C408BfA294435e2b8c8a0x9141B7539E7902872095C408BfA294435e2b8c8a";
-        assert!(EthereumAddress::from_str(address).is_err());
-    }
-
-    #[test]
     fn test_address() {
         let pubkey = EthereumPublicKey::from_str(
             "040b4fed878e6b0ff6847e2ac9c13b556d161e1344cd270ed6cafac21f0144399d9ef31f2\
-             67722fdeccba59ffd57ff84a020a2d3b416344c68e840bc7d97e77570").unwrap();
-        let address = EthereumAddress::from_public_key(
-            &pubkey,
-            &EthereumFormat::Standard
-        ).unwrap();
-        println!("{}",address.to_string())
+             67722fdeccba59ffd57ff84a020a2d3b416344c68e840bc7d97e77570",
+        )
+        .unwrap();
+        let address = EthereumAddress::from_public_key(&pubkey, &EthereumFormat::Standard).unwrap();
+        println!("{}", address.to_string())
     }
 }

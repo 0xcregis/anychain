@@ -1,21 +1,13 @@
-use std::fmt;
+use crate::protocol::Tron::transaction::{Contract, Raw as TransactionRaw};
+use crate::protocol::Tron::Transaction as TransactionProto;
+use crate::trx;
+use crate::{TronAddress, TronFormat, TronPublicKey};
+use chainlib_core::utilities::crypto;
 use chainlib_core::Transaction;
 use chainlib_core::TransactionError;
-use crate::{
-    TronAddress,
-    TronFormat,
-    TronPublicKey,
-};
-use crate::protocol::Tron::transaction::{
-    Raw as TransactionRaw,
-    Contract
-};
-use crate::protocol::Tron::Transaction as TransactionProto;
-use chainlib_core::utilities::crypto;
 use chainlib_core::TransactionId;
 use protobuf::Message;
-use crate::trx;
-
+use std::fmt;
 
 /// Represents the parameters for a Tron transaction
 #[derive(Debug, Clone, PartialEq)]
@@ -26,51 +18,47 @@ pub struct TronTransactionParameters {
     pub expiration: i64,
     pub timestamp: i64,
     pub memo: String,
-    pub contract: Contract
+    pub contract: Contract,
 }
 
 impl TronTransactionParameters {
-    pub fn set_ref_block(&mut self, number: i64, hash: &str){
-
-        self.ref_block_bytes = vec![
-                ((number & 0xff00) >> 8) as u8,
-                (number & 0xff) as u8,
-            ];
+    pub fn set_ref_block(&mut self, number: i64, hash: &str) {
+        self.ref_block_bytes = vec![((number & 0xff00) >> 8) as u8, (number & 0xff) as u8];
         self.ref_block_hash = hex::decode(hash).unwrap()[8..16].to_owned();
     }
 
-    pub fn set_contract(&mut self, ct: Contract){
+    pub fn set_contract(&mut self, ct: Contract) {
         self.contract = ct;
     }
 
-    pub fn set_timestamp(&mut self, time: i64){
+    pub fn set_timestamp(&mut self, time: i64) {
         self.timestamp = time;
     }
 
-    pub fn set_expiration(&mut self, time: i64){
+    pub fn set_expiration(&mut self, time: i64) {
         self.expiration = time;
     }
 
-    pub fn set_fee_limit(&mut self, fee: i64){
+    pub fn set_fee_limit(&mut self, fee: i64) {
         self.fee_limit = fee;
     }
-    
-    pub fn to_transaction_raw(&self) -> Result<TransactionRaw, TransactionError>{
+
+    pub fn to_transaction_raw(&self) -> Result<TransactionRaw, TransactionError> {
         let mut raw = TransactionRaw::new();
         let mut timestamp = self.timestamp;
         // if timestamp equals 0, means the tx is new
         if self.timestamp == 0 {
             timestamp = trx::timestamp_millis();
         }
-        raw.contract = vec![self.contract.clone()].into();
-        if self.memo.len() > 0 {
+        raw.contract = vec![self.contract.clone()];
+        if !self.memo.is_empty() {
             raw.data = self.memo.as_bytes().to_owned();
         }
-        
-        if self.fee_limit != 0{
+
+        if self.fee_limit != 0 {
             raw.fee_limit = self.fee_limit;
         }
-        
+
         raw.timestamp = timestamp;
         raw.expiration = timestamp + self.expiration;
         raw.ref_block_bytes = self.ref_block_bytes.clone();
@@ -80,28 +68,27 @@ impl TronTransactionParameters {
     }
 }
 
-
-impl Default for TronTransactionParameters{
+impl Default for TronTransactionParameters {
     fn default() -> Self {
-        Self { 
-            ref_block_hash: Default::default(), 
+        Self {
+            ref_block_hash: Default::default(),
             ref_block_bytes: Default::default(),
             fee_limit: 0,
             timestamp: 0,
-            expiration: 1000 * 60 * 5_i64, 
-            memo: "".to_string(), 
-            contract: Default::default() }
+            expiration: 1000 * 60 * 5_i64,
+            memo: "".to_string(),
+            contract: Default::default(),
+        }
     }
 }
-
 
 /// Represents an Ethereum transaction signature
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TronTransactionSignature(Vec<u8>);
 
 impl TronTransactionSignature {
-    pub fn new(rs: &Vec<u8>, recid: u8) -> Self{
-        let mut vec = rs.clone();
+    pub fn new(rs: &[u8], recid: u8) -> Self {
+        let mut vec = rs.to_owned();
         vec.push(recid);
         TronTransactionSignature(vec)
     }
@@ -128,12 +115,10 @@ impl fmt::Display for TronTransactionId {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TronTransaction {
     pub data: TronTransactionParameters,
-    pub signature: Option<TronTransactionSignature>
+    pub signature: Option<TronTransactionSignature>,
 }
 
-impl TronTransaction{
-
-}
+impl TronTransaction {}
 
 impl Transaction for TronTransaction {
     type Address = TronAddress;
@@ -143,9 +128,9 @@ impl Transaction for TronTransaction {
     type TransactionParameters = TronTransactionParameters;
 
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        Ok(Self{
+        Ok(Self {
             data: parameters.clone(),
-            signature: None
+            signature: None,
         })
     }
 
@@ -154,21 +139,23 @@ impl Transaction for TronTransaction {
         self.to_bytes()
     }
 
-    fn from_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
-        let raw =  TransactionRaw::parse_from_bytes(transaction.as_slice()).map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?;
-        let param = TronTransactionParameters{
+    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
+        let raw = TransactionRaw::parse_from_bytes(transaction)
+            .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?;
+        let param = TronTransactionParameters {
             timestamp: raw.timestamp,
             expiration: raw.expiration - raw.timestamp,
             ref_block_bytes: raw.ref_block_bytes.clone(),
             ref_block_hash: raw.ref_block_hash.clone(),
-            memo: String::from_utf8(raw.data.clone()).map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?,
+            memo: String::from_utf8(raw.data.clone())
+                .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?,
             fee_limit: raw.fee_limit,
-            contract: raw.contract[0].clone()
+            contract: raw.contract[0].clone(),
         };
 
-        Ok(Self{
+        Ok(Self {
             data: param,
-            signature: None
+            signature: None,
         })
     }
 
@@ -177,41 +164,48 @@ impl Transaction for TronTransaction {
         match self.signature.clone() {
             Some(sign) => {
                 let mut signed_tx = TransactionProto::new();
-                signed_tx.raw_data = ::protobuf::MessageField::some(raw.clone());
+                signed_tx.raw_data = ::protobuf::MessageField::some(raw);
                 signed_tx.signature = vec![sign.to_bytes()];
-                signed_tx.write_to_bytes().map_err(|e| TransactionError::Crate("protobuf", e.to_string()))
-            },
-            None   => {
-                raw.write_to_bytes().map_err(|e| TransactionError::Crate("protobuf", e.to_string()))
+                signed_tx
+                    .write_to_bytes()
+                    .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))
             }
+            None => raw
+                .write_to_bytes()
+                .map_err(|e| TransactionError::Crate("protobuf", e.to_string())),
         }
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        let bytes = self.data.to_transaction_raw()?.write_to_bytes().map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?;
+        let bytes = self
+            .data
+            .to_transaction_raw()?
+            .write_to_bytes()
+            .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?;
         Ok(Self::TransactionId {
-            txid: crypto::sha256(&bytes).iter().cloned().collect()
+            txid: crypto::sha256(&bytes).to_vec(),
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
     use super::*;
-    use chainlib_core::libsecp256k1;
 
-    pub fn build_trx_transaction() -> TronTransaction{
+    pub fn build_trx_transaction() -> TronTransaction {
         let addr_from = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr";
         let addr_to = "TFk5LfscQv8hYM11mZYmi3ZcnRfFc4LLap";
         let amount = "10000000";
-        let ct =  trx::build_transfer_contract(addr_from, addr_to, amount).unwrap();
+        let ct = trx::build_transfer_contract(addr_from, addr_to, amount).unwrap();
         let mut param = TronTransactionParameters::default();
         param.set_timestamp(trx::timestamp_millis());
-        param.set_ref_block(26661399, "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e");
+        param.set_ref_block(
+            26661399,
+            "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e",
+        );
         param.set_contract(ct);
         let transaction = TronTransaction::new(&param).unwrap();
-       
+
         return transaction;
     }
 
@@ -220,10 +214,14 @@ mod tests {
         let contract_addr = "TP31Ua3T6zYAQbcnR2vTbYGd426rouWNoD";
         let to_addr = "TFk5LfscQv8hYM11mZYmi3ZcnRfFc4LLap";
         let amount = "10000000000000000000";
-        let ct = trx::build_trc20_transfer_contract(owner_addr, contract_addr, to_addr, amount).unwrap();
+        let ct =
+            trx::build_trc20_transfer_contract(owner_addr, contract_addr, to_addr, amount).unwrap();
         let mut param = TronTransactionParameters::default();
         param.set_timestamp(trx::timestamp_millis());
-        param.set_ref_block(26661399, "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e");
+        param.set_ref_block(
+            26661399,
+            "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e",
+        );
         param.set_contract(ct);
         let transaction = TronTransaction::new(&param).unwrap();
         return transaction;
@@ -232,21 +230,21 @@ mod tests {
     #[test]
     pub fn test_txid() {
         let transaction = build_trx_transaction();
-        println!("{}",transaction.to_transaction_id().unwrap());
+        println!("{}", transaction.to_transaction_id().unwrap());
         let raw = transaction.data.to_transaction_raw().unwrap();
         let raw_bytes = crypto::sha256(&raw.write_to_bytes().unwrap());
-        println!("{}",hex::encode(raw_bytes));
+        println!("{}", hex::encode(raw_bytes));
     }
 
     #[test]
     fn test_build_tx2() {
         let from_addr = "TYn6xn1aY3hrsDfLzpyPQtDiKjHEU8Hsxm";
         let to_addr = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr";
-        let amount = "1000000";// 以Sun为单位
+        let amount = "1000000"; // 以Sun为单位
         let block_height = 27007120;
         let block_hash = "00000000019c1890f87d110a81d815b9a38a3e62d44a00a7c8fd50a7b322a2df";
 
-        let ct =  trx::build_transfer_contract(from_addr, to_addr, amount).unwrap();
+        let ct = trx::build_transfer_contract(from_addr, to_addr, amount).unwrap();
         let mut param = TronTransactionParameters::default();
         param.set_timestamp(trx::timestamp_millis());
         param.set_ref_block(block_height, block_hash);
@@ -254,13 +252,13 @@ mod tests {
         let transaction = TronTransaction::new(&param).unwrap();
 
         let bytes = transaction.to_bytes().unwrap();
-        println!("{}",hex::encode(bytes));
-        println!("{}",transaction.to_transaction_id().unwrap());
-        println!("{:?}",transaction.data);
+        println!("{}", hex::encode(bytes));
+        println!("{}", transaction.to_transaction_id().unwrap());
+        println!("{:?}", transaction.data);
     }
 
     #[test]
-    pub fn test_from_bytes(){
+    pub fn test_from_bytes() {
         let raw = "0a0218902208f87d110a81d815b9409994dbfaac305a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a1541fa3146ab779ce02392d11209f524ee75d4088a45121541436d74fc1577266b7290b85801145d9c5287e19418c0843d70b9bfd7faac30900180ade204";
         let txid = "519f9d0bdc17d4a083b2676a4e9dce5679045107e7c9a9dad848891ee845235d";
         let transaction = TronTransaction::from_bytes(&hex::decode(raw).unwrap()).unwrap();
@@ -268,15 +266,14 @@ mod tests {
         //println!("{}",transaction.to_transaction_id().unwrap());
         //println!("{:?}",transaction.data);
         assert_eq!(raw, hex::encode(bytes));
-        
-        assert_eq!(txid, transaction.to_transaction_id().unwrap().to_string());
 
+        assert_eq!(txid, transaction.to_transaction_id().unwrap().to_string());
     }
 
     #[test]
-    pub fn test_raw(){
+    pub fn test_raw() {
         let raw = "0a025aa722088cb23bfcb18ea03c40facee394ad305a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a1541fa3146ab779ce02392d11209f524ee75d4088a45121541436d74fc1577266b7290b85801145d9c5287e19418c0843d709afadf94ad30900180ade204";
         let transaction = TronTransaction::from_bytes(&hex::decode(raw).unwrap()).unwrap();
-        println!("{:?}",transaction.data);
+        println!("{:?}", transaction.data);
     }
 }

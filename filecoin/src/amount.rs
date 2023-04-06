@@ -1,4 +1,4 @@
-use chainlib_core::{to_basic_unit as to_atto_fil};
+use chainlib_core::to_basic_unit as to_atto_fil;
 
 use core::fmt;
 use num_bigint::BigInt;
@@ -49,7 +49,6 @@ impl fmt::Display for Denomination {
 }
 
 pub trait FilecoinAmountConverter {
-
     fn from_decimal_str(val: &str) -> Self;
 
     fn from_atto_fil(atto_fil_value: &str) -> Self;
@@ -72,7 +71,6 @@ pub trait FilecoinAmountConverter {
 }
 
 impl FilecoinAmountConverter for FilecoinAmount {
-
     fn from_decimal_str(val: &str) -> Self {
         FilecoinAmount::parse_bytes(val.as_bytes(), 10).unwrap()
     }

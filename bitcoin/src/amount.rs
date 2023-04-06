@@ -3,6 +3,7 @@ use chainlib_core::{Amount, AmountError};
 
 use core::fmt;
 use serde::Serialize;
+use std::ops::{Add, Sub};
 
 // Number of satoshis (base unit) per BTC
 const COIN: i64 = 1_0000_0000;
@@ -71,13 +72,13 @@ impl BitcoinAmount {
     pub const ONE_BTC: BitcoinAmount = BitcoinAmount(COIN);
 
     pub fn from_satoshi(satoshis: i64) -> Result<Self, AmountError> {
-        if -MAX_COINS <= satoshis && satoshis <= MAX_COINS {
+        if (-MAX_COINS..=MAX_COINS).contains(&satoshis) {
             Ok(Self(satoshis))
         } else {
-            return Err(AmountError::AmountOutOfBounds(
+            Err(AmountError::AmountOutOfBounds(
                 satoshis.to_string(),
                 MAX_COINS.to_string(),
-            ));
+            ))
         }
     }
 
@@ -110,19 +111,25 @@ impl BitcoinAmount {
 
         Self::from_satoshi(satoshis)
     }
+}
 
-    pub fn add(self, b: Self) -> Result<Self, AmountError> {
-        Self::from_satoshi(self.0 + b.0)
+impl Add for BitcoinAmount {
+    type Output = Result<Self, AmountError>;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_satoshi(self.0 + rhs.0)
     }
+}
 
-    pub fn sub(self, b: BitcoinAmount) -> Result<Self, AmountError> {
-        Self::from_satoshi(self.0 - b.0)
+impl Sub for BitcoinAmount {
+    type Output = Result<Self, AmountError>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_satoshi(self.0 - rhs.0)
     }
 }
 
 impl fmt::Display for BitcoinAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_string())
+        write!(f, "{}", self.0)
     }
 }
 
@@ -233,37 +240,37 @@ mod tests {
 
         #[test]
         fn test_satoshi_conversion() {
-            TEST_AMOUNTS
-                .iter()
-                .for_each(|amounts| test_from_satoshi(amounts.satoshi, BitcoinAmount(amounts.satoshi)));
+            TEST_AMOUNTS.iter().for_each(|amounts| {
+                test_from_satoshi(amounts.satoshi, BitcoinAmount(amounts.satoshi))
+            });
         }
 
         #[test]
         fn test_ubtc_conversion() {
-            TEST_AMOUNTS
-                .iter()
-                .for_each(|amounts| test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi)));
+            TEST_AMOUNTS.iter().for_each(|amounts| {
+                test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi))
+            });
         }
 
         #[test]
         fn test_mbtc_conversion() {
-            TEST_AMOUNTS
-                .iter()
-                .for_each(|amounts| test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi)));
+            TEST_AMOUNTS.iter().for_each(|amounts| {
+                test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi))
+            });
         }
 
         #[test]
         fn test_cbtc_conversion() {
-            TEST_AMOUNTS
-                .iter()
-                .for_each(|amounts| test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi)));
+            TEST_AMOUNTS.iter().for_each(|amounts| {
+                test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi))
+            });
         }
 
         #[test]
         fn test_dbtc_conversion() {
-            TEST_AMOUNTS
-                .iter()
-                .for_each(|amounts| test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi)));
+            TEST_AMOUNTS.iter().for_each(|amounts| {
+                test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi))
+            });
         }
 
         #[test]
@@ -289,12 +296,16 @@ mod tests {
 
         #[test]
         fn test_valid_addition() {
-            TEST_VALUES.iter().for_each(|(a, b, c)| test_addition(a, b, c));
+            TEST_VALUES
+                .iter()
+                .for_each(|(a, b, c)| test_addition(a, b, c));
         }
 
         #[test]
         fn test_valid_subtraction() {
-            TEST_VALUES.iter().for_each(|(a, b, c)| test_subtraction(c, b, a));
+            TEST_VALUES
+                .iter()
+                .for_each(|(a, b, c)| test_subtraction(c, b, a));
         }
     }
 
@@ -342,49 +353,49 @@ mod tests {
             #[should_panic(expected = "AmountOutOfBounds")]
             #[test]
             fn test_invalid_satoshi_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_satoshi(amounts.satoshi, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_satoshi(amounts.satoshi, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic(expected = "AmountOutOfBounds")]
             #[test]
             fn test_invalid_ubtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic(expected = "AmountOutOfBounds")]
             #[test]
             fn test_invalid_mbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic(expected = "AmountOutOfBounds")]
             #[test]
             fn test_invalid_cbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic(expected = "AmountOutOfBounds")]
             #[test]
             fn test_invalid_dbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic(expected = "AmountOutOfBounds")]
             #[test]
             fn test_invalid_btc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi))
+                });
             }
         }
 
@@ -429,41 +440,41 @@ mod tests {
             #[should_panic]
             #[test]
             fn test_invalid_ubtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic]
             #[test]
             fn test_invalid_mbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic]
             #[test]
             fn test_invalid_cbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic]
             #[test]
             fn test_invalid_dbtc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi))
+                });
             }
 
             #[should_panic]
             #[test]
             fn test_invalid_btc_conversion() {
-                INVALID_TEST_AMOUNTS
-                    .iter()
-                    .for_each(|amounts| test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi)));
+                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
+                    test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi))
+                });
             }
         }
 
@@ -484,13 +495,17 @@ mod tests {
             #[should_panic]
             #[test]
             fn test_invalid_addition() {
-                TEST_VALUES.iter().for_each(|(a, b, c)| test_addition(a, b, c));
+                TEST_VALUES
+                    .iter()
+                    .for_each(|(a, b, c)| test_addition(a, b, c));
             }
 
             #[should_panic]
             #[test]
             fn test_invalid_subtraction() {
-                TEST_VALUES.iter().for_each(|(a, b, c)| test_subtraction(a, b, c));
+                TEST_VALUES
+                    .iter()
+                    .for_each(|(a, b, c)| test_subtraction(a, b, c));
             }
         }
     }

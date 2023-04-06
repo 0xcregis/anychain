@@ -1,8 +1,7 @@
 use libsecp256k1::SecretKey;
 
-use crate::address::{Address};
+use crate::address::{Address, AddressError};
 use crate::format::Format;
-use crate::AddressError;
 use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},

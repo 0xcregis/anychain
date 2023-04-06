@@ -1,8 +1,8 @@
 use libsecp256k1::SecretKey;
 
 use crate::format::Format;
-use crate::public_key::{PublicKey, PublicKeyError};
 use crate::no_std::*;
+use crate::public_key::{PublicKey, PublicKeyError};
 use core::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -17,10 +17,14 @@ pub trait Address:
     type PublicKey: PublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_secret_key(secret_key: &SecretKey, format: &Self::Format) -> Result<Self, AddressError>;
+    fn from_secret_key(secret_key: &SecretKey, format: &Self::Format)
+        -> Result<Self, AddressError>;
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError>;
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        format: &Self::Format,
+    ) -> Result<Self, AddressError>;
 
     fn is_valid(address: &str) -> bool {
         Self::from_str(address).is_ok()
@@ -95,7 +99,6 @@ impl From<base58::FromBase58Error> for AddressError {
         AddressError::Crate("base58", format!("{:?}", error))
     }
 }
-
 
 impl From<bech32::Error> for AddressError {
     fn from(error: bech32::Error) -> Self {

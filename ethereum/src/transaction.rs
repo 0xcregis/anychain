@@ -3,14 +3,15 @@ use crate::amount::EthereumAmount;
 use crate::format::EthereumFormat;
 use crate::network::EthereumNetwork;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{PublicKey, Transaction, TransactionId,libsecp256k1,hex, Error, TransactionError};
-use core::{fmt, marker::PhantomData, str::FromStr};
 use chainlib_core::ethereum_types::U256;
-use rlp::{decode_list, RlpStream};
 use chainlib_core::utilities::crypto::keccak256;
+use chainlib_core::{
+    hex, libsecp256k1, Error, PublicKey, Transaction, TransactionError, TransactionId,
+};
+use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
-
+use rlp::{decode_list, RlpStream};
 
 pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
     match value {
@@ -24,7 +25,7 @@ pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
 }
 
 pub fn u256_to_bytes(value: &U256) -> Result<Vec<u8>, Error> {
-    let mut bytes : Vec<u8> = vec![];
+    let mut bytes: Vec<u8> = vec![];
     value.to_big_endian(&mut bytes);
     Ok(bytes)
 }
@@ -43,19 +44,31 @@ pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
 }
 
 pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8> {
+    #[allow(deprecated)]
     let func = Function {
         name: func_name.to_string(),
         inputs: vec![
-            Param { name: "address".to_string(), kind: ParamType::Address, internal_type: None },
-            Param { name: "amount".to_string(), kind: ParamType::Uint(256), internal_type: None },
+            Param {
+                name: "address".to_string(),
+                kind: ParamType::Address,
+                internal_type: None,
+            },
+            Param {
+                name: "amount".to_string(),
+                kind: ParamType::Uint(256),
+                internal_type: None,
+            },
         ],
         outputs: vec![],
         constant: None,
         state_mutability: StateMutability::Payable,
     };
-    let mut tokens = Vec::<Token>::new();
-    tokens.push(Token::Address(H160::from_slice(&address.to_bytes().unwrap())));
-    tokens.push(Token::Uint(amount));
+
+    let tokens = vec![
+        Token::Address(H160::from_slice(&address.to_bytes().unwrap())),
+        Token::Uint(amount),
+    ];
+
     func.encode_input(&tokens).unwrap()
 }
 
@@ -131,18 +144,16 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 
     /// Returns a signed transaction given the {r,s,recid}.
-    fn sign(&mut self, rs: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError>{
+    fn sign(&mut self, rs: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
         let message = libsecp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)?;
         let recovery_id = libsecp256k1::RecoveryId::parse(recid)?;
         let signature = rs.clone();
 
-        let public_key = EthereumPublicKey::from_secp256k1_public_key(
-            libsecp256k1::recover(
-                &message,
-                &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
-                &recovery_id,
-            )?
-        );
+        let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
+            &message,
+            &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
+            &recovery_id,
+        )?);
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         self.signature = Some(EthereumTransactionSignature {
             v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
@@ -154,8 +165,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
     /// Returns a transaction given the transaction bytes.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-    fn from_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
-        let list: Vec<Vec<u8>> = decode_list(&transaction);
+    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
+        let list: Vec<Vec<u8>> = decode_list(transaction);
         if list.len() != 9 {
             return Err(TransactionError::InvalidRlpLength(list.len()));
         }
@@ -194,7 +205,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             false => {
                 // Signed transaction
                 let v = from_bytes(&list[6])?;
-                let recovery_id = libsecp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)?;
+                let recovery_id =
+                    libsecp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)?;
                 let mut signature = list[7].clone();
                 signature.extend_from_slice(&list[8]);
 
@@ -204,12 +216,14 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     signature: None,
                     _network: PhantomData,
                 };
-                let message = libsecp256k1::Message::parse_slice(&raw_transaction.to_transaction_id()?.txid)?;
-                let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
-                    &message,
-                    &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
-                    &recovery_id,
-                )?);
+                let message =
+                    libsecp256k1::Message::parse_slice(&raw_transaction.to_transaction_id()?.txid)?;
+                let public_key =
+                    EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
+                        &message,
+                        &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
+                        &recovery_id,
+                    )?);
 
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),
@@ -271,7 +285,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         }
 
         match &self.signature {
-            Some(signature) => Ok(signed_transaction(&self.parameters, signature)?.out().to_vec()),
+            Some(signature) => Ok(signed_transaction(&self.parameters, signature)?
+                .out()
+                .to_vec()),
             None => Ok(raw_transaction::<N>(&self.parameters)?.out().to_vec()),
         }
     }
@@ -280,13 +296,12 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     /// Otherwise, returns the hash of the raw transaction.
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         Ok(Self::TransactionId {
-            txid: Vec::<u8>::from(&keccak256(&self.to_bytes()?)[..])
+            txid: Vec::<u8>::from(&keccak256(&self.to_bytes()?)[..]),
         })
     }
 }
 
 impl<N: EthereumNetwork> EthereumTransaction<N> {
-
     pub fn get_from(&self) -> EthereumAddress {
         self.sender.clone().unwrap()
     }
@@ -314,17 +329,17 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
     pub fn get_data(&self) -> Vec<u8> {
         self.parameters.data.clone()
     }
-    
+
     pub fn get_signature_hex(&self) -> Result<String, TransactionError> {
         match self.signature.clone() {
-            Some(sig) => {
+            Some(mut sig) => {
                 let v = from_bytes(&sig.v)?;
                 let recid = (v - N::CHAIN_ID * 2 - 35) as u8;
                 let mut ret = sig.r;
-                ret.append(&mut sig.s.clone());
+                ret.append(&mut sig.s);
                 ret.push(recid);
                 Ok(hex::encode(ret))
-            },
+            }
             None => Err(TransactionError::MissingSignature),
         }
     }

@@ -5,7 +5,10 @@ use core::{
 };
 
 /// The interface for a generic format.
-pub trait Format: Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
+pub trait Format:
+    Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash
+{
+}
 
 #[derive(Debug, Error)]
 pub enum FormatError {

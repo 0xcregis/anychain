@@ -1,13 +1,10 @@
 use crate::address::FilecoinAddress;
 use crate::format::FilecoinFormat;
 use chainlib_core::{
-    PublicKey,
-    PublicKeyError,
-    Address,
-    AddressError,
-    libsecp256k1::{self, SecretKey},
     bls_signatures::{self, Serialize},
-    hex
+    hex,
+    libsecp256k1::{self, SecretKey},
+    Address, AddressError, PublicKey, PublicKeyError,
 };
 
 use core::panic;
@@ -36,30 +33,29 @@ impl PublicKey for FilecoinPublicKey {
 }
 
 impl FilecoinPublicKey {
-
     /// Returns a filecoin public key given an secp256k1 public key.
     pub fn from_secp256k1_public_key(public_key: &libsecp256k1::PublicKey) -> Self {
-        Self::Secp256k1(public_key.clone())
+        Self::Secp256k1(*public_key)
     }
 
     /// Returns the secp256k1 public key of this filecoin public key
     pub fn to_secp256k1_public_key(&self) -> libsecp256k1::PublicKey {
         match self {
-            Self::Secp256k1(key) => key.clone(),
-            _ => panic!("not an secp256k1 public key")
+            Self::Secp256k1(key) => *key,
+            _ => panic!("not an secp256k1 public key"),
         }
     }
 
     /// Returns a filecoin public key given a bls public key
     pub fn from_bls_public_key(public_key: &bls_signatures::PublicKey) -> Self {
-        Self::Bls(public_key.clone())
+        Self::Bls(*public_key)
     }
 
     /// Returns the bls public key of this filecoin public key
     pub fn to_bls_public_key(&self) -> bls_signatures::PublicKey {
         match self {
-            Self::Bls(key) => key.clone(),
-            _ => panic!("not a bls public key")
+            Self::Bls(key) => *key,
+            _ => panic!("not a bls public key"),
         }
     }
 
@@ -88,7 +84,7 @@ impl FromStr for FilecoinPublicKey {
             true => {
                 let key = bls_signatures::PublicKey::from_bytes(&stream).unwrap();
                 Ok(Self::Bls(key))
-            },
+            }
             false => {
                 let key = libsecp256k1::PublicKey::parse_slice(&stream, None)?;
                 Ok(Self::Secp256k1(key))
@@ -102,14 +98,14 @@ impl Display for FilecoinPublicKey {
         match self {
             Self::Secp256k1(key) => {
                 let mut s = "secp256k1_pub_".to_string();
-                s.push_str(&hex::encode(&key.serialize()));
+                s.push_str(&hex::encode(key.serialize()));
                 write!(f, "{}", s)
-            },
+            }
             Self::Bls(key) => {
                 let mut s = "bls_pub_".to_string();
-                s.push_str(&hex::encode(&key.as_bytes()));
+                s.push_str(&hex::encode(key.as_bytes()));
                 write!(f, "{}", s)
-            },
+            }
         }
     }
 }

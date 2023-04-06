@@ -1,5 +1,5 @@
 use crate::network::EthereumNetwork;
-use chainlib_core::{ Network, NetworkError};
+use chainlib_core::{Network, NetworkError};
 
 use serde::Serialize;
 use std::{fmt, str::FromStr};

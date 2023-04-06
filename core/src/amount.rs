@@ -5,13 +5,16 @@ use core::{
 };
 
 /// The interface for a generic amount.
-pub trait Amount: Copy + Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
+pub trait Amount:
+    Copy + Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash
+{
+}
 
 #[derive(Debug, Error)]
 pub enum AmountError {
     #[error("{0}: {1}")]
     Crate(&'static str, String),
-    
+
     #[error("the amount: {0:} exceeds the supply bounds of {1:}")]
     AmountOutOfBounds(String, String),
 
@@ -21,7 +24,6 @@ pub enum AmountError {
 
 /// Converts any available denomination to the minimum denomination
 pub fn to_basic_unit(value: &str, mut denomination: u32) -> String {
-
     if denomination > 18 {
         println!("illegal denomination");
         return "".to_string();
@@ -30,9 +32,9 @@ pub fn to_basic_unit(value: &str, mut denomination: u32) -> String {
     let mut has_point: bool = false;
     let mut point: usize = 0;
     let mut cnt: usize = 0;
-    
+
     for c in value.chars() {
-        if c >= '0' && c <= '9' || c == '.' {
+        if c.is_ascii_digit() || c == '.' {
             if c == '.' {
                 if has_point {
                     println!("duplicate decimal point");
@@ -58,27 +60,24 @@ pub fn to_basic_unit(value: &str, mut denomination: u32) -> String {
     }
 
     let mut v = value.as_bytes().to_vec();
-    
+
     // now we right-shift the decimal point for 'denomination' times
     while denomination > 0 {
-
         // the decimal point is at the end of the vec, so push '0'
         // to the end and swap it with the decimal point
         if point == v.len() - 1 {
-            v.push('0' as u8);
+            v.push(b'0');
         }
-        
+
         // swap the decimal point with its next digit
-        let temp: u8 = v[point];
-        v[point] = v[point + 1];
-        v[point + 1] = temp;
+        v.swap(point, point + 1);
 
         point += 1;
         denomination -= 1;
     }
 
     // round up or down to the nearest integer
-    if point < v.len() - 1 && v[point + 1] > '5' as u8 {
+    if point < v.len() - 1 && v[point + 1] > b'5' {
         v[point - 1] += 1;
     }
 

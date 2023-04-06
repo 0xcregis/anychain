@@ -1,10 +1,12 @@
 use crate::address::BitcoinAddress;
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
-use chainlib_core::{Address, AddressError, PublicKey, PublicKeyError, libsecp256k1::{self, SecretKey}};
+use chainlib_core::{
+    libsecp256k1::{self, SecretKey},
+    Address, AddressError, PublicKey, PublicKeyError,
+};
 
 use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
-
 
 /// Represents a Bitcoin public key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,7 +40,10 @@ impl<N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
 
 impl<N: BitcoinNetwork> BitcoinPublicKey<N> {
     /// Returns a public key given a secp256k1 public key.
-    pub fn from_secp256k1_public_key(public_key: libsecp256k1::PublicKey, compressed: bool) -> Self {
+    pub fn from_secp256k1_public_key(
+        public_key: libsecp256k1::PublicKey,
+        compressed: bool,
+    ) -> Self {
         Self {
             public_key,
             compressed,
@@ -48,7 +53,7 @@ impl<N: BitcoinNetwork> BitcoinPublicKey<N> {
 
     /// Returns the secp256k1 public key of the public key.
     pub fn to_secp256k1_public_key(&self) -> libsecp256k1::PublicKey {
-        self.public_key.clone()
+        self.public_key
     }
 
     /// Returns `true` if the public key is in compressed form.
@@ -167,9 +172,16 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, true, &BitcoinFormat::P2PKH);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str::<N>(
+                        expected_public_key,
+                        expected_address,
+                        true,
+                        &BitcoinFormat::P2PKH,
+                    );
+                });
         }
 
         #[test]
@@ -224,9 +236,16 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, false, &BitcoinFormat::P2PKH);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str::<N>(
+                        expected_public_key,
+                        expected_address,
+                        false,
+                        &BitcoinFormat::P2PKH,
+                    );
+                });
         }
 
         #[test]
@@ -281,9 +300,16 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, true, &BitcoinFormat::P2PKH);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str::<N>(
+                        expected_public_key,
+                        expected_address,
+                        true,
+                        &BitcoinFormat::P2PKH,
+                    );
+                });
         }
 
         #[test]
@@ -338,9 +364,16 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, false, &BitcoinFormat::P2PKH);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str::<N>(
+                        expected_public_key,
+                        expected_address,
+                        false,
+                        &BitcoinFormat::P2PKH,
+                    );
+                });
         }
 
         #[test]
@@ -395,9 +428,16 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, true, &BitcoinFormat::P2SH_P2WPKH);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str::<N>(
+                        expected_public_key,
+                        expected_address,
+                        true,
+                        &BitcoinFormat::P2SH_P2WPKH,
+                    );
+                });
         }
 
         #[test]
@@ -452,9 +492,16 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str::<N>(expected_public_key, expected_address, true, &BitcoinFormat::P2SH_P2WPKH);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str::<N>(
+                        expected_public_key,
+                        expected_address,
+                        true,
+                        &BitcoinFormat::P2SH_P2WPKH,
+                    );
+                });
         }
 
         #[test]

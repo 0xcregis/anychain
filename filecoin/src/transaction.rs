@@ -1,32 +1,25 @@
+use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
 use crate::address::{FilecoinAddress, Protocol};
 use crate::amount::FilecoinAmount;
 use crate::format::FilecoinFormat;
 use crate::public_key::FilecoinPublicKey;
-use chainlib_core::{
-    Transaction,
-    TransactionId,
-    libsecp256k1,
-    bls_signatures,
-    TransactionError,
-    crypto::blake2b_256
-};
-use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
+use chainlib_core::{crypto::blake2b_256, Transaction, TransactionError, TransactionId};
 
 use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor};
 pub use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor};
 
+use forest_encoding::tuple::*;
+use fvm_ipld_encoding::repr::*;
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::MethodNum;
 use num_derive::FromPrimitive;
-use forest_encoding::tuple::*;
-use fvm_ipld_encoding::repr::*;
 
 use core::panic;
-use std::fmt;
 use std::borrow::Cow;
+use std::fmt;
 
 /// Represents the parameters for a filecoin transaction
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -46,34 +39,6 @@ pub struct FilecoinTransactionParameters {
 impl Cbor for FilecoinTransactionParameters {}
 
 impl FilecoinTransactionParameters {
-
-    /// Returns a new filecoin parameter
-    pub fn new(
-        version: i64,
-        from: FilecoinAddress,
-        to: FilecoinAddress,
-        sequence: u64,
-        value: FilecoinAmount,
-        method_num: MethodNum,
-        params: RawBytes,
-        gas_limit: i64,
-        gas_fee_cap: FilecoinAmount,
-        gas_premium: FilecoinAmount,
-    ) -> Self {
-        Self {
-            version,
-            from,
-            to,
-            sequence,
-            value,
-            method_num,
-            params,
-            gas_limit,
-            gas_fee_cap,
-            gas_premium
-        }
-    }
-
     /// Helper function to convert the message into signing bytes.
     /// This function returns the message `Cid` bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -148,7 +113,16 @@ impl<'de> Deserialize<'de> for FilecoinTransactionParameters {
 
 /// Signature variants for Filecoin signatures.
 #[derive(
-    Clone, Debug, PartialEq, FromPrimitive, Copy, Eq, Serialize_repr, Deserialize_repr, Hash, Default
+    Clone,
+    Debug,
+    PartialEq,
+    FromPrimitive,
+    Copy,
+    Eq,
+    Serialize_repr,
+    Deserialize_repr,
+    Hash,
+    Default,
 )]
 #[repr(u8)]
 pub enum FilecoinSignatureType {
@@ -199,7 +173,7 @@ impl<'de> de::Deserialize<'de> for FilecoinSignature {
         } else {
             panic!("Invalid signature type byte (must be 1 or 2)")
         }
-        
+
         Ok(FilecoinSignature {
             bytes: bytes[1..].to_vec(),
             sig_type,
@@ -210,7 +184,7 @@ impl<'de> de::Deserialize<'de> for FilecoinSignature {
 /// Represents a filecoin transaction id
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct FilecoinTransactionId {
-    hash: Vec<u8>
+    hash: Vec<u8>,
 }
 
 impl TransactionId for FilecoinTransactionId {}
@@ -225,7 +199,7 @@ impl fmt::Display for FilecoinTransactionId {
 #[derive(PartialEq, Clone, Debug, Serialize_tuple, Deserialize_tuple, Hash, Eq, Default)]
 pub struct FilecoinTransaction {
     pub params: FilecoinTransactionParameters,
-    pub signature: FilecoinSignature
+    pub signature: FilecoinSignature,
 }
 
 impl Cbor for FilecoinTransaction {}
@@ -244,13 +218,13 @@ impl Transaction for FilecoinTransaction {
             signature: FilecoinSignature::default(),
         })
     }
-    
+
     /// Reconstruct a filecoin transaction from the given binary stream and return it
-    fn from_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+    fn from_bytes(_transaction: &[u8]) -> Result<Self, TransactionError> {
         // deserialization waited to be specified
         Ok(FilecoinTransaction::default())
     }
-    
+
     /// Insert the given signature into this filecoin transaction to make it signed,
     /// and return the binary stream of it
     fn sign(&mut self, mut signature: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
@@ -259,7 +233,7 @@ impl Transaction for FilecoinTransaction {
             sig_type: match self.params.from.protocol() {
                 Protocol::Secp256k1 => FilecoinSignatureType::Secp256k1,
                 Protocol::BLS => FilecoinSignatureType::BLS,
-                _ => panic!("unrecognized signature type")
+                _ => panic!("Unrecognized signature type"),
             },
             bytes: signature,
         };
@@ -269,13 +243,17 @@ impl Transaction for FilecoinTransaction {
 
     /// Returns the binary stream of this filecoin transaction
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
-        Ok(serde_json::to_string(&json::FilecoinTransactionJsonRef(self))?.as_bytes().to_vec())
+        Ok(
+            serde_json::to_string(&json::FilecoinTransactionJsonRef(self))?
+                .as_bytes()
+                .to_vec(),
+        )
     }
 
     /// Returns the transaction id of this filecoin transaction
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         let stream = self.to_bytes().unwrap();
-        Ok(FilecoinTransactionId{
+        Ok(FilecoinTransactionId {
             hash: blake2b_256(&stream).to_vec(),
         })
     }
@@ -283,8 +261,8 @@ impl Transaction for FilecoinTransaction {
 
 pub mod json {
     use super::*;
-    use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
     use cid::Cid;
+    use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
     /// Wrapper for serializing and de-serializing a `FilecoinTransaction` from JSON.
     #[derive(Deserialize, Serialize)]
@@ -343,20 +321,23 @@ pub mod json {
             signature: FilecoinSignature,
         }
         let FilecoinTransactionDe { message, signature } = Deserialize::deserialize(deserializer)?;
-        Ok(FilecoinTransaction { params: message, signature })
+        Ok(FilecoinTransaction {
+            params: message,
+            signature,
+        })
     }
 }
 
 pub mod parameter_json {
 
-    use cid::Cid;
     use super::address_json::AddressJson;
     use super::amount_json;
     use super::cid_json;
     use super::Cbor;
-    use super::RawBytes;
     use super::FilecoinAmount;
     use super::FilecoinTransactionParameters;
+    use super::RawBytes;
+    use cid::Cid;
     use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
     /// Wrapper for serializing and de-serializing a Message from JSON.
@@ -403,7 +384,10 @@ pub mod parameter_json {
         cid: Option<Cid>,
     }
 
-    pub fn serialize<S>(params: &FilecoinTransactionParameters, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        params: &FilecoinTransactionParameters,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -439,7 +423,7 @@ pub mod parameter_json {
             gas_premium: m.gas_premium,
             method_num: m.method_num,
             params: RawBytes::new(
-                base64::decode(&m.params.unwrap_or_default()).map_err(de::Error::custom)?,
+                base64::decode(m.params.unwrap_or_default()).map_err(de::Error::custom)?,
             ),
         })
     }
@@ -504,7 +488,10 @@ pub mod signature_json {
         #[serde(transparent)]
         pub struct SignatureTypeJson(#[serde(with = "self")] pub FilecoinSignatureType);
 
-        pub fn serialize<S>(sig_type: &FilecoinSignatureType, serializer: S) -> Result<S::Ok, S::Error>
+        pub fn serialize<S>(
+            sig_type: &FilecoinSignatureType,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
         {
@@ -595,7 +582,7 @@ pub mod cid_json {
 
 pub mod address_json {
     use super::FilecoinAddress;
-    use serde::{de, Serialize, Deserialize, Deserializer, Serializer};
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::borrow::Cow;
     use std::str::FromStr;
 

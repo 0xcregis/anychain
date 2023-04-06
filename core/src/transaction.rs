@@ -1,9 +1,9 @@
 use crate::address::{Address, AddressError};
 use crate::amount::AmountError;
 use crate::format::Format;
+use crate::no_std::*;
 use crate::public_key::PublicKey;
 use crate::utilities::crypto::keccak256;
-use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -13,14 +13,17 @@ use rlp;
 /**
  * 返回合约函数签名，取keccak256 hash值的前4个Bytes
  */
-pub fn func_selector(func_signature: &str) -> [u8;4] {
-    let mut func_id = [0u8;4];
+pub fn func_selector(func_signature: &str) -> [u8; 4] {
+    let mut func_id = [0u8; 4];
     func_id.clone_from_slice(&keccak256(func_signature.as_bytes())[..4]);
     func_id
 }
 
 /// The interface for a generic transaction id.
-pub trait TransactionId: Clone + Debug + Display + Send + Sync + 'static + Eq + Sized + Hash {}
+pub trait TransactionId:
+    Clone + Debug + Display + Send + Sync + 'static + Eq + Sized + Hash
+{
+}
 
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {
@@ -32,12 +35,12 @@ pub trait Transaction: Clone + Send + Sync + 'static {
 
     /// Returns an unsigned transaction given the transaction parameters.
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError>;
-    
+
     /// Returns a signed transaction bytes given the (signature,recovery_id)
     fn sign(&mut self, signature: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError>;
 
     /// Returns a transaction given the transaction bytes.
-    fn from_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError>;
+    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError>;
 
     /// Returns the transaction in bytes.
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError>;
@@ -96,7 +99,9 @@ pub enum TransactionError {
     #[error("invalid transaction id {0}")]
     InvalidTransactionId(usize),
 
-    #[error("invalid transaction - either both sender and signature should be present, or neither")]
+    #[error(
+        "invalid transaction - either both sender and signature should be present, or neither"
+    )]
     InvalidTransactionState,
 
     #[error("invalid variable size integer: {0}")]
@@ -206,12 +211,12 @@ impl From<serde_json::error::Error> for TransactionError {
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use crate::func_selector;
 
     #[test]
-    fn test_func_selector(){
+    fn test_func_selector() {
         let selector = func_selector("transfer(address,uint256)");
-        assert_eq!("a9059cbb",hex::encode(selector));
+        assert_eq!("a9059cbb", hex::encode(selector));
     }
 }

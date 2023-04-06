@@ -2,31 +2,27 @@ use crate::format::FilecoinFormat;
 use crate::public_key::FilecoinPublicKey;
 
 use std::borrow::Cow;
-use std::{fmt, u64};
+use std::default::Default;
 use std::hash::Hash;
 use std::str::FromStr;
-use std::default::Default;
+use std::{fmt, u64};
 
-use chainlib_core::PublicKey;
 use chainlib_core::bls_signatures::Serialize as BlsSerialize;
 use chainlib_core::libsecp256k1::SecretKey;
+use chainlib_core::PublicKey;
 use chainlib_core::{
-    Address,
-    AddressError,
-    utilities::crypto::{
-        blake2b_160,
-        blake2b_checksum
-    }
+    utilities::crypto::{blake2b_160, blake2b_checksum},
+    Address, AddressError,
 };
 
+use data_encoding::DecodeError;
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
 use fvm_ipld_encoding::{serde_bytes, Cbor};
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use thiserror::Error;
-use data_encoding::DecodeError;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use thiserror::Error;
 
 /// Represents a filecoin address
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Copy, Default)]
@@ -42,23 +38,23 @@ impl Address for FilecoinAddress {
     type PublicKey = FilecoinPublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_secret_key(secret_key: &SecretKey, _format: &Self::Format) -> Result<Self, AddressError> {
+    fn from_secret_key(
+        secret_key: &SecretKey,
+        _format: &Self::Format,
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&FilecoinPublicKey::from_secret_key(secret_key), _format)
     }
 
     /// Returns the address corresponding to the given public key.
-    fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        _: &Self::Format,
+    ) -> Result<Self, AddressError> {
         match public_key {
             FilecoinPublicKey::Secp256k1(key) => {
-                Ok(FilecoinAddress::new_secp256k1(
-                    &key.serialize(),
-                ).unwrap())
-            },
-            FilecoinPublicKey::Bls(key) => {
-                Ok(FilecoinAddress::new_bls(
-                    &key.as_bytes()
-                ).unwrap())
+                Ok(FilecoinAddress::new_secp256k1(&key.serialize()).unwrap())
             }
+            FilecoinPublicKey::Bls(key) => Ok(FilecoinAddress::new_bls(&key.as_bytes()).unwrap()),
         }
     }
 }
@@ -466,17 +462,12 @@ pub enum Error {
 }
 
 /// Network defines the preconfigured networks to use with address encoding
-#[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub enum Network {
+    #[default]
     Mainnet = 0,
     Testnet = 1,
-}
-
-impl Default for Network {
-    fn default() -> Self {
-        Network::Mainnet
-    }
 }
 
 impl Network {
@@ -527,6 +518,7 @@ const TESTNET_PREFIX: &str = "t";
 // TODO: can we do this using build flags?
 pub const NETWORK_DEFAULT: Network = Network::Testnet;
 
+#[cfg(test)]
 mod tests {
     use super::*;
     #[test]

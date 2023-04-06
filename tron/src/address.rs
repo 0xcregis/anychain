@@ -1,21 +1,13 @@
-use chainlib_core::{
-    libsecp256k1::SecretKey,
-    Address,
-    AddressError,
-    PublicKey,
-};
-use crate::{
-    TronFormat,
-    TronPublicKey,
-};
-use serde::Serialize;
-use sha3::Keccak256;
+use crate::{TronFormat, TronPublicKey};
+use base58::{FromBase58, ToBase58};
+use chainlib_core::{libsecp256k1::SecretKey, Address, AddressError, PublicKey};
+use ethabi::Token;
 use hex::FromHex;
+use serde::Serialize;
+use sha2::{Digest, Sha256};
+use sha3::Keccak256;
 use std::fmt;
 use std::str::FromStr;
-use sha2::{Digest, Sha256};
-use base58::{FromBase58, ToBase58};
-use ethabi::Token;
 
 const ADDRESS_TYPE_PREFIX: u8 = 0x41;
 
@@ -26,13 +18,19 @@ impl Address for TronAddress {
     type Format = TronFormat;
     type PublicKey = TronPublicKey;
 
-    fn from_secret_key(secret_key: &SecretKey, format: &Self::Format) -> Result<Self, AddressError> {
+    fn from_secret_key(
+        secret_key: &SecretKey,
+        format: &Self::Format,
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&TronPublicKey::from_secret_key(secret_key), format)
     }
 
-    fn from_public_key(public_key: &Self::PublicKey, _format: &Self::Format) -> Result<Self, AddressError> {
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        _format: &Self::Format,
+    ) -> Result<Self, AddressError> {
         let mut hasher = Keccak256::new();
-        
+
         hasher.update(&public_key.to_secp256k1_public_key().serialize()[1..]);
         let digest = hasher.finalize();
         let mut raw = [ADDRESS_TYPE_PREFIX; 21];
@@ -61,22 +59,23 @@ impl TronAddress {
     }
 
     pub fn to_token(&self) -> Token {
-        let mut bytes = [0u8;11].to_vec();
+        let mut bytes = [0u8; 11].to_vec();
         bytes.extend_from_slice(self.as_bytes());
         Token::FixedBytes(bytes)
     }
 }
 
-
 impl Default for TronAddress {
     fn default() -> Self {
-        TronAddress([0x41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        TronAddress([
+            0x41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ])
     }
 }
 
 impl fmt::Display for TronAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        b58encode_check(&self.0).fmt(f)
+        b58encode_check(self.0).fmt(f)
     }
 }
 
@@ -141,7 +140,7 @@ impl FromStr for TronAddress {
     {
         if s.len() == 34 {
             b58decode_check(s).and_then(TronAddress::try_from)
-        } else if s.len() == 42 && s[..2] == hex::encode(&[ADDRESS_TYPE_PREFIX]) {
+        } else if s.len() == 42 && s[..2] == hex::encode([ADDRESS_TYPE_PREFIX]) {
             Vec::from_hex(s)
                 .map_err(|_| AddressError::InvalidAddress("InvalidAddress".to_string()))
                 .and_then(TronAddress::try_from)
@@ -172,7 +171,7 @@ pub fn b58encode_check<T: AsRef<[u8]>>(raw: T) -> String {
     let digest1 = hasher.finalize();
 
     let mut hasher = Sha256::new();
-    hasher.update(&digest1);
+    hasher.update(digest1);
     let digest = hasher.finalize();
 
     let mut raw = raw.as_ref().to_owned();
@@ -182,7 +181,9 @@ pub fn b58encode_check<T: AsRef<[u8]>>(raw: T) -> String {
 
 /// Base58check decode.
 pub fn b58decode_check(s: &str) -> Result<Vec<u8>, AddressError> {
-    let mut result = s.from_base58().map_err(|_| AddressError::InvalidAddress("".to_string()))?;
+    let mut result = s
+        .from_base58()
+        .map_err(|_| AddressError::InvalidAddress("".to_string()))?;
 
     let check = result.split_off(result.len() - 4);
 
@@ -191,19 +192,18 @@ pub fn b58decode_check(s: &str) -> Result<Vec<u8>, AddressError> {
     let digest1 = hasher.finalize();
 
     let mut hasher = Sha256::new();
-    hasher.update(&digest1);
+    hasher.update(digest1);
     let digest = hasher.finalize();
 
-    if check != &digest[..4] {
+    if check != digest[..4] {
         Err(AddressError::InvalidAddress("".to_string()))
     } else {
         Ok(result)
     }
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
     use chainlib_core::PublicKey;
     use hex::ToHex;
@@ -211,11 +211,17 @@ mod tests{
     #[test]
     fn test_address() {
         let addr = TronAddress([
-            65, 150, 163, 186, 206, 90, 218, 207, 99, 126, 183, 204, 121, 213, 120, 127, 66, 71, 218, 75, 190,
+            65, 150, 163, 186, 206, 90, 218, 207, 99, 126, 183, 204, 121, 213, 120, 127, 66, 71,
+            218, 75, 190,
         ]);
 
         assert_eq!("TPhiVyQZ5xyvVK2KS2LTke8YvXJU5wxnbN", format!("{:}", addr));
-        assert_eq!(addr, "TPhiVyQZ5xyvVK2KS2LTke8YvXJU5wxnbN".parse().expect("parse error"));
+        assert_eq!(
+            addr,
+            "TPhiVyQZ5xyvVK2KS2LTke8YvXJU5wxnbN"
+                .parse()
+                .expect("parse error")
+        );
         assert_eq!(
             addr,
             "4196a3bace5adacf637eb7cc79d5787f4247da4bbe"
@@ -229,12 +235,11 @@ mod tests{
         )
     }
 
-    
     #[test]
     fn test_address_from_public() {
         let public = TronPublicKey::from_str("56f19ba7de92264d94f9b6600ec05c16c0b25a064e2ee1cf5bf0dd9661d04515c99c3a6b42b2c574232a5b951bf57cf706bbfd36377b406f9313772f65612cd0").unwrap();
 
-        let addr = TronAddress::from_public_key(&public,&TronFormat::Standard).unwrap();
+        let addr = TronAddress::from_public_key(&public, &TronFormat::Standard).unwrap();
         assert_eq!(addr.to_string(), "TQHAvs2ZFTbsd93ycTfw1Wuf1e4WsPZWCp");
     }
 }

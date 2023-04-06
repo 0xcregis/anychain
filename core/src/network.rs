@@ -6,7 +6,9 @@ use core::{
 };
 
 /// The interface for a generic network.
-pub trait Network: Copy + Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash {
+pub trait Network:
+    Copy + Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Ord + Sized + Hash
+{
     const NAME: &'static str;
 }
 

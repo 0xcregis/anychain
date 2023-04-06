@@ -1,19 +1,9 @@
+use crate::{TronAddress, TronFormat};
 use chainlib_core::{
     libsecp256k1::{self, SecretKey},
-    PublicKey,
-    PublicKeyError,
-    Address,
-    AddressError,
+    Address, AddressError, PublicKey, PublicKeyError,
 };
-use crate::{
-    TronAddress,
-    TronFormat,
-};
-use core::{
-    fmt,
-    fmt::Display,
-    str::FromStr,
-};
+use core::{fmt, fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TronPublicKey(libsecp256k1::PublicKey);
@@ -31,7 +21,6 @@ impl PublicKey for TronPublicKey {
     }
 }
 
-
 impl TronPublicKey {
     /// Returns a public key given a secp256k1 public key.
     pub fn from_secp256k1_public_key(public_key: libsecp256k1::PublicKey) -> Self {
@@ -40,7 +29,7 @@ impl TronPublicKey {
 
     /// Returns the secp256k1 public key of the public key
     pub fn to_secp256k1_public_key(&self) -> libsecp256k1::PublicKey {
-        self.0.clone()
+        self.0
     }
 }
 
@@ -54,7 +43,6 @@ impl FromStr for TronPublicKey {
         )?))
     }
 }
-
 
 impl Display for TronPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -70,14 +58,12 @@ mod tests {
     use crate::TronPublicKey;
 
     #[test]
-    pub fn test_from_private(){
-
-    }
+    pub fn test_from_private() {}
 
     #[test]
-    pub fn test_from_str(){
+    pub fn test_from_str() {
         let uncompressed_key = "0404B604296010A55D40000B798EE8454ECCC1F8900E70B1ADF47C9887625D8BAE3866351A6FA0B5370623268410D33D345F63344121455849C9C28F9389ED9731";
-        let pubkey : TronPublicKey = uncompressed_key.parse().unwrap();
-        assert_eq!(uncompressed_key,pubkey.to_string());
+        let pubkey: TronPublicKey = uncompressed_key.parse().unwrap();
+        assert_eq!(uncompressed_key, pubkey.to_string());
     }
 }

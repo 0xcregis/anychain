@@ -1,11 +1,7 @@
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use chainlib_core::no_std::*;
-use chainlib_core::{
-    AddressError,
-    Network,
-    NetworkError,
-};
+use chainlib_core::{AddressError, Network, NetworkError};
 
 use core::{fmt, str::FromStr};
 use serde::Serialize;
@@ -18,7 +14,6 @@ impl Network for Testnet {
 }
 
 impl BitcoinNetwork for Testnet {
-
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
@@ -33,7 +28,9 @@ impl BitcoinNetwork for Testnet {
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
             (0x6F, _) | (0x00, _) | (0xC4, _) | (0x74, 0x62) => Ok(Self),
-            _ => Err(AddressError::InvalidPrefix(String::from_utf8(prefix.to_owned())?)),
+            _ => Err(AddressError::InvalidPrefix(String::from_utf8(
+                prefix.to_owned(),
+            )?)),
         }
     }
 }

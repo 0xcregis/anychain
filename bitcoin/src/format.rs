@@ -32,13 +32,17 @@ impl BitcoinFormat {
     /// Returns the format of the given address prefix.
     pub fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         if prefix.len() < 2 {
-            return Err(AddressError::InvalidPrefix(String::from_utf8(prefix.to_vec())?));
+            return Err(AddressError::InvalidPrefix(String::from_utf8(
+                prefix.to_vec(),
+            )?));
         }
         match (prefix[0], prefix[1]) {
             (0x00, _) | (0x6F, _) => Ok(BitcoinFormat::P2PKH),
             (0x05, _) | (0xC4, _) => Ok(BitcoinFormat::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(BitcoinFormat::Bech32),
-            _ => return Err(AddressError::InvalidPrefix(String::from_utf8(prefix.to_vec())?)),
+            _ => Err(AddressError::InvalidPrefix(String::from_utf8(
+                prefix.to_vec(),
+            )?)),
         }
     }
 }

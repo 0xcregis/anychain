@@ -1,8 +1,9 @@
-use chainlib_core::{Amount, AmountError, to_basic_unit as to_wei};
+use chainlib_core::{to_basic_unit as to_wei, Amount, AmountError};
 
-use core::fmt;
 use chainlib_core::ethereum_types::U256;
-use serde::{Serialize,Deserialize};
+use core::fmt;
+use serde::{Deserialize, Serialize};
+use std::ops::{Add, Sub};
 
 /// Represents the amount of Ethereum in wei
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -57,7 +58,7 @@ impl EthereumAmount {
     pub fn u256_from_str(val: &str) -> Result<U256, AmountError> {
         match U256::from_dec_str(val) {
             Ok(wei) => Ok(wei),
-            Err(error) => return Err(AmountError::Crate("uint", format!("{:?}", error))),
+            Err(error) => Err(AmountError::Crate("uint", format!("{:?}", error))),
         }
     }
 
@@ -112,19 +113,25 @@ impl EthereumAmount {
 
         Ok(Self::from_u256(wei))
     }
+}
 
-    pub fn add(self, b: Self) -> Self {
-        Self::from_u256(self.0 + b.0)
+impl Add for EthereumAmount {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self::from_u256(self.0 + rhs.0)
     }
+}
 
-    pub fn sub(self, b: Self) -> Self {
-        Self::from_u256(self.0 - b.0)
+impl Sub for EthereumAmount {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_u256(self.0 - rhs.0)
     }
 }
 
 impl fmt::Display for EthereumAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.to_string())
+        write!(f, "{}", self.0)
     }
 }
 
@@ -317,12 +324,16 @@ mod tests {
 
         #[test]
         fn test_valid_addition() {
-            TEST_VALUES.iter().for_each(|(a, b, c)| test_addition(a, b, c));
+            TEST_VALUES
+                .iter()
+                .for_each(|(a, b, c)| test_addition(a, b, c));
         }
 
         #[test]
         fn test_valid_subtraction() {
-            TEST_VALUES.iter().for_each(|(a, b, c)| test_subtraction(c, b, a));
+            TEST_VALUES
+                .iter()
+                .for_each(|(a, b, c)| test_subtraction(c, b, a));
         }
     }
 

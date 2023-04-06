@@ -3,12 +3,11 @@ use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
 use chainlib_core::libsecp256k1::SecretKey;
-use chainlib_core::{no_std::*, PublicKey};
 use chainlib_core::{
     crypto::{checksum, hash160},
-    Address,
-    AddressError,
+    Address, AddressError,
 };
+use chainlib_core::{no_std::*, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{self, u5, FromBase32, ToBase32, Variant};
@@ -31,20 +30,24 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
     type PublicKey = BitcoinPublicKey<N>;
 
     /// Returns the address corresponding to the given Bitcoin private key.
-    fn from_secret_key(secret_key: &SecretKey, format: &Self::Format) -> Result<Self, AddressError> {
+    fn from_secret_key(
+        secret_key: &SecretKey,
+        format: &Self::Format,
+    ) -> Result<Self, AddressError> {
         Self::from_public_key(&BitcoinPublicKey::from_secret_key(secret_key), format)
     }
 
     /// Returns the address corresponding to the given Bitcoin public key.
-    fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError> {
+    fn from_public_key(
+        public_key: &Self::PublicKey,
+        format: &Self::Format,
+    ) -> Result<Self, AddressError> {
         match format {
             BitcoinFormat::P2PKH => Self::p2pkh(public_key),
-            BitcoinFormat::P2WSH => {
-                return Err(AddressError::IncompatibleFormats(
-                    String::from("non-script"),
-                    String::from("p2wsh address"),
-                ))
-            }
+            BitcoinFormat::P2WSH => Err(AddressError::IncompatibleFormats(
+                String::from("non-script"),
+                String::from("p2wsh address"),
+            )),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
             BitcoinFormat::Bech32 => Self::bech32(public_key),
         }
@@ -52,9 +55,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
 }
 
 impl<N: BitcoinNetwork> BitcoinAddress<N> {
-
     pub fn from_hash160(hash: &[u8]) -> Result<Self, AddressError> {
-
         let mut address = [0u8; 25];
         address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
         address[1..21].copy_from_slice(hash);
@@ -72,7 +73,10 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let public_key = match public_key.is_compressed() {
-            true => public_key.to_secp256k1_public_key().serialize_compressed().to_vec(),
+            true => public_key
+                .to_secp256k1_public_key()
+                .serialize_compressed()
+                .to_vec(),
             false => public_key.to_secp256k1_public_key().serialize().to_vec(),
         };
 
@@ -92,7 +96,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     // Returns a P2WSH address in Bech32 format from a given Bitcoin script
     pub fn p2wsh(original_script: &Vec<u8>) -> Result<Self, AddressError> {
-        let script = Sha256::digest(&original_script).to_vec();
+        let script = Sha256::digest(original_script).to_vec();
 
         // Organize as a hash
         let v = N::to_address_prefix(&BitcoinFormat::P2WSH)[0];
@@ -101,7 +105,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let mut data = vec![version];
         // Get the SHA256 hash of the script
         data.extend_from_slice(&script.to_vec().to_base32());
-        
+
         //let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
         let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
@@ -140,7 +144,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
         Ok(Self {
-            address: bech32.to_string(),
+            address: bech32,
             format: BitcoinFormat::Bech32,
             _network: PhantomData,
         })
@@ -155,7 +159,9 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
         let mut redeem = [0u8; 22];
         redeem[1] = 0x14;
-        redeem[2..].copy_from_slice(&hash160(&public_key.to_secp256k1_public_key().serialize_compressed()));
+        redeem[2..].copy_from_slice(&hash160(
+            &public_key.to_secp256k1_public_key().serialize_compressed(),
+        ));
         redeem
     }
 }
@@ -181,7 +187,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
         if let Ok(format) = BitcoinFormat::from_address_prefix(prefix.as_bytes()) {
             if BitcoinFormat::Bech32 == format {
                 //let bech32 = Bech32::from_str(&address)?;
-                let (hrp, data, variant) = bech32::decode(&address)?;
+                let (_, data, _) = bech32::decode(address)?;
                 if data.is_empty() {
                     return Err(AddressError::InvalidAddress(address.to_owned()));
                 }
@@ -552,9 +558,9 @@ mod tests {
             "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", // invalid witness version
             "bc1rw5uspcuh",                               // invalid program length
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90", // invalid program length
-            "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",       //Invalid program length for witness version 0 (per BIP141)
-            "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",      // invalid padding
-            "bc1gmk9yu",                                  // empty data section
+            "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", //Invalid program length for witness version 0 (per BIP141)
+            "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du", // invalid padding
+            "bc1gmk9yu",                            // empty data section
         ];
 
         #[test]
@@ -643,11 +649,11 @@ mod tests {
         type N = Mainnet;
 
         #[test]
-        fn test_addr(){
+        fn test_addr() {
             let script = "210279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ac";
             let script_hex = hex::decode(script).unwrap();
             let new_address = BitcoinAddress::<N>::p2wsh(&script_hex).unwrap();
-            println!("address:{}",new_address);
+            println!("address:{}", new_address);
         }
     }
 

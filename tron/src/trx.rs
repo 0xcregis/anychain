@@ -1,30 +1,22 @@
-use core::panic;
-use std::str::FromStr;
-use chrono::Utc;
+use crate::{
+    abi,
+    protocol::{
+        account_contract::AccountCreateContract,
+        balance_contract::{FreezeBalanceContract, TransferContract, UnfreezeBalanceContract},
+        common::ResourceCode,
+        smart_contract::TriggerSmartContract,
+        Tron::transaction::{contract::ContractType, Contract},
+        Tron::AccountType,
+    },
+    TronAddress,
+};
 use chainlib_core::Error;
-use ethabi::ethereum_types::U256;
+use chrono::Utc;
+use core::panic;
+use protobuf::well_known_types::any::Any;
 use protobuf::EnumOrUnknown;
 use protobuf::Message;
-use protobuf::well_known_types::any::Any;
-use crate::{
-    abi, TronAddress,
-    protocol::{
-        balance_contract::{
-            TransferContract,
-            FreezeBalanceContract,
-            UnfreezeBalanceContract,
-        },
-        Tron::transaction::{
-            Contract,
-            contract::ContractType,
-        },
-        common::ResourceCode,
-        Tron::AccountType,
-        account_contract::AccountCreateContract,
-        smart_contract::TriggerSmartContract,
-    },
-};
-
+use std::str::FromStr;
 
 pub trait ContractPbExt: Message {
     fn contract_type(&self) -> ContractType;
@@ -69,28 +61,27 @@ pub fn timestamp_millis() -> i64 {
 
 pub fn build_contract(ct: &impl ContractPbExt) -> Result<Contract, Error> {
     let mut contract = Contract::new();
-    
+
     contract.type_ = ::protobuf::EnumOrUnknown::new(ct.contract_type());
     contract.parameter = ::protobuf::MessageField::some(
-        ct.as_google_any().map_err(
-            |e| Error::RuntimeError(e.to_string())
-        )?
+        ct.as_google_any()
+            .map_err(|e| Error::RuntimeError(e.to_string()))?,
     );
-    
+
     Ok(contract)
 }
 
 pub fn build_trigger_contract(
     owner: &str,
     contract: &str,
-    data: Vec<u8>
+    data: Vec<u8>,
 ) -> Result<Contract, Error> {
     let mut ts_contract = TriggerSmartContract::new();
-    
+
     ts_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
     ts_contract.contract_address = TronAddress::from_str(contract)?.as_bytes().to_vec();
     ts_contract.data = data;
-    
+
     build_contract(&ts_contract)
 }
 
@@ -98,26 +89,18 @@ pub fn build_trc20_transfer_contract(
     owner: &str,
     contract: &str,
     recipient: &str,
-    amount: &str
+    amount: &str,
 ) -> Result<Contract, Error> {
-    build_trigger_contract(
-        owner,
-        contract,
-        abi::trc20_transfer(recipient, amount)
-    )
+    build_trigger_contract(owner, contract, abi::trc20_transfer(recipient, amount))
 }
 
 pub fn build_trc20_approve_contract(
     owner: &str,
     contract: &str,
     recipient: &str,
-    amount: &str
+    amount: &str,
 ) -> Result<Contract, Error> {
-    build_trigger_contract(
-        owner,
-        contract,
-        abi::trc20_approve(recipient, amount)
-    )
+    build_trigger_contract(owner, contract, abi::trc20_approve(recipient, amount))
 }
 
 pub fn build_transfer_contract(
@@ -129,24 +112,21 @@ pub fn build_transfer_contract(
     let recipient: TronAddress = recipient.parse()?;
 
     let mut transfer_contract = TransferContract::new();
-    
+
     transfer_contract.owner_address = sender.as_bytes().to_owned();
     transfer_contract.to_address = recipient.as_bytes().to_owned();
     transfer_contract.amount = amount.parse::<i64>()?;
-    
+
     build_contract(&transfer_contract)
 }
 
-pub fn build_account_create(
-    owner_addr: &str,
-    create_addr: &str
-) -> Result<Contract, Error> {
+pub fn build_account_create(owner_addr: &str, create_addr: &str) -> Result<Contract, Error> {
     let mut ac_contract = AccountCreateContract::new();
-    
+
     ac_contract.owner_address = TronAddress::from_str(owner_addr)?.as_bytes().to_vec();
     ac_contract.account_address = TronAddress::from_str(create_addr)?.as_bytes().to_vec();
     ac_contract.type_ = EnumOrUnknown::<AccountType>::new(AccountType::Normal);
-    
+
     build_contract(&ac_contract)
 }
 
@@ -155,7 +135,7 @@ pub fn build_freeze_balance_contract(
     freeze_balance: &str,
     freeze_duration: &str,
     resource: u8,
-    recipient: &str
+    recipient: &str,
 ) -> Result<Contract, Error> {
     let mut fb_contract = FreezeBalanceContract::new();
 

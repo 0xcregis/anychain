@@ -23,10 +23,8 @@ pub use self::address::*;
 pub mod amount;
 pub use self::amount::*;
 
-
 pub mod format;
 pub use self::format::*;
-
 
 pub mod network;
 pub use self::network::*;
@@ -44,8 +42,8 @@ pub mod error;
 pub use error::*;
 
 // export common crate
-pub use libsecp256k1;
 pub use bls_signatures;
+pub use libsecp256k1;
 
 pub use hex;
 

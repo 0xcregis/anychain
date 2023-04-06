@@ -24,12 +24,9 @@ pub use self::public_key::*;
 pub mod transaction;
 pub use self::transaction::*;
 
-
 #[cfg(test)]
 mod test_mod {
-    
-    #[test]
-    fn abi_test() {
 
-    }
+    #[test]
+    fn abi_test() {}
 }

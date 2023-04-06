@@ -1,18 +1,11 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
 use chainlib_core::{
-    Address,
-    PublicKey,
-    PublicKeyError,
-    libsecp256k1::{self, SecretKey},
     hex,
-    AddressError,
+    libsecp256k1::{self, SecretKey},
+    Address, AddressError, PublicKey, PublicKeyError,
 };
-use core::{
-    fmt,
-    fmt::Display,
-    str::FromStr,
-};
+use core::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum public key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,7 +38,7 @@ impl EthereumPublicKey {
 
     /// Returns the secp256k1 public key of the public key
     pub fn to_secp256k1_public_key(&self) -> libsecp256k1::PublicKey {
-        self.0.clone()
+        self.0
     }
 }
 
@@ -146,9 +139,11 @@ mod tests {
 
         #[test]
         fn from_str() {
-            KEYPAIRS.iter().for_each(|(_, expected_public_key, expected_address)| {
-                test_from_str(expected_public_key, expected_address);
-            });
+            KEYPAIRS
+                .iter()
+                .for_each(|(_, expected_public_key, expected_address)| {
+                    test_from_str(expected_public_key, expected_address);
+                });
         }
 
         #[test]
@@ -160,13 +155,12 @@ mod tests {
         }
 
         #[test]
-        fn test_pubkey(){
+        fn test_pubkey() {
             let str = "b9b77d6ac1380a581d3efc136a21a939f5a6ce59afeb3eddf6a52b342b33f5be455b3610100ee1129d1638e99272879be60519835e2b3b7703eb4791af3daa7f";
             let public_key = EthereumPublicKey::from_str(str).unwrap();
             let address = EthereumAddress::checksum_address(&public_key);
-            println!("address:{:?}",address);
+            println!("address:{:?}", address);
         }
-
     }
 
     #[test]
@@ -191,8 +185,18 @@ mod tests {
 
     #[test]
     fn address_gen() {
-        let raw_pk = [68,157,12,4,213,228,35,105,155,249,86,130,216,186,113,85,31,137,113,153,70,239,218,142,132,65,222,134,52,145,148,88,63,245,105,222,219,39,56,192,195,4,38,29,9,78,172,238,179,168,66,80,132,123,45,104,145,132,159,243,144,62,194,164];
-        let raw_pk1 = [117,243,73,0,152,143,226,83,116,252,10,247,191,14,206,13,110,192,140,32,250,238,177,101,109,113,26,254,67,191,47,11,155,57,117,158,227,111,235,20,65,167,102,64,98,103,106,226,241,213,193,36,72,57,163,202,72,21,35,233,194,163,225,28];
+        let raw_pk = [
+            68, 157, 12, 4, 213, 228, 35, 105, 155, 249, 86, 130, 216, 186, 113, 85, 31, 137, 113,
+            153, 70, 239, 218, 142, 132, 65, 222, 134, 52, 145, 148, 88, 63, 245, 105, 222, 219,
+            39, 56, 192, 195, 4, 38, 29, 9, 78, 172, 238, 179, 168, 66, 80, 132, 123, 45, 104, 145,
+            132, 159, 243, 144, 62, 194, 164,
+        ];
+        let raw_pk1 = [
+            117, 243, 73, 0, 152, 143, 226, 83, 116, 252, 10, 247, 191, 14, 206, 13, 110, 192, 140,
+            32, 250, 238, 177, 101, 109, 113, 26, 254, 67, 191, 47, 11, 155, 57, 117, 158, 227,
+            111, 235, 20, 65, 167, 102, 64, 98, 103, 106, 226, 241, 213, 193, 36, 72, 57, 163, 202,
+            72, 21, 35, 233, 194, 163, 225, 28,
+        ];
 
         let pk = EthereumPublicKey::from_slice(&raw_pk);
         let pk1 = EthereumPublicKey::from_slice(&raw_pk1);

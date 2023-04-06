@@ -11,5 +11,5 @@ pub mod protocol;
 
 pub mod transaction;
 pub use transaction::*;
-pub mod trx;
 pub mod abi;
+pub mod trx;

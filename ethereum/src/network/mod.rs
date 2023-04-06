@@ -1,4 +1,4 @@
-use chainlib_core::{Network};
+use chainlib_core::Network;
 
 pub mod mainnet;
 pub use self::mainnet::*;
