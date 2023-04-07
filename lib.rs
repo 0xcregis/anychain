@@ -1,5 +1,5 @@
-pub extern crate bitcoin;
-pub extern crate chainlib_core as core;
-pub extern crate ethereum;
-pub extern crate filecoin;
-pub extern crate tron;
+pub extern crate anychain_bitcoin;
+pub extern crate anychain_core as core;
+pub extern crate anychain_ethereum;
+pub extern crate anychain_filecoin;
+pub extern crate anychain_tron;

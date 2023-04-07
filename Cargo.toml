@@ -10,19 +10,19 @@ keywords = ["multi-chain", "cryptocurrency", "bitcoin", "ethereum"]
 path = "lib.rs"
 
 [dependencies]
-chainlib-core = { path ="./core" }
-bitcoin = { path = "./bitcoin" }
-ethereum = { path = "./ethereum" }
-tron = { path = "./tron" }
-filecoin = { path = "./filecoin" }
+anychain-core = { path ="./anychain-core" }
+anychain-bitcoin = { path = "./anychain-bitcoin" }
+anychain-ethereum = { path = "./anychain-ethereum" }
+anychain-tron = { path = "./anychain-tron" }
+anychain-filecoin = { path = "./anychain-filecoin" }
 
 [workspace]
 members = [
-    "core",
-    "bitcoin",
-    "ethereum",
-    "tron",
-    "filecoin",
+    "anychain-core",
+    "anychain-bitcoin",
+    "anychain-ethereum",
+    "anychain-tron",
+    "anychain-filecoin",
 ]
 
 [profile.release]
