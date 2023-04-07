@@ -54,9 +54,13 @@ pub fn to_basic_unit(value: &str, mut denomination: u32) -> String {
         }
     }
 
-    // the decimal string does not contain a decimal point
+    let mut value = value.to_string();
+
+    // the decimal string does not contain a decimal point,
+    // so we add one to the end.
     if !has_point {
-        return value.to_string();
+        value.insert(value.len(), '.');
+        point = value.len() - 1;
     }
 
     let mut v = value.as_bytes().to_vec();

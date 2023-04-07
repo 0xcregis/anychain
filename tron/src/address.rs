@@ -205,7 +205,6 @@ pub fn b58decode_check(s: &str) -> Result<Vec<u8>, AddressError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chainlib_core::PublicKey;
     use hex::ToHex;
 
     #[test]

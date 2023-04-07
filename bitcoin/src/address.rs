@@ -239,16 +239,6 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
-    use chainlib_core::public_key::PublicKey;
-
-    fn test_from_public_key<N: BitcoinNetwork>(
-        expected_address: &str,
-        public_key: &BitcoinPublicKey<N>,
-        format: &BitcoinFormat,
-    ) {
-        let address = BitcoinAddress::from_public_key(public_key, format).unwrap();
-        assert_eq!(expected_address, address.to_string());
-    }
 
     fn test_from_str<N: BitcoinNetwork>(expected_address: &str, expected_format: &BitcoinFormat) {
         let address = BitcoinAddress::<N>::from_str(expected_address).unwrap();
@@ -526,7 +516,6 @@ mod tests {
 
     mod bech32_mainnet {
         use super::*;
-        use crate::public_key::BitcoinPublicKey;
 
         type N = Mainnet;
 

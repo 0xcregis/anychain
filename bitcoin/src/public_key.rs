@@ -94,14 +94,6 @@ mod tests {
     use super::*;
     use crate::network::*;
 
-    fn test_from_secret_key<N: BitcoinNetwork>(
-        expected_public_key: &BitcoinPublicKey<N>,
-        secret_key: &SecretKey,
-    ) {
-        let public_key = BitcoinPublicKey::from_secret_key(secret_key);
-        assert_eq!(*expected_public_key, public_key);
-    }
-
     fn test_to_address<N: BitcoinNetwork>(
         expected_address: &BitcoinAddress<N>,
         expected_format: &BitcoinFormat,

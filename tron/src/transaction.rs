@@ -209,24 +209,6 @@ mod tests {
         return transaction;
     }
 
-    pub fn build_trc20_transaction() -> TronTransaction {
-        let owner_addr = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr";
-        let contract_addr = "TP31Ua3T6zYAQbcnR2vTbYGd426rouWNoD";
-        let to_addr = "TFk5LfscQv8hYM11mZYmi3ZcnRfFc4LLap";
-        let amount = "10000000000000000000";
-        let ct =
-            trx::build_trc20_transfer_contract(owner_addr, contract_addr, to_addr, amount).unwrap();
-        let mut param = TronTransactionParameters::default();
-        param.set_timestamp(trx::timestamp_millis());
-        param.set_ref_block(
-            26661399,
-            "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e",
-        );
-        param.set_contract(ct);
-        let transaction = TronTransaction::new(&param).unwrap();
-        return transaction;
-    }
-
     #[test]
     pub fn test_txid() {
         let transaction = build_trx_transaction();
