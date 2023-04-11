@@ -1,5 +1,3 @@
-use libsecp256k1::SecretKey;
-
 use crate::format::Format;
 use crate::no_std::*;
 use crate::public_key::{PublicKey, PublicKeyError};
@@ -13,12 +11,15 @@ use core::{
 pub trait Address:
     'static + Clone + Debug + Display + FromStr + Hash + PartialEq + Eq + Send + Sized + Sync
 {
+    type SecretKey;
     type Format: Format;
     type PublicKey: PublicKey;
 
     /// Returns the address corresponding to the given private key.
-    fn from_secret_key(secret_key: &SecretKey, format: &Self::Format)
-        -> Result<Self, AddressError>;
+    fn from_secret_key(
+        secret_key: &Self::SecretKey,
+        format: &Self::Format,
+    ) -> Result<Self, AddressError>;
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(

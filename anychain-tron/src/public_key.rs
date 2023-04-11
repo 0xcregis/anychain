@@ -1,18 +1,16 @@
 use crate::{TronAddress, TronFormat};
-use anychain_core::{
-    libsecp256k1::{self, SecretKey},
-    Address, AddressError, PublicKey, PublicKeyError,
-};
+use anychain_core::{libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
 use core::{fmt, fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TronPublicKey(libsecp256k1::PublicKey);
 
 impl PublicKey for TronPublicKey {
+    type SecretKey = libsecp256k1::SecretKey;
     type Address = TronAddress;
     type Format = TronFormat;
 
-    fn from_secret_key(secret_key: &SecretKey) -> Self {
+    fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         Self(libsecp256k1::PublicKey::from_secret_key(secret_key))
     }
 

@@ -1,10 +1,7 @@
 use crate::address::BitcoinAddress;
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
-use anychain_core::{
-    libsecp256k1::{self, SecretKey},
-    Address, AddressError, PublicKey, PublicKeyError,
-};
+use anychain_core::{libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
 
 use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
 
@@ -20,11 +17,12 @@ pub struct BitcoinPublicKey<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> PublicKey for BitcoinPublicKey<N> {
+    type SecretKey = libsecp256k1::SecretKey;
     type Address = BitcoinAddress<N>;
     type Format = BitcoinFormat;
 
     /// Returns the address corresponding to the given public key.
-    fn from_secret_key(secret_key: &SecretKey) -> Self {
+    fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         Self {
             public_key: libsecp256k1::PublicKey::from_secret_key(secret_key),
             compressed: true,

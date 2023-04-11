@@ -8,7 +8,6 @@ use std::str::FromStr;
 use std::{fmt, u64};
 
 use anychain_core::bls_signatures::Serialize as BlsSerialize;
-use anychain_core::libsecp256k1::SecretKey;
 use anychain_core::PublicKey;
 use anychain_core::{
     utilities::crypto::{blake2b_160, blake2b_checksum},
@@ -34,12 +33,13 @@ pub struct FilecoinAddress {
 }
 
 impl Address for FilecoinAddress {
+    type SecretKey = super::public_key::FilecoinSecretKey;
     type Format = FilecoinFormat;
     type PublicKey = FilecoinPublicKey;
 
     /// Returns the address corresponding to the given private key.
     fn from_secret_key(
-        secret_key: &SecretKey,
+        secret_key: &Self::SecretKey,
         _format: &Self::Format,
     ) -> Result<Self, AddressError> {
         Self::from_public_key(&FilecoinPublicKey::from_secret_key(secret_key), _format)

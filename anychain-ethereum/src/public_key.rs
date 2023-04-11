@@ -1,10 +1,6 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
-use anychain_core::{
-    hex,
-    libsecp256k1::{self, SecretKey},
-    Address, AddressError, PublicKey, PublicKeyError,
-};
+use anychain_core::{hex, libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
 use core::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum public key
@@ -12,11 +8,12 @@ use core::{fmt, fmt::Display, str::FromStr};
 pub struct EthereumPublicKey(libsecp256k1::PublicKey);
 
 impl PublicKey for EthereumPublicKey {
+    type SecretKey = libsecp256k1::SecretKey;
     type Address = EthereumAddress;
     type Format = EthereumFormat;
 
     /// Returns the public key corresponding to the given private key.
-    fn from_secret_key(secret_key: &SecretKey) -> Self {
+    fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         Self(libsecp256k1::PublicKey::from_secret_key(secret_key))
     }
 

@@ -13,12 +13,13 @@ use serde::{Deserialize, Serialize};
 pub struct EthereumAddress(String);
 
 impl Address for EthereumAddress {
+    type SecretKey = libsecp256k1::SecretKey;
     type Format = EthereumFormat;
     type PublicKey = EthereumPublicKey;
 
     /// Returns the address corresponding to the given private key.
     fn from_secret_key(
-        secret_key: &libsecp256k1::SecretKey,
+        secret_key: &Self::SecretKey,
         _format: &Self::Format,
     ) -> Result<Self, AddressError> {
         Self::from_public_key(&EthereumPublicKey::from_secret_key(secret_key), _format)

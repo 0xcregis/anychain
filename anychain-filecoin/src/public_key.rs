@@ -2,13 +2,18 @@ use crate::address::FilecoinAddress;
 use crate::format::FilecoinFormat;
 use anychain_core::{
     bls_signatures::{self, Serialize},
-    hex,
-    libsecp256k1::{self, SecretKey},
-    Address, AddressError, PublicKey, PublicKeyError,
+    hex, libsecp256k1, Address, AddressError, PublicKey, PublicKeyError,
 };
 
 use core::panic;
 use core::{fmt, fmt::Display, str::FromStr};
+
+/// Represents a filecoin secret key
+#[derive(Debug, Clone, PartialEq)]
+pub enum FilecoinSecretKey {
+    Secp256k1(libsecp256k1::SecretKey),
+    Bls(bls_signatures::PrivateKey),
+}
 
 /// Represents a filecoin public key
 #[derive(Debug, Clone, PartialEq)]
@@ -18,12 +23,18 @@ pub enum FilecoinPublicKey {
 }
 
 impl PublicKey for FilecoinPublicKey {
+    type SecretKey = FilecoinSecretKey;
     type Address = FilecoinAddress;
     type Format = FilecoinFormat;
 
     /// Returns the filecoin public key corresponding to the given secp256k1 secret key.
-    fn from_secret_key(secret_key: &SecretKey) -> Self {
-        Self::Secp256k1(libsecp256k1::PublicKey::from_secret_key(secret_key))
+    fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
+        match secret_key {
+            FilecoinSecretKey::Secp256k1(key) => {
+                Self::Secp256k1(libsecp256k1::PublicKey::from_secret_key(key))
+            }
+            FilecoinSecretKey::Bls(key) => Self::Bls(key.public_key()),
+        }
     }
 
     /// Returns the address of the corresponding filecoin public key.

@@ -1,5 +1,5 @@
 use crate::{TronFormat, TronPublicKey};
-use anychain_core::{libsecp256k1::SecretKey, Address, AddressError, PublicKey};
+use anychain_core::{libsecp256k1, Address, AddressError, PublicKey};
 use base58::{FromBase58, ToBase58};
 use ethabi::Token;
 use hex::FromHex;
@@ -15,11 +15,12 @@ const ADDRESS_TYPE_PREFIX: u8 = 0x41;
 pub struct TronAddress([u8; 21]);
 
 impl Address for TronAddress {
+    type SecretKey = libsecp256k1::SecretKey;
     type Format = TronFormat;
     type PublicKey = TronPublicKey;
 
     fn from_secret_key(
-        secret_key: &SecretKey,
+        secret_key: &Self::SecretKey,
         format: &Self::Format,
     ) -> Result<Self, AddressError> {
         Self::from_public_key(&TronPublicKey::from_secret_key(secret_key), format)
