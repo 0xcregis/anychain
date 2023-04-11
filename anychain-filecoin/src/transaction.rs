@@ -19,7 +19,10 @@ use num_derive::FromPrimitive;
 
 use core::panic;
 use std::borrow::Cow;
-use std::fmt;
+use std::fmt::{self, Display};
+use std::str::FromStr;
+
+use self::json::FilecoinTransactionJson;
 
 /// Represents the parameters for a filecoin transaction
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -220,9 +223,8 @@ impl Transaction for FilecoinTransaction {
     }
 
     /// Reconstruct a filecoin transaction from the given binary stream and return it
-    fn from_bytes(_transaction: &[u8]) -> Result<Self, TransactionError> {
-        // deserialization waited to be specified
-        Ok(FilecoinTransaction::default())
+    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
+        Ok(serde_json::from_slice::<FilecoinTransactionJson>(transaction)?.0)
     }
 
     /// Insert the given signature into this filecoin transaction to make it signed,
@@ -256,6 +258,23 @@ impl Transaction for FilecoinTransaction {
         Ok(FilecoinTransactionId {
             txid: blake2b_256(&stream).to_vec(),
         })
+    }
+}
+
+impl FromStr for FilecoinTransaction {
+    type Err = TransactionError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(serde_json::from_str::<FilecoinTransactionJson>(s)?.0)
+    }
+}
+
+impl Display for FilecoinTransaction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            String::from_utf8(self.to_bytes().unwrap()).unwrap()
+        )
     }
 }
 
@@ -644,5 +663,46 @@ pub mod amount_json {
     {
         let s = String::deserialize(deserializer)?;
         FilecoinAmount::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use anychain_core::Transaction;
+    use fvm_ipld_encoding::RawBytes;
+
+    use crate::{
+        FilecoinAddress, FilecoinAmount, FilecoinAmountConverter, FilecoinTransaction,
+        FilecoinTransactionParameters,
+    };
+
+    #[test]
+    fn filecoin_transaction_serialization_test() {
+        let params = FilecoinTransactionParameters {
+            version: 0,
+            from: FilecoinAddress::from_str("f1lhjzzj6on64czzsgfw5jxsf7y5uv5qvh7dmpevy").unwrap(),
+            to: FilecoinAddress::from_str("t1meiag3eum5xtxi5tivnw4fjhkrdtaqu4v5t4nly").unwrap(),
+            sequence: 999,
+            value: FilecoinAmount::from_fil("1"),
+            method_num: 0,
+            params: RawBytes::new(vec![]),
+            gas_limit: 500000,
+            gas_fee_cap: FilecoinAmount::from_milli_fil("1"),
+            gas_premium: FilecoinAmount::from_milli_fil("100"),
+        };
+
+        let tx = FilecoinTransaction::new(&params).unwrap();
+
+        println!("tx = {}", tx);
+    }
+
+    #[test]
+    fn filecoin_transaction_deserialization_test() {
+        let s = r#"{"Message":{"Version":0,"To":"t1meiag3eum5xtxi5tivnw4fjhkrdtaqu4v5t4nly","From":"f1lhjzzj6on64czzsgfw5jxsf7y5uv5qvh7dmpevy","Nonce":999,"Value":"1000000000000000000","GasLimit":500000,"GasFeeCap":"1000000000000000","GasPremium":"100000000000000000","Method":0,"Params":"","CID":{"/":"bafy2bzacea2dufcc2vhvrt3pzn24t2zmuhnbdmf5kgch6blkxsppukc4rp6bu"}},"Signature":{"Type":1,"Data":""},"CID":{"/":"bafy2bzacebx42rzvvl3v6mio44ileyxwohj2d2i34otmk7wwqsd4rdl4b3bhq"}}"#;
+        let tx = FilecoinTransaction::from_bytes(s.as_bytes()).unwrap();
+
+        println!("tx = {}", tx);
     }
 }
