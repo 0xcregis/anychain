@@ -184,7 +184,7 @@ impl<'de> de::Deserialize<'de> for FilecoinSignature {
 /// Represents a filecoin transaction id
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct FilecoinTransactionId {
-    hash: Vec<u8>,
+    pub txid: Vec<u8>,
 }
 
 impl TransactionId for FilecoinTransactionId {}
@@ -254,7 +254,7 @@ impl Transaction for FilecoinTransaction {
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         let stream = self.to_bytes().unwrap();
         Ok(FilecoinTransactionId {
-            hash: blake2b_256(&stream).to_vec(),
+            txid: blake2b_256(&stream).to_vec(),
         })
     }
 }
