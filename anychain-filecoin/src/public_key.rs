@@ -34,8 +34,8 @@ impl PublicKey for FilecoinPublicKey {
 
 impl FilecoinPublicKey {
     /// Returns a filecoin public key given an secp256k1 public key.
-    pub fn from_secp256k1_public_key(public_key: &libsecp256k1::PublicKey) -> Self {
-        Self::Secp256k1(*public_key)
+    pub fn from_secp256k1_public_key(public_key: libsecp256k1::PublicKey) -> Self {
+        Self::Secp256k1(public_key)
     }
 
     /// Returns the secp256k1 public key of this filecoin public key
@@ -47,8 +47,8 @@ impl FilecoinPublicKey {
     }
 
     /// Returns a filecoin public key given a bls public key
-    pub fn from_bls_public_key(public_key: &bls_signatures::PublicKey) -> Self {
-        Self::Bls(*public_key)
+    pub fn from_bls_public_key(public_key: bls_signatures::PublicKey) -> Self {
+        Self::Bls(public_key)
     }
 
     /// Returns the bls public key of this filecoin public key
@@ -57,10 +57,6 @@ impl FilecoinPublicKey {
             Self::Bls(key) => *key,
             _ => panic!("not a bls public key"),
         }
-    }
-
-    pub fn from_bls_private_key(private_key: &bls_signatures::PrivateKey) -> Self {
-        Self::Bls(private_key.public_key())
     }
 }
 
