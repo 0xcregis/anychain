@@ -1,0 +1,7 @@
+[package]
+name = "anychain-polkadot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anychain-core = { path = "../anychain-core", version = "0.0.1" }

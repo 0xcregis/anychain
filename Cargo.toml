@@ -23,6 +23,7 @@ members = [
     "anychain-ethereum",
     "anychain-tron",
     "anychain-filecoin",
+    "anychain-polkadot",
 ]
 
 [profile.release]
