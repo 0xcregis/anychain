@@ -2,7 +2,7 @@ use crate::{
     abi,
     protocol::{
         account_contract::AccountCreateContract,
-        balance_contract::{FreezeBalanceContract, TransferContract, UnfreezeBalanceContract},
+        balance_contract::{TransferContract, FreezeBalanceV2Contract, UnfreezeBalanceV2Contract},
         common::ResourceCode,
         smart_contract::TriggerSmartContract,
         Tron::transaction::{contract::ContractType, Contract},
@@ -13,9 +13,11 @@ use crate::{
 use anychain_core::Error;
 use chrono::Utc;
 use core::panic;
-use protobuf::well_known_types::any::Any;
-use protobuf::EnumOrUnknown;
-use protobuf::Message;
+use protobuf::{
+    well_known_types::any::Any,
+    EnumOrUnknown,
+    Message,
+};
 use std::str::FromStr;
 
 pub trait ContractPbExt: Message {
@@ -44,8 +46,8 @@ macro_rules! impl_contract_pb_ext_for {
 impl_contract_pb_ext_for!(TransferContract);
 impl_contract_pb_ext_for!(TriggerSmartContract);
 impl_contract_pb_ext_for!(AccountCreateContract);
-impl_contract_pb_ext_for!(FreezeBalanceContract);
-impl_contract_pb_ext_for!(UnfreezeBalanceContract);
+impl_contract_pb_ext_for!(FreezeBalanceV2Contract);
+impl_contract_pb_ext_for!(UnfreezeBalanceV2Contract);
 
 fn to_resource_code(r: u8) -> ResourceCode {
     match r {
@@ -130,34 +132,30 @@ pub fn build_account_create(owner_addr: &str, create_addr: &str) -> Result<Contr
     build_contract(&ac_contract)
 }
 
-pub fn build_freeze_balance_contract(
+pub fn build_freeze_balance_v2_contract(
     owner: &str,
     freeze_balance: &str,
-    freeze_duration: &str,
     resource: u8,
-    recipient: &str,
 ) -> Result<Contract, Error> {
-    let mut fb_contract = FreezeBalanceContract::new();
+    let mut fb_v2_contract = FreezeBalanceV2Contract::new();
 
-    fb_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
-    fb_contract.frozen_balance = freeze_balance.parse::<i64>()?;
-    fb_contract.frozen_duration = freeze_duration.parse::<i64>()?;
-    fb_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
-    fb_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
+    fb_v2_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    fb_v2_contract.frozen_balance = freeze_balance.parse::<i64>()?;
+    fb_v2_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
 
-    build_contract(&fb_contract)
+    build_contract(&fb_v2_contract)
 }
 
-pub fn build_unfreeze_balance_contract(
+pub fn build_unfreeze_balance_v2_contract(
     owner: &str,
+    unfreeze_balance: &str,
     resource: u8,
-    recipient: &str,
 ) -> Result<Contract, Error> {
-    let mut ub_contract = UnfreezeBalanceContract::new();
+    let mut ub_v2_contract = UnfreezeBalanceV2Contract::new();
 
-    ub_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
-    ub_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
-    ub_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
+    ub_v2_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    ub_v2_contract.unfreeze_balance = unfreeze_balance.parse::<i64>()?;
+    ub_v2_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
 
-    build_contract(&ub_contract)
+    build_contract(&ub_v2_contract)
 }
