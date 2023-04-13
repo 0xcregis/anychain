@@ -2,7 +2,7 @@ use crate::{
     abi,
     protocol::{
         account_contract::AccountCreateContract,
-        balance_contract::{TransferContract, FreezeBalanceV2Contract, UnfreezeBalanceV2Contract},
+        balance_contract::{FreezeBalanceV2Contract, TransferContract, UnfreezeBalanceV2Contract},
         common::ResourceCode,
         smart_contract::TriggerSmartContract,
         Tron::transaction::{contract::ContractType, Contract},
@@ -13,11 +13,7 @@ use crate::{
 use anychain_core::Error;
 use chrono::Utc;
 use core::panic;
-use protobuf::{
-    well_known_types::any::Any,
-    EnumOrUnknown,
-    Message,
-};
+use protobuf::{well_known_types::any::Any, EnumOrUnknown, Message};
 use std::str::FromStr;
 
 pub trait ContractPbExt: Message {
