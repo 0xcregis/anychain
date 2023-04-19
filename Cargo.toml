@@ -16,7 +16,6 @@ anychain-ethereum = { path = "./anychain-ethereum" }
 anychain-tron = { path = "./anychain-tron" }
 anychain-filecoin = { path = "./anychain-filecoin" }
 anychain-polkadot = { path = "./anychain-polkadot" }
-anychain-ripple = { path = "./anychain-ripple" }
 
 [workspace]
 members = [
@@ -26,7 +25,6 @@ members = [
     "anychain-tron",
     "anychain-filecoin",
     "anychain-polkadot",
-    "anychain-ripple"
 ]
 
 [profile.release]
