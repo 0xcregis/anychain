@@ -2,7 +2,10 @@ use crate::{
     abi,
     protocol::{
         account_contract::AccountCreateContract,
-        balance_contract::{FreezeBalanceV2Contract, TransferContract, UnfreezeBalanceV2Contract},
+        balance_contract::{
+            DelegateResourceContract, FreezeBalanceV2Contract, TransferContract,
+            UnDelegateResourceContract, UnfreezeBalanceV2Contract,
+        },
         common::ResourceCode,
         smart_contract::TriggerSmartContract,
         Tron::transaction::{contract::ContractType, Contract},
@@ -44,6 +47,8 @@ impl_contract_pb_ext_for!(TriggerSmartContract);
 impl_contract_pb_ext_for!(AccountCreateContract);
 impl_contract_pb_ext_for!(FreezeBalanceV2Contract);
 impl_contract_pb_ext_for!(UnfreezeBalanceV2Contract);
+impl_contract_pb_ext_for!(DelegateResourceContract);
+impl_contract_pb_ext_for!(UnDelegateResourceContract);
 
 fn to_resource_code(r: u8) -> ResourceCode {
     match r {
@@ -154,4 +159,38 @@ pub fn build_unfreeze_balance_v2_contract(
     ub_v2_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
 
     build_contract(&ub_v2_contract)
+}
+
+pub fn build_delegate_resource_contract(
+    owner: &str,
+    recipient: &str,
+    resource: u8,
+    amount: &str,
+    lock: bool,
+) -> Result<Contract, Error> {
+    let mut dr_contract = DelegateResourceContract::new();
+
+    dr_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    dr_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
+    dr_contract.balance = amount.parse::<i64>()?;
+    dr_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
+    dr_contract.lock = lock;
+
+    build_contract(&dr_contract)
+}
+
+pub fn build_undelegate_resource_contract(
+    owner: &str,
+    recipient: &str,
+    resource: u8,
+    amount: &str,
+) -> Result<Contract, Error> {
+    let mut ur_contract = UnDelegateResourceContract::new();
+
+    ur_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    ur_contract.receiver_address = TronAddress::from_str(recipient)?.as_bytes().to_vec();
+    ur_contract.balance = amount.parse::<i64>()?;
+    ur_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
+
+    build_contract(&ur_contract)
 }
