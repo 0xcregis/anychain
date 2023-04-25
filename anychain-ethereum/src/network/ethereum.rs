@@ -4,7 +4,7 @@ use anychain_core::{Network, NetworkError};
 use serde::Serialize;
 use std::{fmt, str::FromStr};
 
-/// Represents an Ethereum main network.
+/// Represents an ETH mainnet
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Ethereum;
 
