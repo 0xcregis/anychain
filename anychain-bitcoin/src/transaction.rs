@@ -172,23 +172,36 @@ pub fn create_script_op_return(property_id: u32, amount: i64) -> Result<Vec<u8>,
 pub enum SignatureHash {
     /// Signs all inputs and outputs.
     SIGHASH_ALL = 0x01,
+    
     /// Signs all inputs and none of the outputs.
     /// (e.g. "blank check" transaction, where any address can redeem the output)
     SIGHASH_NONE = 0x02,
+    
     /// Signs all inputs and one corresponding output per input.
     /// (e.g. signing vin 0 will result in signing vout 0)
     SIGHASH_SINGLE = 0x03,
+
+    SIGHASH_ALL_SIGHASH_FORKID = 0x41,
+    SIGHASH_NONE_SIGHASH_FORKID = 0x42,
+    SIGHASH_SINGLE_SIGHASH_FORKID = 0x43,
+
     /// Signs only one input and all outputs.
     /// Allows anyone to add or remove other inputs, forbids changing any outputs.
     /// (e.g. "crowdfunding" transaction, where the output is the "goal" address)
     SIGHASH_ALL_SIGHASH_ANYONECANPAY = 0x81,
+    
     /// Signs only one input and none of the outputs.
     /// Allows anyone to add or remove other inputs or any outputs.
     /// (e.g. "dust collector" transaction, where "dust" can be aggregated and spent together)
     SIGHASH_NONE_SIGHASH_ANYONECANPAY = 0x82,
+    
     /// Signs only one input and one corresponding output per input.
     /// Allows anyone to add or remove other inputs.
     SIGHASH_SINGLE_SIGHASH_ANYONECANPAY = 0x83,
+
+    SIGHASH_ALL_SIGHASH_FORKID_SIGHASH_ANYONECANPAY = 0xc1,
+    SIGHASH_NONE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY = 0xc2,
+    SIGHASH_SINGLE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY = 0xc3,
 }
 
 impl fmt::Display for SignatureHash {
@@ -197,6 +210,15 @@ impl fmt::Display for SignatureHash {
             SignatureHash::SIGHASH_ALL => write!(f, "SIGHASH_ALL"),
             SignatureHash::SIGHASH_NONE => write!(f, "SIGHASH_NONE"),
             SignatureHash::SIGHASH_SINGLE => write!(f, "SIGHASH_SINGLE"),
+            SignatureHash::SIGHASH_ALL_SIGHASH_FORKID => {
+                write!(f, "SIGHASH_ALL | SIGHASH_FORKID")
+            },
+            SignatureHash::SIGHASH_NONE_SIGHASH_FORKID => {
+                write!(f, "SIGHASH_NONE | SIGHASH_FORKID")
+            },
+            SignatureHash::SIGHASH_SINGLE_SIGHASH_FORKID => {
+                write!(f, "SIGHASH_SINGLE | SIGHASH_FORKID")
+            },
             SignatureHash::SIGHASH_ALL_SIGHASH_ANYONECANPAY => {
                 write!(f, "SIGHASH_ALL | SIGHASH_ANYONECANPAY")
             }
@@ -205,7 +227,16 @@ impl fmt::Display for SignatureHash {
             }
             SignatureHash::SIGHASH_SINGLE_SIGHASH_ANYONECANPAY => {
                 write!(f, "SIGHASH_SINGLE | SIGHASH_ANYONECANPAY")
+            },
+            SignatureHash::SIGHASH_ALL_SIGHASH_FORKID_SIGHASH_ANYONECANPAY => {
+                write!(f, "SIGHASH_ALL | SIGHASH_FORKID | SIGHASH_ANYONECANPAY")
             }
+            SignatureHash::SIGHASH_NONE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY => {
+                write!(f, "SIGHASH_NONE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY")
+            }
+            SignatureHash::SIGHASH_SINGLE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY => {
+                write!(f, "SIGHASH_SINGLE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY")
+            },
         }
     }
 }
@@ -216,10 +247,16 @@ impl SignatureHash {
             0x01 => SignatureHash::SIGHASH_ALL,
             0x02 => SignatureHash::SIGHASH_NONE,
             0x03 => SignatureHash::SIGHASH_SINGLE,
+            0x41 => SignatureHash::SIGHASH_ALL_SIGHASH_FORKID,
+            0x42 => SignatureHash::SIGHASH_NONE_SIGHASH_FORKID,
+            0x43 => SignatureHash::SIGHASH_SINGLE_SIGHASH_FORKID,
             0x81 => SignatureHash::SIGHASH_ALL_SIGHASH_ANYONECANPAY,
             0x82 => SignatureHash::SIGHASH_NONE_SIGHASH_ANYONECANPAY,
             0x83 => SignatureHash::SIGHASH_SINGLE_SIGHASH_ANYONECANPAY,
-            _ => SignatureHash::SIGHASH_ALL,
+            0xc1 => SignatureHash::SIGHASH_ALL_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
+            0xc2 => SignatureHash::SIGHASH_NONE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
+            0xc3 => SignatureHash::SIGHASH_SINGLE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
+            _ => panic!("Unrecognized signature hash"),
         }
     }
 }
@@ -935,6 +972,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         index: u32,
     ) -> Result<Vec<u8>, TransactionError> {
         let input = &mut self.parameters.inputs[index as usize];
+        
         signature.push((input.sighash_code as u32).to_le_bytes()[0]);
 
         let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
@@ -974,8 +1012,8 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             let txid = hex::encode(&txid);
             let signature = hex::encode(&input.script_sig);
             let input = format!(
-                "sequence: {}, txid: {}, index: {}, signature: {}",
-                sequence, txid, outpoint.index, signature
+                "sequence: {}, txid: {}, index: {}, signature: {}, sighash: {}",
+                sequence, txid, outpoint.index, signature, input.sighash_code
             );
             inputs.push(input);
         }
@@ -1001,5 +1039,117 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 
     fn from_str(transaction: &str) -> Result<Self, Self::Err> {
         Self::from_bytes(&hex::decode(transaction)?)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use anychain_core::Transaction;
+
+    use crate::Mainnet;
+    use crate::amount::BitcoinAmount;
+
+    use super::BitcoinTransaction;
+    use super::BitcoinTransactionInput;
+    use super::BitcoinTransactionOutput;
+    use super::BitcoinTransactionParameters;
+    use super::Opcode;
+    use super::Outpoint;
+    use super::SignatureHash;
+    use super::variable_length_integer;
+    use anychain_core::libsecp256k1::{SecretKey, Message, sign};
+
+    fn output(address: [u8; 20], amount: i64) -> BitcoinTransactionOutput {
+        BitcoinTransactionOutput {
+            amount: BitcoinAmount(amount),
+            script_pub_key: script_public_key_hash(address),
+        }
+    }
+
+    fn input(txid: Vec<u8>, index: u32, address: [u8; 20], amount: i64) -> BitcoinTransactionInput<Mainnet> {
+        let mut reverse_transaction_id = txid;
+        reverse_transaction_id.reverse();
+        
+        let outpoint = Outpoint::<Mainnet> {
+            reverse_transaction_id,
+            index,
+            amount: Some(BitcoinAmount(amount)),
+            script_pub_key: Some(script_public_key_hash(address)),
+            redeem_script: None,
+            address: None,
+        };
+
+        BitcoinTransactionInput {
+            outpoint,
+            script_sig: vec![],
+            sequence: BitcoinTransactionInput::<Mainnet>::DEFAULT_SEQUENCE.to_vec(),
+            sighash_code: SignatureHash::SIGHASH_ALL_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
+            witnesses: vec![],
+            is_signed: false,
+            additional_witness: None,
+            witness_script_data: None,
+        }
+    }
+
+    fn script_public_key_hash(hash: [u8; 20]) -> Vec<u8> {
+        let mut script = vec![];
+        script.push(Opcode::OP_DUP as u8);
+        script.push(Opcode::OP_HASH160 as u8);
+        script.extend(variable_length_integer(hash.len() as u64).unwrap());
+        script.extend(hash);
+        script.push(Opcode::OP_EQUALVERIFY as u8);
+        script.push(Opcode::OP_CHECKSIG as u8);
+        script
+    }
+
+    #[test]
+    fn f() {
+        let prev_txid = "27ce2600ed495347fce5355cf90b34f72cc9aff2b42655e1c6c995ff8afe21a0";
+        let prev_txid = hex::decode(prev_txid).unwrap();
+
+        let from = [
+            121, 176, 0, 136, 118, 38, 178, 148, 169, 20,
+            80, 26, 76, 210, 38, 181, 139, 35, 89, 131,
+        ] as [u8; 20];
+
+        let public_key = [
+            2, 252, 28, 238, 109, 187, 243, 160, 125, 88, 121, 75, 21, 67, 192, 38, 121,
+            197, 170, 229, 167, 212, 99, 22, 46, 185, 168, 111, 242, 157, 190, 62, 144,
+        ].to_vec();
+
+        let to = [
+            121, 176, 0, 136, 118, 38, 178, 148, 169, 20,
+            80, 26, 76, 210, 38, 181, 139, 35, 89, 131,
+        ] as [u8; 20];
+
+        let input = input(prev_txid, 0, from, 10100000);
+        let out = output(to, 5000000);
+        let out1 = output(from, 5000000);
+
+        let params = BitcoinTransactionParameters::new(vec![input], vec![out, out1]).unwrap();
+        let mut tx = BitcoinTransaction::new(&params).unwrap();
+
+        let hash = tx.txid_p2pkh(0).unwrap();
+
+        let signing_key = [
+            56, 127, 139, 242, 234, 208, 96, 112, 134, 251, 100, 45, 230, 217, 251, 107,
+            58, 234, 218, 188, 213, 253, 10, 92, 251, 17, 190, 150, 100, 177, 1, 22
+        ] as [u8; 32];
+
+        let signing_key = SecretKey::parse_slice(&signing_key).unwrap();
+        let msg = Message::parse_slice(&hash).unwrap();
+
+        // here we sign the hash with 'signing_key'
+        let signature = sign(&msg, &signing_key).0;
+
+        // let signature = signature.serialize().to_vec();
+        let signature = signature.serialize().to_vec();
+
+        let tx = tx.sign_p2pkh(signature, public_key, 0).unwrap();
+
+        let tx = BitcoinTransaction::<Mainnet>::from_bytes(&tx).unwrap();
+
+        println!("tx = {}\n\n", tx);
     }
 }
