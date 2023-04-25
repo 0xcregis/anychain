@@ -1,25 +1,28 @@
 use anychain_core::Network;
 
-pub mod mainnet;
-pub use self::mainnet::*;
+pub mod ethereum;
+pub use self::ethereum::*;
 
 pub mod goerli;
 pub use self::goerli::*;
 
-pub mod kovan;
-pub use self::kovan::*;
+pub mod ethereum_classic;
+pub use self::ethereum_classic::*;
 
-pub mod ropsten;
-pub use self::ropsten::*;
+pub mod kotti;
+pub use self::kotti::*;
 
-pub mod etc;
-pub use self::etc::*;
+pub mod huobi_eco;
+pub use self::huobi_eco::*;
 
-pub mod heco;
-pub use self::heco::*;
+pub mod huobi_eco_testnet;
+pub use self::huobi_eco_testnet::*;
 
-pub mod bsc;
-pub use self::bsc::*;
+pub mod binance_smart_chain;
+pub use self::binance_smart_chain::*;
+
+pub mod binance_smart_chain_testnet;
+pub use self::binance_smart_chain_testnet::*;
 
 /// The interface for an Ethereum network.
 pub trait EthereumNetwork: Network {

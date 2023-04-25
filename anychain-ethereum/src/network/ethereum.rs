@@ -4,20 +4,20 @@ use anychain_core::{Network, NetworkError};
 use serde::Serialize;
 use std::{fmt, str::FromStr};
 
-/// Represents an Ethereum test network (PoA).
+/// Represents an Ethereum main network.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Kovan;
+pub struct Ethereum;
 
-impl Network for Kovan {
-    const NAME: &'static str = "kovan";
+impl Network for Ethereum {
+    const NAME: &'static str = "ethereum";
 }
 
-impl EthereumNetwork for Kovan {
-    const CHAIN_ID: u32 = 42;
-    const NETWORK_ID: u32 = 42;
+impl EthereumNetwork for Ethereum {
+    const CHAIN_ID: u32 = 1;
+    const NETWORK_ID: u32 = 1;
 }
 
-impl FromStr for Kovan {
+impl FromStr for Ethereum {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -28,7 +28,7 @@ impl FromStr for Kovan {
     }
 }
 
-impl fmt::Display for Kovan {
+impl fmt::Display for Ethereum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

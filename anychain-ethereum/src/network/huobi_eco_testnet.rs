@@ -4,20 +4,20 @@ use anychain_core::{Network, NetworkError};
 use serde::Serialize;
 use std::{fmt, str::FromStr};
 
-/// Represents an Ethereum test network (PoW).
+/// Represents an Ethereum test network (PoA).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Ropsten;
+pub struct HuobiEcoTestnet;
 
-impl Network for Ropsten {
-    const NAME: &'static str = "ropsten";
+impl Network for HuobiEcoTestnet {
+    const NAME: &'static str = "huobi eco testnet";
 }
 
-impl EthereumNetwork for Ropsten {
-    const CHAIN_ID: u32 = 3;
-    const NETWORK_ID: u32 = 3;
+impl EthereumNetwork for HuobiEcoTestnet {
+    const CHAIN_ID: u32 = 256;
+    const NETWORK_ID: u32 = 256;
 }
 
-impl FromStr for Ropsten {
+impl FromStr for HuobiEcoTestnet {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -28,7 +28,7 @@ impl FromStr for Ropsten {
     }
 }
 
-impl fmt::Display for Ropsten {
+impl fmt::Display for HuobiEcoTestnet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

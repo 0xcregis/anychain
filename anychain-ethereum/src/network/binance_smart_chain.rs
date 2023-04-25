@@ -6,18 +6,18 @@ use std::{fmt, str::FromStr};
 
 /// Represents an Ethereum test network (PoA).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Heco;
+pub struct BinanceSmartChain;
 
-impl Network for Heco {
-    const NAME: &'static str = "heco";
+impl Network for BinanceSmartChain {
+    const NAME: &'static str = "binance smart chain";
 }
 
-impl EthereumNetwork for Heco {
-    const CHAIN_ID: u32 = 128;
-    const NETWORK_ID: u32 = 128;
+impl EthereumNetwork for BinanceSmartChain {
+    const CHAIN_ID: u32 = 56;
+    const NETWORK_ID: u32 = 56;
 }
 
-impl FromStr for Heco {
+impl FromStr for BinanceSmartChain {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -28,7 +28,7 @@ impl FromStr for Heco {
     }
 }
 
-impl fmt::Display for Heco {
+impl fmt::Display for BinanceSmartChain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }
