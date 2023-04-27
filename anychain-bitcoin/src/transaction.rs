@@ -32,13 +32,13 @@ pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> 
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, TransactionError> {
     let mut flag = [0u8; 1];
-    reader.read_exact(&mut flag)?;
+    reader.read(&mut flag)?;
 
     match flag[0] {
         0..=252 => Ok(flag[0] as usize),
         0xfd => {
             let mut size = [0u8; 2];
-            reader.read_exact(&mut size)?;
+            reader.read(&mut size)?;
             match u16::from_le_bytes(size) {
                 s if s < 253 => Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
                 s => Ok(s as usize),
@@ -46,7 +46,7 @@ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, Tra
         }
         0xfe => {
             let mut size = [0u8; 4];
-            reader.read_exact(&mut size)?;
+            reader.read(&mut size)?;
             match u32::from_le_bytes(size) {
                 s if s < 65536 => Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
                 s => Ok(s as usize),
@@ -54,7 +54,7 @@ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, Tra
         }
         _ => {
             let mut size = [0u8; 8];
-            reader.read_exact(&mut size)?;
+            reader.read(&mut size)?;
             match u64::from_le_bytes(size) {
                 s if s < 4294967296 => {
                     Err(TransactionError::InvalidVariableSizeInteger(s as usize))
@@ -455,8 +455,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut vin = [0u8; 4];
         let mut sequence = [0u8; 4];
 
-        reader.read_exact(&mut transaction_hash)?;
-        reader.read_exact(&mut vin)?;
+        reader.read(&mut transaction_hash)?;
+        reader.read(&mut vin)?;
 
         let outpoint = Outpoint::<N>::new(
             transaction_hash.to_vec(),
@@ -469,11 +469,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
         let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
-            s.read_exact(&mut byte)?;
+            s.read(&mut byte)?;
             Ok(byte[0])
         })?;
 
-        reader.read_exact(&mut sequence)?;
+        reader.read(&mut sequence)?;
 
         let script_sig_len = read_variable_length_integer(&script_sig[..])?;
         let sighash_code = SignatureHash::from_byte(&match script_sig_len {
@@ -569,11 +569,11 @@ impl BitcoinTransactionOutput {
     /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut amount = [0u8; 8];
-        reader.read_exact(&mut amount)?;
+        reader.read(&mut amount)?;
 
         let script_pub_key: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
-            s.read_exact(&mut byte)?;
+            s.read(&mut byte)?;
             Ok(byte[0])
         })?;
 
@@ -642,14 +642,14 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
     /// Read and output the Bitcoin transaction parameters
     pub fn read<R: Read>(mut reader: R) -> Result<Self, TransactionError> {
         let mut version = [0u8; 4];
-        reader.read_exact(&mut version)?;
+        reader.read(&mut version)?;
 
         let mut inputs = BitcoinVector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
 
         let segwit_flag = match inputs.is_empty() {
             true => {
                 let mut flag = [0u8; 1];
-                reader.read_exact(&mut flag)?;
+                reader.read(&mut flag)?;
                 match flag[0] {
                     1 => {
                         inputs =
@@ -669,7 +669,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
                 let witnesses: Vec<Vec<u8>> = BitcoinVector::read(&mut reader, |s| {
                     let (size, witness) = BitcoinVector::read_witness(s, |sr| {
                         let mut byte = [0u8; 1];
-                        sr.read_exact(&mut byte)?;
+                        sr.read(&mut byte)?;
                         Ok(byte[0])
                     })?;
 
@@ -687,7 +687,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
         }
 
         let mut lock_time = [0u8; 4];
-        reader.read_exact(&mut lock_time)?;
+        reader.read(&mut lock_time)?;
 
         let transaction_parameters = BitcoinTransactionParameters::<N> {
             version: u32::from_le_bytes(version),
@@ -1044,6 +1044,8 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 
 #[cfg(test)]
 mod tests {
+    use core::str::FromStr;
+
     use anychain_core::Transaction;
 
     use crate::amount::BitcoinAmount;
@@ -1062,7 +1064,7 @@ mod tests {
     fn output(address: [u8; 20], amount: i64) -> BitcoinTransactionOutput {
         BitcoinTransactionOutput {
             amount: BitcoinAmount(amount),
-            script_pub_key: script_public_key_hash(address),
+            script_pub_key: script_public_key(address),
         }
     }
 
@@ -1079,7 +1081,7 @@ mod tests {
             reverse_transaction_id,
             index,
             amount: Some(BitcoinAmount(amount)),
-            script_pub_key: Some(script_public_key_hash(address)),
+            script_pub_key: Some(script_public_key(address)),
             redeem_script: None,
             address: None,
         };
@@ -1088,7 +1090,7 @@ mod tests {
             outpoint,
             script_sig: vec![],
             sequence: BitcoinTransactionInput::<Mainnet>::DEFAULT_SEQUENCE.to_vec(),
-            sighash_code: SignatureHash::SIGHASH_ALL_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
+            sighash_code: SignatureHash::SIGHASH_ALL_SIGHASH_FORKID,
             witnesses: vec![],
             is_signed: false,
             additional_witness: None,
@@ -1096,7 +1098,7 @@ mod tests {
         }
     }
 
-    fn script_public_key_hash(hash: [u8; 20]) -> Vec<u8> {
+    fn script_public_key(hash: [u8; 20]) -> Vec<u8> {
         let mut script = vec![];
         script.push(Opcode::OP_DUP as u8);
         script.push(Opcode::OP_HASH160 as u8);
@@ -1113,8 +1115,8 @@ mod tests {
         let prev_txid = hex::decode(prev_txid).unwrap();
 
         let from = [
-            121, 176, 0, 136, 118, 38, 178, 148, 169, 20, 80, 26, 76, 210, 38, 181, 139, 35, 89,
-            131,
+            3, 141, 242, 111, 126, 246, 240, 104, 89, 19, 22, 155, 205, 70, 66, 132, 101, 113, 33,
+            100,
         ] as [u8; 20];
 
         let public_key = [
@@ -1132,8 +1134,10 @@ mod tests {
         let out = output(to, 5000000);
         let out1 = output(from, 5000000);
 
-        let params = BitcoinTransactionParameters::new(vec![input], vec![out, out1]).unwrap();
-        let mut tx = BitcoinTransaction::new(&params).unwrap();
+        let params = BitcoinTransactionParameters::<Mainnet>::new(vec![input], vec![out, out1]).unwrap();
+        let mut tx = BitcoinTransaction::<Mainnet>::new(&params).unwrap();
+
+        println!("raw tx = {}\n", tx);
 
         let hash = tx.txid_p2pkh(0).unwrap();
 
@@ -1149,12 +1153,28 @@ mod tests {
         let signature = sign(&msg, &signing_key).0;
 
         // let signature = signature.serialize().to_vec();
-        let signature = signature.serialize().to_vec();
+        let signature = signature.serialize_der().as_ref().to_vec();
+
+        println!("len = {}", signature.len());
 
         let tx = tx.sign_p2pkh(signature, public_key, 0).unwrap();
 
-        let tx = BitcoinTransaction::<Mainnet>::from_bytes(&tx).unwrap();
+        // let tx = BitcoinTransaction::<Mainnet>::from_bytes(&tx).unwrap();
 
-        println!("tx = {}\n\n", tx);
+        // println!("tx = {}", tx);
+    }
+
+    #[test]
+    fn ff() {
+        let tx = "0200000001a021fe8aff95c9c6e15526b4f2afc92cf7340bf95c35e5fc475349ed0026ce27000000006a47304402204fb4a52ed0a57c609bbc1601472df96ec155a0e43f84391405f35b9d6ba688bb02203d32f513e2d7fa76957f082230458ff650bdea4b6f095dd9126b1602556fa755412102fc1cee6dbbf3a07d58794b1543c02679c5aae5a7d463162eb9a86ff29dbe3e90ffffffff02404b4c00000000001976a91479b000887626b294a914501a4cd226b58b23598388ac404b4c00000000001976a914038df26f7ef6f0685913169bcd4642846571216488ac00000000";
+        let tx = "0100000001883e3ada0cba486531b64fa0d3155490f8b0c15e58078656fb1fb3dca60fdba6010000006b483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016000000100322020000000000001976a914d6b984a50fbdb748add803edf532a4d32e49dbe488ac6f6b0b00000000001976a914a0c21e8ecfeca2fa8648b1cf1cb80402fbdad61188ac0000000000000000166a146f6d6e69000000000000001f00000011224e498000000000";
+        let tx = BitcoinTransaction::<Mainnet>::from_str(tx).unwrap();
+
+        tx.get_inputs().unwrap().iter().for_each(
+            |s| println!("{}", s)
+        );
+
+        let sig = "483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016";
+        println!("len = {}", sig.len());
     }
 }
