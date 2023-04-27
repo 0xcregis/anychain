@@ -1134,7 +1134,8 @@ mod tests {
         let out = output(to, 5000000);
         let out1 = output(from, 5000000);
 
-        let params = BitcoinTransactionParameters::<Mainnet>::new(vec![input], vec![out, out1]).unwrap();
+        let params =
+            BitcoinTransactionParameters::<Mainnet>::new(vec![input], vec![out, out1]).unwrap();
         let mut tx = BitcoinTransaction::<Mainnet>::new(&params).unwrap();
 
         println!("raw tx = {}\n", tx);
@@ -1170,9 +1171,10 @@ mod tests {
         let tx = "0100000001883e3ada0cba486531b64fa0d3155490f8b0c15e58078656fb1fb3dca60fdba6010000006b483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016000000100322020000000000001976a914d6b984a50fbdb748add803edf532a4d32e49dbe488ac6f6b0b00000000001976a914a0c21e8ecfeca2fa8648b1cf1cb80402fbdad61188ac0000000000000000166a146f6d6e69000000000000001f00000011224e498000000000";
         let tx = BitcoinTransaction::<Mainnet>::from_str(tx).unwrap();
 
-        tx.get_inputs().unwrap().iter().for_each(
-            |s| println!("{}", s)
-        );
+        tx.get_inputs()
+            .unwrap()
+            .iter()
+            .for_each(|s| println!("{}", s));
 
         let sig = "483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016";
         println!("len = {}", sig.len());
