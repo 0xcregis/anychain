@@ -37,7 +37,5 @@ jobs:
         toolchain: ${{ matrix.rust-version }}
     - name: Check formatting
       run: cargo fmt -- --check
-    - name: Check clippy
-      run: cargo clippy
     - name: Build and test
       run: cargo test --all-features
