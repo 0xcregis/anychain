@@ -346,11 +346,11 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
         self.parameters.amount
     }
 
-    pub fn get_fee(&self) -> EthereumAmount {
+    pub fn get_gas_price(&self) -> EthereumAmount {
         self.parameters.gas_price
     }
 
-    pub fn get_gas(&self) -> U256 {
+    pub fn get_gas_limit(&self) -> U256 {
         self.parameters.gas
     }
 
@@ -362,18 +362,16 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
         self.parameters.data.clone()
     }
 
-    pub fn get_signature_hex(&self) -> Result<String, TransactionError> {
-        match self.signature.clone() {
-            Some(mut sig) => {
-                let v = from_bytes(&sig.v)?;
-                let recid = (v - N::CHAIN_ID * 2 - 35) as u8;
-                let mut ret = sig.r;
-                ret.append(&mut sig.s);
-                ret.push(recid);
-                Ok(hex::encode(ret))
-            }
-            None => Err(TransactionError::MissingSignature),
-        }
+    pub fn get_r(&self) -> String {
+        hex::encode(self.signature.clone().unwrap().r)
+    }
+
+    pub fn get_s(&self) -> String {
+        hex::encode(self.signature.clone().unwrap().s)
+    }
+
+    pub fn get_v(&self) -> String {
+        hex::encode(self.signature.clone().unwrap().v)
     }
 }
 
