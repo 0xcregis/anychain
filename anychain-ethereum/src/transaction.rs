@@ -235,7 +235,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 pad_zero(&mut r);
                 let mut s = list[8].clone();
                 pad_zero(&mut s);
-                let signature = [r, s].concat();
+                let signature = [r.clone(), s.clone()].concat();
                 let raw_transaction = Self {
                     sender: None,
                     parameters: parameters.clone(),
@@ -256,8 +256,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     parameters,
                     signature: Some(EthereumTransactionSignature {
                         v: list[6].clone(),
-                        r: list[7].clone(),
-                        s: list[8].clone(),
+                        r,
+                        s,
                     }),
                     _network: PhantomData,
                 })
