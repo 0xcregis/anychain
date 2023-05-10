@@ -13,31 +13,6 @@ use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use rlp::{decode_list, RlpStream};
 
-/// Returns the number of leading zeros of 'v'
-fn leading_zero_count(v: &Vec<u8>) -> usize {
-    let mut cnt: usize = 0;
-    for i in 0..v.len() {
-        if v[i] != 0 {
-            break;
-        } else {
-            cnt += 1;
-        }
-    }
-    cnt
-}
-
-/// Prepend a number of zeros to 'v' to make it 32 bytes long
-fn pad_zero(v: &mut Vec<u8>) {
-    if v.len() < 32 {
-        let mut temp = v.clone();
-        let len = v.len();
-        v.clear();
-        v.resize(32 - len, 0);
-        v.append(&mut temp);
-    }
-}
-
-
 pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
     match value {
         // bounded by u8::max_value()
@@ -232,11 +207,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 let v = from_bytes(&list[6])?;
                 let recovery_id =
                     libsecp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)?;
-                let mut r = list[7].clone();
-                pad_zero(&mut r);
-                let mut s = list[8].clone();
-                pad_zero(&mut s);
-                let signature = [r, s].concat();
+                let mut signature = list[7].clone();
+                signature.extend_from_slice(&list[8]);
+
                 let raw_transaction = Self {
                     sender: None,
                     parameters: parameters.clone(),
@@ -251,7 +224,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                         &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
                         &recovery_id,
                     )?);
-            
+
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),
                     parameters,
@@ -263,7 +236,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     _network: PhantomData,
                 })
             }
-            
         }
     }
 
@@ -307,14 +279,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             transaction_rlp.begin_list(9);
             encode_transaction(&mut transaction_rlp, parameters)?;
             transaction_rlp.append(&signature.v);
-            let trim_len = leading_zero_count(&signature.r);
-            // trim the leading zeros of r
-            let r = &signature.r[trim_len..];
-            transaction_rlp.append(&r);
-            // trim the leading zeros of s
-            let trim_len = leading_zero_count(&signature.s);
-            let s = &signature.s[trim_len..];
-            transaction_rlp.append(&s);
+            transaction_rlp.append(&signature.r);
+            transaction_rlp.append(&signature.s);
             Ok(transaction_rlp)
         }
 
