@@ -309,8 +309,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             // trim the leading zeros of r
             let r = &signature.r[trim_len..];
             transaction_rlp.append(&r);
-            // trim the leading zeros of s
             let trim_len = leading_zero_count(&signature.s);
+            // trim the leading zeros of s
             let s = &signature.s[trim_len..];
             transaction_rlp.append(&s);
             Ok(transaction_rlp)
