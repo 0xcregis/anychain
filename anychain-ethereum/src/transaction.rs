@@ -16,8 +16,8 @@ use rlp::{decode_list, RlpStream};
 /// Returns the number of leading zeros of 'v'
 fn leading_zero_count(v: &Vec<u8>) -> usize {
     let mut cnt: usize = 0;
-    for i in 0..v.len() {
-        if v[i] != 0 {
+    for byte in v {
+        if *byte != 0 {
             break;
         } else {
             cnt += 1;
@@ -250,7 +250,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                         &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
                         &recovery_id,
                     )?);
-            
+
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),
                     parameters,

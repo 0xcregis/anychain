@@ -35,7 +35,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
         secret_key: &Self::SecretKey,
         format: &Self::Format,
     ) -> Result<Self, AddressError> {
-        Self::from_public_key(&BitcoinPublicKey::from_secret_key(secret_key), format)
+        Self::PublicKey::from_secret_key(secret_key).to_address(format)
     }
 
     /// Returns the address corresponding to the given Bitcoin public key.
@@ -104,12 +104,13 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let version = u5::try_from_u8(v)?;
 
         let mut data = vec![version];
+
         // Get the SHA256 hash of the script
         data.extend_from_slice(&script.to_vec().to_base32());
 
-        //let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
         let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
+        
         Ok(Self {
             address: bech32,
             format: BitcoinFormat::P2WSH,
@@ -141,7 +142,6 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let mut data = vec![version];
         data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
 
-        //let bech32 = Bech32::new(String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?, data)?;
         let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
         Ok(Self {
@@ -187,7 +187,6 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
 
         if let Ok(format) = BitcoinFormat::from_address_prefix(prefix.as_bytes()) {
             if BitcoinFormat::Bech32 == format {
-                //let bech32 = Bech32::from_str(&address)?;
                 let (_, data, _) = bech32::decode(address)?;
                 if data.is_empty() {
                     return Err(AddressError::InvalidAddress(address.to_owned()));
@@ -202,6 +201,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
 
                 // Check that the witness program is valid.
                 let _ = WitnessProgram::new(data.as_slice())?;
+
                 // Check that the address prefix corresponds to the correct network.
                 let _ = N::from_address_prefix(prefix.as_bytes())?;
 
@@ -214,13 +214,29 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
         }
 
         let data = address.from_base58()?;
+        
         if data.len() != 25 {
             return Err(AddressError::InvalidByteLength(data.len()));
         }
 
-        // Check that the address prefix corresponds to the correct network.
+        // Check if the address prefix corresponds to the correct network
         let _ = N::from_address_prefix(&data[0..2])?;
         let format = BitcoinFormat::from_address_prefix(&data[0..2])?;
+
+        // Check if the payload produces the provided checksum
+        match format {
+            BitcoinFormat::P2PKH | BitcoinFormat::P2SH_P2WPKH => {
+                let checksum_gen = &checksum(&data[..21])[..4];
+                let checksum_provided = &data[21..];
+                if *checksum_gen != *checksum_provided {
+                    return Err(AddressError::InvalidChecksum(
+                        [data[..21].to_vec(), checksum_gen.to_vec()].concat().to_base58(),
+                        data.to_base58(),
+                    ));
+                }
+            },
+            BitcoinFormat::Bech32 | BitcoinFormat::P2WSH => {},
+        }
 
         Ok(Self {
             address: address.into(),
@@ -548,7 +564,7 @@ mod tests {
             "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", // invalid witness version
             "bc1rw5uspcuh",                               // invalid program length
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90", // invalid program length
-            "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", //Invalid program length for witness version 0 (per BIP141)
+            "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", // invalid program length for witness version 0 (per BIP141)
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du", // invalid padding
             "bc1gmk9yu",                            // empty data section
         ];
@@ -680,5 +696,16 @@ mod tests {
                 test_to_str(expected_address, &address);
             });
         }
+    }
+
+    #[test]
+    fn f() {
+
+        let addr = "1J2shZV5b53GRVmTqmr3tJhkVbBML29C1z";
+
+        let addr = BitcoinAddress::<Mainnet>::from_str(addr).unwrap();
+
+
+        println!("addr = {}", addr);
     }
 }
