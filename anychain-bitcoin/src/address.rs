@@ -110,7 +110,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
         let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
-        
+
         Ok(Self {
             address: bech32,
             format: BitcoinFormat::P2WSH,
@@ -214,7 +214,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
         }
 
         let data = address.from_base58()?;
-        
+
         if data.len() != 25 {
             return Err(AddressError::InvalidByteLength(data.len()));
         }
@@ -230,12 +230,14 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
                 let checksum_provided = &data[21..];
                 if *checksum_gen != *checksum_provided {
                     return Err(AddressError::InvalidChecksum(
-                        [data[..21].to_vec(), checksum_gen.to_vec()].concat().to_base58(),
-                        data.to_base58(),
+                        address.to_string(),
+                        [data[..21].to_vec(), checksum_gen.to_vec()]
+                            .concat()
+                            .to_base58(),
                     ));
                 }
-            },
-            BitcoinFormat::Bech32 | BitcoinFormat::P2WSH => {},
+            }
+            BitcoinFormat::Bech32 | BitcoinFormat::P2WSH => {}
         }
 
         Ok(Self {
@@ -700,11 +702,9 @@ mod tests {
 
     #[test]
     fn f() {
-
         let addr = "1J2shZV5b53GRVmTqmr3tJhkVbBML29C1z";
 
         let addr = BitcoinAddress::<Mainnet>::from_str(addr).unwrap();
-
 
         println!("addr = {}", addr);
     }
