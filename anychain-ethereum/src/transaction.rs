@@ -42,9 +42,9 @@ pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
         // bounded by u8::max_value()
         0..=255 => Ok(vec![value as u8]),
         // bounded by u16::max_value()
-        256..=65535 => Ok((value as u16).to_be_bytes().to_vec()),
+        256..=65535 => Ok((value as u16).to_le_bytes().to_vec()),
         // bounded by u32::max_value()
-        _ => Ok(value.to_be_bytes().to_vec()),
+        _ => Ok(value.to_le_bytes().to_vec()),
     }
 }
 
