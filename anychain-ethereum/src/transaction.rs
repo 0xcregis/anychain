@@ -280,6 +280,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             let mut transaction_rlp = RlpStream::new();
             transaction_rlp.begin_list(9);
             encode_transaction(&mut transaction_rlp, parameters)?;
+            // trim the leading zeros of v
             let v = trim_leading_zeros(&signature.v);
             transaction_rlp.append(&v);
             // trim the leading zeros of r
