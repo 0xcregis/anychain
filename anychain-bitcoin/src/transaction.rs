@@ -5,7 +5,9 @@ use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
 use anychain_core::no_std::{io::Read, *};
-use anychain_core::{Transaction, TransactionError, TransactionId, crypto::checksum as double_sha2};
+use anychain_core::{
+    crypto::checksum as double_sha2, Transaction, TransactionError, TransactionId,
+};
 
 use base58::FromBase58;
 use bech32::{self, FromBase32};
@@ -97,7 +99,7 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
     match address.format() {
         BitcoinFormat::P2PKH => {
             let bytes = &address.to_string().from_base58()?;
-            
+
             // Trim the prefix (1st byte) and the checksum (last 4 bytes)
             let pub_key_hash = bytes[1..(bytes.len() - 4)].to_vec();
 
@@ -466,25 +468,20 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
             None,
         )?;
 
-        let script_sig: Vec<u8> = BitcoinVector::read(
-            &mut reader,
-            |s| {
-                let mut byte = [0u8; 1];
-                s.read(&mut byte)?;
-                Ok(byte[0])
-            }
-        )?;
+        let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
+            let mut byte = [0u8; 1];
+            s.read(&mut byte)?;
+            Ok(byte[0])
+        })?;
 
         reader.read(&mut sequence)?;
 
         let script_sig_len = read_variable_length_integer(&script_sig[..])?;
-        
-        let sighash_code = SignatureHash::from_byte(
-            &match script_sig_len {
-                0 => 0x01,
-                length => script_sig[length],
-            }
-        );
+
+        let sighash_code = SignatureHash::from_byte(&match script_sig_len {
+            0 => 0x01,
+            length => script_sig[length],
+        });
 
         Ok(Self {
             outpoint,
@@ -576,14 +573,11 @@ impl BitcoinTransactionOutput {
         let mut amount = [0u8; 8];
         reader.read(&mut amount)?;
 
-        let script_pub_key: Vec<u8> = BitcoinVector::read(
-            &mut reader,
-            |s| {
-                let mut byte = [0u8; 1];
-                s.read(&mut byte)?;
-                Ok(byte[0])
-            }
-        )?;
+        let script_pub_key: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
+            let mut byte = [0u8; 1];
+            s.read(&mut byte)?;
+            Ok(byte[0])
+        })?;
 
         Ok(Self {
             amount: BitcoinAmount::from_satoshi(u64::from_le_bytes(amount) as i64)?,
@@ -660,7 +654,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
                 reader.read(&mut flag)?;
                 match flag[0] {
                     1 => {
-                        inputs = BitcoinVector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
+                        inputs =
+                            BitcoinVector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
                         true
                     }
                     _ => return Err(TransactionError::InvalidSegwitFlag(flag[0] as usize)),
@@ -673,23 +668,18 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
 
         if segwit_flag {
             for input in &mut inputs {
-                let witnesses: Vec<Vec<u8>> = BitcoinVector::read(
-                    &mut reader,
-                    |s| {
-                        let (size, witness) = BitcoinVector::read_witness(
-                            s,
-                            |sr| {
-                                let mut byte = [0u8; 1];
-                                sr.read(&mut byte)?;
-                                Ok(byte[0])
-                            }
-                        )?;
-                        Ok([variable_length_integer(size as u64)?, witness?].concat())
-                    }
-                )?;
+                let witnesses: Vec<Vec<u8>> = BitcoinVector::read(&mut reader, |s| {
+                    let (size, witness) = BitcoinVector::read_witness(s, |sr| {
+                        let mut byte = [0u8; 1];
+                        sr.read(&mut byte)?;
+                        Ok(byte[0])
+                    })?;
+                    Ok([variable_length_integer(size as u64)?, witness?].concat())
+                })?;
 
                 if !witnesses.is_empty() {
-                    input.sighash_code = SignatureHash::from_byte(&witnesses[0][&witnesses[0].len() - 1]);
+                    input.sighash_code =
+                        SignatureHash::from_byte(&witnesses[0][&witnesses[0].len() - 1]);
                     input.is_signed = true;
                 }
 
