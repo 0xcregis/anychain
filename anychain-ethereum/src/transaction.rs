@@ -6,15 +6,16 @@ use crate::public_key::EthereumPublicKey;
 use anychain_core::ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
 use anychain_core::{
-    hex, libsecp256k1, Error, PublicKey, Transaction, TransactionError, TransactionId,
+    hex, libsecp256k1, PublicKey, Transaction, TransactionError, TransactionId,
 };
+use core::convert::TryInto;
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use rlp::{decode_list, RlpStream};
 
-/// Returns the number of leading zeros of 'v'
-fn leading_zero_count(v: &Vec<u8>) -> usize {
+/// Trim the leading zero of a byte stream and return it
+fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
     let mut cnt: usize = 0;
     for byte in v {
         if *byte != 0 {
@@ -23,47 +24,17 @@ fn leading_zero_count(v: &Vec<u8>) -> usize {
             cnt += 1;
         }
     }
-    cnt
+    &v[cnt..]
 }
 
-/// Prepend a number of zeros to 'v' to make it 32 bytes long
-fn pad_zero(v: &mut Vec<u8>) {
-    if v.len() < 32 {
+/// Prepend a number of zeros to 'v' to make it 'to_len' bytes long
+fn pad_zeros(v: &mut Vec<u8>, to_len: usize) {
+    if v.len() < to_len {
         let mut temp = v.clone();
         let len = v.len();
         v.clear();
-        v.resize(32 - len, 0);
+        v.resize(to_len - len, 0);
         v.append(&mut temp);
-    }
-}
-
-pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
-    match value {
-        // bounded by u8::max_value()
-        0..=255 => Ok(vec![value as u8]),
-        // bounded by u16::max_value()
-        256..=65535 => Ok((value as u16).to_be_bytes().to_vec()),
-        // bounded by u32::max_value()
-        _ => Ok(value.to_be_bytes().to_vec()),
-    }
-}
-
-pub fn u256_to_bytes(value: &U256) -> Result<Vec<u8>, Error> {
-    let mut bytes: Vec<u8> = vec![];
-    value.to_big_endian(&mut bytes);
-    Ok(bytes)
-}
-
-pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
-    match value.len() {
-        0 => Ok(0u32),
-        1 => Ok(u32::from_be_bytes([value[0], 0, 0, 0])),
-        2 => Ok(u32::from_be_bytes([value[0], value[1], 0, 0])),
-        3 => Ok(u32::from_be_bytes([value[0], value[1], value[2], 0])),
-        4 => Ok(u32::from_be_bytes([value[0], value[1], value[2], value[3]])),
-        _ => Err(TransactionError::Message(
-            "invalid byte length for u32 value".to_string(),
-        )),
     }
 }
 
@@ -180,7 +151,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         )?);
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         self.signature = Some(EthereumTransactionSignature {
-            v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
+            v: (u32::from(recid) + N::CHAIN_ID * 2 + 35).to_be_bytes().to_vec(), // EIP155
             r: rs[..32].to_vec(),
             s: rs[32..64].to_vec(),
         });
@@ -228,13 +199,16 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             }
             false => {
                 // Signed transaction
-                let v = from_bytes(&list[6])?;
+                let mut v = list[6].clone();
+                pad_zeros(&mut v, 4);
+                let v: [u8; 4] = v.try_into().unwrap();
+                let v = u32::from_be_bytes(v);
                 let recovery_id =
                     libsecp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)?;
                 let mut r = list[7].clone();
-                pad_zero(&mut r);
+                pad_zeros(&mut r, 32);
                 let mut s = list[8].clone();
-                pad_zero(&mut s);
+                pad_zeros(&mut s, 32);
                 let signature = [r.clone(), s.clone()].concat();
                 let raw_transaction = Self {
                     sender: None,
@@ -255,7 +229,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),
                     parameters,
                     signature: Some(EthereumTransactionSignature {
-                        v: list[6].clone(),
+                        v: v.to_be_bytes().to_vec(),
                         r,
                         s,
                     }),
@@ -290,7 +264,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             let mut transaction_rlp = RlpStream::new();
             transaction_rlp.begin_list(9);
             encode_transaction(&mut transaction_rlp, parameters)?;
-            transaction_rlp.append(&to_bytes(N::CHAIN_ID)?);
+            let chain_id = N::CHAIN_ID.to_be_bytes().to_vec();
+            let chain_id = trim_leading_zeros(&chain_id);
+            transaction_rlp.append(&chain_id);
             transaction_rlp.append(&0u8);
             transaction_rlp.append(&0u8);
             Ok(transaction_rlp)
@@ -304,14 +280,13 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             let mut transaction_rlp = RlpStream::new();
             transaction_rlp.begin_list(9);
             encode_transaction(&mut transaction_rlp, parameters)?;
-            transaction_rlp.append(&signature.v);
-            let trim_len = leading_zero_count(&signature.r);
+            let v = trim_leading_zeros(&signature.v);
+            transaction_rlp.append(&v);
             // trim the leading zeros of r
-            let r = &signature.r[trim_len..];
+            let r = trim_leading_zeros(&signature.r);
             transaction_rlp.append(&r);
-            let trim_len = leading_zero_count(&signature.s);
             // trim the leading zeros of s
-            let s = &signature.s[trim_len..];
+            let s = trim_leading_zeros(&signature.s);
             transaction_rlp.append(&s);
             Ok(transaction_rlp)
         }
