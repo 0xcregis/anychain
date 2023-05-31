@@ -42,9 +42,9 @@ pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
         // bounded by u8::max_value()
         0..=255 => Ok(vec![value as u8]),
         // bounded by u16::max_value()
-        256..=65535 => Ok((value as u16).to_le_bytes().to_vec()),
+        256..=65535 => Ok((value as u16).to_be_bytes().to_vec()),
         // bounded by u32::max_value()
-        _ => Ok(value.to_le_bytes().to_vec()),
+        _ => Ok(value.to_be_bytes().to_vec()),
     }
 }
 
@@ -57,10 +57,10 @@ pub fn u256_to_bytes(value: &U256) -> Result<Vec<u8>, Error> {
 pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
     match value.len() {
         0 => Ok(0u32),
-        1 => Ok(u32::from_le_bytes([value[0], 0, 0, 0])),
-        2 => Ok(u32::from_le_bytes([value[0], value[1], 0, 0])),
-        3 => Ok(u32::from_le_bytes([value[0], value[1], value[2], 0])),
-        4 => Ok(u32::from_le_bytes([value[0], value[1], value[2], value[3]])),
+        1 => Ok(u32::from_be_bytes([value[0], 0, 0, 0])),
+        2 => Ok(u32::from_be_bytes([value[0], value[1], 0, 0])),
+        3 => Ok(u32::from_be_bytes([value[0], value[1], value[2], 0])),
+        4 => Ok(u32::from_be_bytes([value[0], value[1], value[2], value[3]])),
         _ => Err(TransactionError::Message(
             "invalid byte length for u32 value".to_string(),
         )),
