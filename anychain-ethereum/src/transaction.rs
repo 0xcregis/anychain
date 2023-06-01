@@ -351,6 +351,10 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
         let v: [u8; 4] = v.try_into().unwrap();
         u32::from_be_bytes(v)
     }
+
+    pub fn get_chain_id(&self) -> u32 {
+        N::CHAIN_ID
+    }
 }
 
 impl<N: EthereumNetwork> FromStr for EthereumTransaction<N> {
