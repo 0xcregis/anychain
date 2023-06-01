@@ -14,7 +14,7 @@ use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use rlp::{decode_list, RlpStream};
 
-/// Trim the leading zero of a byte stream and return it
+/// Trim the leading zeros of a byte stream and return it
 fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
     let mut cnt: usize = 0;
     for byte in v {
