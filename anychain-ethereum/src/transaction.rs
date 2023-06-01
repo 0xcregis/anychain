@@ -346,8 +346,10 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
         hex::encode(self.signature.clone().unwrap().s)
     }
 
-    pub fn get_v(&self) -> String {
-        hex::encode(self.signature.clone().unwrap().v)
+    pub fn get_v(&self) -> u32 {
+        let v = self.signature.clone().unwrap().v;
+        let v: [u8; 4] = v.try_into().unwrap();
+        u32::from_be_bytes(v)
     }
 }
 
