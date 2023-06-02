@@ -12,6 +12,12 @@ pub use self::ethereum_classic::*;
 pub mod kotti;
 pub use self::kotti::*;
 
+pub mod polygon;
+pub use self::polygon::*;
+
+pub mod mumbai;
+pub use self::mumbai::*;
+
 pub mod huobi_eco;
 pub use self::huobi_eco::*;
 

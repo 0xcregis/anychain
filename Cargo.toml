@@ -12,16 +12,17 @@ path = "lib.rs"
 [dependencies]
 anychain-core = { path ="./anychain-core" }
 anychain-bitcoin = { path = "./anychain-bitcoin" }
+anychain-bitcoincash = { path = "./anychain-bitcoincash" }
 anychain-ethereum = { path = "./anychain-ethereum" }
 anychain-tron = { path = "./anychain-tron" }
 anychain-filecoin = { path = "./anychain-filecoin" }
 anychain-polkadot = { path = "./anychain-polkadot" }
-libsecp256k1 = "0.7.1"
 
 [workspace]
 members = [
     "anychain-core",
     "anychain-bitcoin",
+    "anychain-bitcoincash",
     "anychain-ethereum",
     "anychain-tron",
     "anychain-filecoin",
