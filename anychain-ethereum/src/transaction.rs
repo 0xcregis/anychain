@@ -5,9 +5,7 @@ use crate::network::EthereumNetwork;
 use crate::public_key::EthereumPublicKey;
 use anychain_core::ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
-use anychain_core::{
-    hex, libsecp256k1, Error, PublicKey, Transaction, TransactionError, TransactionId,
-};
+use anychain_core::{hex, libsecp256k1, PublicKey, Transaction, TransactionError, TransactionId};
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
@@ -156,7 +154,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         )?);
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         self.signature = Some(EthereumTransactionSignature {
-            v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
+            v: (u32::from(recid) + N::CHAIN_ID * 2 + 35)
+                .to_be_bytes()
+                .to_vec(), // EIP155
             r: rs[..32].to_vec(),
             s: rs[32..64].to_vec(),
         });
