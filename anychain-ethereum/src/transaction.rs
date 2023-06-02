@@ -6,6 +6,7 @@ use crate::public_key::EthereumPublicKey;
 use anychain_core::ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
 use anychain_core::{hex, libsecp256k1, PublicKey, Transaction, TransactionError, TransactionId};
+use core::convert::TryInto;
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
