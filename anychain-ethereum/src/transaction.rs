@@ -5,12 +5,12 @@ use crate::network::EthereumNetwork;
 use crate::public_key::EthereumPublicKey;
 use anychain_core::ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
-use anychain_core::{hex, libsecp256k1, Error, PublicKey, Transaction, TransactionError, TransactionId};
-use std::convert::TryInto;
+use anychain_core::{hex, libsecp256k1, PublicKey, Transaction, TransactionError, TransactionId};
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use rlp::{decode_list, RlpStream};
+use std::convert::TryInto;
 
 /// Trim the leading zeros of a byte stream and return it
 fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
