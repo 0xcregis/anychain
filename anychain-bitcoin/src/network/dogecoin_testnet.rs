@@ -17,7 +17,7 @@ impl BitcoinNetwork for DogecoinTestnet {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
-            BitcoinFormat::P2PKH => vec![0x1e],
+            BitcoinFormat::P2PKH => vec![0x1E],
             BitcoinFormat::P2SH_P2WPKH => vec![0x16],
             f => panic!("Unsupported dogecoin format {}", f)
         }

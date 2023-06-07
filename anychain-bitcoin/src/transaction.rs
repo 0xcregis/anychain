@@ -1060,10 +1060,14 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 mod tests {
     use core::str::FromStr;
 
+    use anychain_core::PublicKey;
     use anychain_core::Transaction;
+    
 
+    use crate::LitecoinTestnet;
     use crate::amount::BitcoinAmount;
     use crate::Bitcoin;
+    use crate::public_key::BitcoinPublicKey;
 
     use super::variable_length_integer;
     use super::BitcoinTransaction;

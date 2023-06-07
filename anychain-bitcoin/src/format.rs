@@ -38,7 +38,7 @@ impl BitcoinFormat {
         }
         match (prefix[0], prefix[1]) {
             (0x00, _) | (0x6F, _) | (0x30, _) | (0x1e, _) => Ok(BitcoinFormat::P2PKH),
-            (0x05, _) | (0xC4, _) | (0x32, _) | (0x16, _) => Ok(BitcoinFormat::P2SH_P2WPKH),
+            (0x05, _) | (0xC4, _) | (0x32, _) | (0x3a, _) | (0x16, _) => Ok(BitcoinFormat::P2SH_P2WPKH),
             (0x62, 0x63) | (0x74, 0x62) => Ok(BitcoinFormat::Bech32),
             _ => Err(AddressError::InvalidPrefix(String::from_utf8(
                 prefix.to_vec(),

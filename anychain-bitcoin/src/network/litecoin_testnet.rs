@@ -18,7 +18,7 @@ impl BitcoinNetwork for LitecoinTestnet {
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
             BitcoinFormat::P2PKH => vec![0x6F],
-            BitcoinFormat::P2SH_P2WPKH => vec![0xC4],
+            BitcoinFormat::P2SH_P2WPKH => vec![0x3A],
             f => panic!("Unsupported litecoin format {}", f)
         }
     }
