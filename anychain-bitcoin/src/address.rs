@@ -702,9 +702,9 @@ mod tests {
 
     #[test]
     fn f() {
-        let addr = "1J2shZV5b53GRVmTqmr3tJhkVbBML29C1z";
+        let addr = "QairL6d7qXbn8hvtW6smoDYVcykhcFSLoQ";
 
-        let addr = BitcoinAddress::<Bitcoin>::from_str(addr).unwrap();
+        let addr = BitcoinAddress::<LitecoinTestnet>::from_str(addr).unwrap();
 
         println!("addr = {}", addr);
     }
