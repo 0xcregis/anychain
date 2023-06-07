@@ -261,12 +261,14 @@ mod tests {
     #[test]
     fn test_from_str() {
         let addresses_mainnet = [
-            "bitcoincash:qqpcmun00mm0q6zezvtfhn2xg2zx2ufpvs7dpdxx0n",
+            "bitcoincash:qpkxa3xypl6rfp4nzewh9xrqnv90n2yxrcr0pmwas4",
+            "bitcoincash:qp2903ztagawgs9cxr9234yjc3pkguvrtyvlhw6qps",
             "1Ko5EALYpShk2nafGexgCBNxRuwqxvXFm",
         ];
 
         let addresses_testnet = [
             "bchtest:qqpcmun00mm0q6zezvtfhn2xg2zx2ufpvs6l92y3g0",
+            "bchtest:qzuu4gwvj0xjy4p7xj7n5gn4ewk4m3ujeqx3crgj59",
             "mkWpcBriDmEemBqmmKzaEstLFZHsV3cMqA",
         ];
 
@@ -287,17 +289,17 @@ mod tests {
                 234, 218, 188, 213, 253, 10, 92, 251, 17, 190, 150, 100, 177, 1, 22,
             ],
             [
-                1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 1, 1, 1, 1, 37,
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1,
             ],
         ];
 
-        let addresses: Vec<BitcoincashAddress<Testnet>> = secret_keys
+        let addresses: Vec<BitcoincashAddress<Mainnet>> = secret_keys
             .iter()
             .map(|sk| {
                 let format = BitcoincashFormat::CashAddr;
-                let sk = SecretKey::parse_slice(sk).unwrap();
-                let address = BitcoincashAddress::<Testnet>::from_secret_key(&sk, &format).unwrap();
+                let sk = SecretKey::parse(sk).unwrap();
+                let address = BitcoincashAddress::<Mainnet>::from_secret_key(&sk, &format).unwrap();
                 address
             })
             .collect();

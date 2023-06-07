@@ -990,6 +990,12 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(double_sha2(&preimage).to_vec())
     }
 
+    pub fn txid_p2sh_p2wpkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
+        let sighash = self.parameters.inputs[index as usize].sighash_code;
+        let preimage = self.segwit_hash_preimage(index as usize, sighash)?;
+        Ok(double_sha2(&preimage).to_vec())
+    }
+
     pub fn get_version(&self) -> Result<u32, TransactionError> {
         Ok(self.parameters.version)
     }
