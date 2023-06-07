@@ -947,19 +947,27 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         address: BitcoinAddress<N>,
         index: u32,
     ) -> Result<(), TransactionError> {
+        if index as usize >= self.parameters.inputs.len() {
+            return Err(TransactionError::Message(format!(
+                "this transaction only has {} inputs, you are referring to the {}th input",
+                self.parameters.inputs.len(),
+                index + 1
+            )))
+        }
         self.parameters.inputs[index as usize].outpoint.address = Some(address.clone());
-        self.insert_script_pub_key(create_script_pub_key(&address)?, index)
-    }
-
-    /// Insert a 'script_pub_key' into the input at 'index'
-    fn insert_script_pub_key(
-        &mut self,
-        script: Vec<u8>,
-        index: u32,
-    ) -> Result<(), TransactionError> {
-        self.parameters.inputs[index as usize]
-            .outpoint
-            .script_pub_key = Some(script);
+        let script = create_script_pub_key(&address)?;
+        match address.format() {
+            BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => {
+                self.parameters.inputs[index as usize]
+                    .outpoint
+                    .script_pub_key = Some(script);
+            }
+            BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => {
+                self.parameters.inputs[index as usize]
+                    .outpoint
+                    .redeem_script = Some(script);
+            }
+        }
         Ok(())
     }
 
@@ -1055,7 +1063,7 @@ mod tests {
     use anychain_core::Transaction;
 
     use crate::amount::BitcoinAmount;
-    use crate::Mainnet;
+    use crate::Bitcoin;
 
     use super::variable_length_integer;
     use super::BitcoinTransaction;
@@ -1079,11 +1087,11 @@ mod tests {
         index: u32,
         address: [u8; 20],
         amount: i64,
-    ) -> BitcoinTransactionInput<Mainnet> {
+    ) -> BitcoinTransactionInput<Bitcoin> {
         let mut reverse_transaction_id = txid;
         reverse_transaction_id.reverse();
 
-        let outpoint = Outpoint::<Mainnet> {
+        let outpoint = Outpoint::<Bitcoin> {
             reverse_transaction_id,
             index,
             amount: Some(BitcoinAmount(amount)),
@@ -1095,7 +1103,7 @@ mod tests {
         BitcoinTransactionInput {
             outpoint,
             script_sig: vec![],
-            sequence: BitcoinTransactionInput::<Mainnet>::DEFAULT_SEQUENCE.to_vec(),
+            sequence: BitcoinTransactionInput::<Bitcoin>::DEFAULT_SEQUENCE.to_vec(),
             sighash_code: SignatureHash::SIGHASH_ALL_SIGHASH_FORKID,
             witnesses: vec![],
             is_signed: false,
@@ -1141,8 +1149,8 @@ mod tests {
         let out1 = output(from, 5000000);
 
         let params =
-            BitcoinTransactionParameters::<Mainnet>::new(vec![input], vec![out, out1]).unwrap();
-        let mut tx = BitcoinTransaction::<Mainnet>::new(&params).unwrap();
+            BitcoinTransactionParameters::<Bitcoin>::new(vec![input], vec![out, out1]).unwrap();
+        let mut tx = BitcoinTransaction::<Bitcoin>::new(&params).unwrap();
 
         println!("raw tx = {}\n", tx);
 
@@ -1175,7 +1183,7 @@ mod tests {
     fn ff() {
         let tx = "0200000001a021fe8aff95c9c6e15526b4f2afc92cf7340bf95c35e5fc475349ed0026ce27000000006a47304402204fb4a52ed0a57c609bbc1601472df96ec155a0e43f84391405f35b9d6ba688bb02203d32f513e2d7fa76957f082230458ff650bdea4b6f095dd9126b1602556fa755412102fc1cee6dbbf3a07d58794b1543c02679c5aae5a7d463162eb9a86ff29dbe3e90ffffffff02404b4c00000000001976a91479b000887626b294a914501a4cd226b58b23598388ac404b4c00000000001976a914038df26f7ef6f0685913169bcd4642846571216488ac00000000";
         let tx = "0100000001883e3ada0cba486531b64fa0d3155490f8b0c15e58078656fb1fb3dca60fdba6010000006b483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016000000100322020000000000001976a914d6b984a50fbdb748add803edf532a4d32e49dbe488ac6f6b0b00000000001976a914a0c21e8ecfeca2fa8648b1cf1cb80402fbdad61188ac0000000000000000166a146f6d6e69000000000000001f00000011224e498000000000";
-        let tx = BitcoinTransaction::<Mainnet>::from_str(tx).unwrap();
+        let tx = BitcoinTransaction::<Bitcoin>::from_str(tx).unwrap();
 
         tx.get_inputs()
             .unwrap()

@@ -122,7 +122,7 @@ mod tests {
     mod p2pkh_mainnet_compressed {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "L5hax5dZaByC3kJ4aLrZgnMXGSQReqRDYNqM1VAeXpqDRkRjX42H",
@@ -186,7 +186,7 @@ mod tests {
     mod p2pkh_mainnet_uncompressed {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "5KV26gjX4sYAkXvDnqZZuEyFUh1DKjgZ8wTKL7Fpm4ppJ8kpZQu",
@@ -250,7 +250,7 @@ mod tests {
     mod p2pkh_testnet_compressed {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "cNB6GpygWSZNRG5hotKjdAaNfgrzx984QYb2uj9rHpaCDkyy2aAz",
@@ -314,7 +314,7 @@ mod tests {
     mod p2pkh_testnet_uncompressed {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "93W1kMkD1kAfevtDQ3LWortt8zjKqSSqonLxPvWFqg57arcwUru",
@@ -378,7 +378,7 @@ mod tests {
     mod p2sh_p2wpkh_mainnet {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "KyTx39W9vjeGRRjvZna5bbFGEpuih9pG5KBnxUJN7bChpGHHZuJN",
@@ -442,7 +442,7 @@ mod tests {
     mod p2sh_p2wpkh_testnet {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
         const KEYPAIRS: [(&str, &str, &str); 5] = [
             (
                 "cPYtDeoeHg3wXp7hzcZ8Bu51HtN74yNdSDtdRuXamKCyzvU2oQM2",
@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn test_p2pkh_invalid() {
-        type N = Mainnet;
+        type N = Bitcoin;
 
         // Invalid public key length
 
@@ -528,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_p2sh_p2wpkh_invalid() {
-        type N = Mainnet;
+        type N = Bitcoin;
 
         // Invalid public key length
 

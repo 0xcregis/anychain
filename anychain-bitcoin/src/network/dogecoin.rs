@@ -7,27 +7,26 @@ use core::{fmt, str::FromStr};
 use serde::Serialize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Testnet;
+pub struct Dogecoin;
 
-impl Network for Testnet {
-    const NAME: &'static str = "testnet";
+impl Network for Dogecoin {
+    const NAME: &'static str = "dogecoin";
 }
 
-impl BitcoinNetwork for Testnet {
+impl BitcoinNetwork for Dogecoin {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
-            BitcoinFormat::P2PKH => vec![0x6F],
-            BitcoinFormat::P2WSH => vec![0x00],
-            BitcoinFormat::P2SH_P2WPKH => vec![0xC4],
-            BitcoinFormat::Bech32 => vec![0x74, 0x62],
+            BitcoinFormat::P2PKH => vec![0x1e],
+            BitcoinFormat::P2SH_P2WPKH => vec![0x16],
+            f => panic!("Unsupported dogecoin format {}", f)
         }
     }
 
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
-            (0x6F, _) | (0x00, _) | (0xC4, _) | (0x74, 0x62) => Ok(Self),
+            (0x1e, _) | (0x16, _) => Ok(Self),
             _ => Err(AddressError::InvalidPrefix(String::from_utf8(
                 prefix.to_owned(),
             )?)),
@@ -35,7 +34,7 @@ impl BitcoinNetwork for Testnet {
     }
 }
 
-impl FromStr for Testnet {
+impl FromStr for Dogecoin {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -46,7 +45,7 @@ impl FromStr for Testnet {
     }
 }
 
-impl fmt::Display for Testnet {
+impl fmt::Display for Dogecoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

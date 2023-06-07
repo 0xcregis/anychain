@@ -7,27 +7,26 @@ use core::{fmt, str::FromStr};
 use serde::Serialize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Mainnet;
+pub struct Litecoin;
 
-impl Network for Mainnet {
-    const NAME: &'static str = "mainnet";
+impl Network for Litecoin {
+    const NAME: &'static str = "litecoin";
 }
 
-impl BitcoinNetwork for Mainnet {
+impl BitcoinNetwork for Litecoin {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
-            BitcoinFormat::P2PKH => vec![0x00],
-            BitcoinFormat::P2WSH => vec![0x00],
-            BitcoinFormat::P2SH_P2WPKH => vec![0x05],
-            BitcoinFormat::Bech32 => vec![0x62, 0x63],
+            BitcoinFormat::P2PKH => vec![0x30],
+            BitcoinFormat::P2SH_P2WPKH => vec![0x32],
+            f => panic!("Unsupported litecoin format {}", f)
         }
     }
 
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
-            (0x00, _) | (0x05, _) | (0x62, 0x63) => Ok(Self),
+            (0x30, _) | (0x32, _) => Ok(Self),
             _ => Err(AddressError::InvalidPrefix(String::from_utf8(
                 prefix.to_owned(),
             )?)),
@@ -35,7 +34,7 @@ impl BitcoinNetwork for Mainnet {
     }
 }
 
-impl FromStr for Mainnet {
+impl FromStr for Litecoin {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -46,7 +45,7 @@ impl FromStr for Mainnet {
     }
 }
 
-impl fmt::Display for Mainnet {
+impl fmt::Display for Litecoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

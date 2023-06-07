@@ -272,7 +272,7 @@ mod tests {
     mod p2pkh_mainnet_compressed {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -316,7 +316,7 @@ mod tests {
     mod p2pkh_mainnet_uncompressed {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -360,7 +360,7 @@ mod tests {
     mod p2pkh_testnet_compressed {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -404,7 +404,7 @@ mod tests {
     mod p2pkh_testnet_uncompressed {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -448,7 +448,7 @@ mod tests {
     mod p2sh_p2wpkh_mainnet {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -492,7 +492,7 @@ mod tests {
     mod p2sh_p2wpkh_testnet {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -536,7 +536,7 @@ mod tests {
     mod bech32_mainnet {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -597,7 +597,7 @@ mod tests {
     mod bech32_testnet {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
 
         const KEYPAIRS: [(&str, &str); 5] = [
             (
@@ -654,7 +654,7 @@ mod tests {
     mod p2wsh_mainnet {
         use super::*;
 
-        type N = Mainnet;
+        type N = Bitcoin;
 
         #[test]
         fn test_addr() {
@@ -668,7 +668,7 @@ mod tests {
     mod p2wsh_testnet {
         use super::*;
 
-        type N = Testnet;
+        type N = BitcoinTestnet;
 
         const SCRIPTPAIRS: [(&str, &str); 2] = [
             (
@@ -704,7 +704,7 @@ mod tests {
     fn f() {
         let addr = "1J2shZV5b53GRVmTqmr3tJhkVbBML29C1z";
 
-        let addr = BitcoinAddress::<Mainnet>::from_str(addr).unwrap();
+        let addr = BitcoinAddress::<Bitcoin>::from_str(addr).unwrap();
 
         println!("addr = {}", addr);
     }
