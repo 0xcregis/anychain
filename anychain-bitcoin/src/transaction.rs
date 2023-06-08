@@ -466,6 +466,10 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         self.outpoint.address.clone()
     }
 
+    pub fn get_amount(&self) -> Option<BitcoinAmount> {
+        self.outpoint.amount
+    }
+
     /// Read and output a Bitcoin transaction input
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut transaction_hash = [0u8; 32];
