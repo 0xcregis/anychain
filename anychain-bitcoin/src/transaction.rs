@@ -442,6 +442,18 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         })
     }
 
+    pub fn set_address(&mut self, address: BitcoinAddress<N>) -> Result<(), TransactionError> {
+        self.outpoint.address = Some(address.clone());
+        let script = create_script_pub_key(&address)?;
+        match address.format() {
+            BitcoinFormat::P2PKH | BitcoinFormat::Bech32 =>
+                self.outpoint.script_pub_key = Some(script),
+            BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH =>
+                self.outpoint.redeem_script = Some(script),
+        }
+        Ok(())
+    }
+
     pub fn set_sequence(&mut self, sequence: Vec<u8>) {
         self.sequence = sequence;
     }
@@ -927,48 +939,26 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(transaction)
     }
 
-    /// Update a transaction's input outpoint
-    #[allow(dead_code)]
-    pub fn update_outpoint(&self, outpoint: Outpoint<N>) -> Self {
-        let mut new_transaction = self.clone();
-        for (vin, input) in self.parameters.inputs.iter().enumerate() {
-            if outpoint.reverse_transaction_id == input.outpoint.reverse_transaction_id
-                && outpoint.index == input.outpoint.index
-            {
-                new_transaction.parameters.inputs[vin].outpoint = outpoint.clone();
-            }
-        }
-        new_transaction
-    }
-
-    /// Insert an 'address' into the input at 'index'
-    pub fn insert_address(
-        &mut self,
-        address: BitcoinAddress<N>,
-        index: u32,
-    ) -> Result<(), TransactionError> {
+    pub fn input(&mut self, index: u32) -> Result<&mut BitcoinTransactionInput<N>, TransactionError> {
         if index as usize >= self.parameters.inputs.len() {
             return Err(TransactionError::Message(format!(
-                "this transaction only has {} inputs, you are referring to the {}th input",
-                self.parameters.inputs.len(),
-                index + 1
+                "you are referring to input {}, which is out of bound",
+                index
             )))
         }
-        self.parameters.inputs[index as usize].outpoint.address = Some(address.clone());
-        let script = create_script_pub_key(&address)?;
-        match address.format() {
-            BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => {
-                self.parameters.inputs[index as usize]
-                    .outpoint
-                    .script_pub_key = Some(script);
-            }
-            BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => {
-                self.parameters.inputs[index as usize]
-                    .outpoint
-                    .redeem_script = Some(script);
-            }
-        }
-        Ok(())
+        Ok(&mut self.parameters.inputs[index as usize])
+    }
+
+    pub fn txid_p2pkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
+        let sighash = self.parameters.inputs[index as usize].sighash_code;
+        let preimage = self.p2pkh_hash_preimage(index as usize, sighash)?;
+        Ok(double_sha2(&preimage).to_vec())
+    }
+
+    pub fn txid_p2sh_p2wpkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
+        let sighash = self.parameters.inputs[index as usize].sighash_code;
+        let preimage = self.segwit_hash_preimage(index as usize, sighash)?;
+        Ok(double_sha2(&preimage).to_vec())
     }
 
     /// Insert 'signature' and 'public_key' into the 'script_sig' field of the input at
@@ -991,61 +981,6 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
 
         self.to_bytes()
     }
-
-    pub fn txid_p2pkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
-        let sighash = self.parameters.inputs[index as usize].sighash_code;
-        let preimage = self.p2pkh_hash_preimage(index as usize, sighash)?;
-        Ok(double_sha2(&preimage).to_vec())
-    }
-
-    pub fn txid_p2sh_p2wpkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
-        let sighash = self.parameters.inputs[index as usize].sighash_code;
-        let preimage = self.segwit_hash_preimage(index as usize, sighash)?;
-        Ok(double_sha2(&preimage).to_vec())
-    }
-
-    pub fn get_version(&self) -> Result<u32, TransactionError> {
-        Ok(self.parameters.version)
-    }
-
-    pub fn get_inputs(&self) -> Result<Vec<String>, TransactionError> {
-        let mut inputs: Vec<String> = vec![];
-        for input in self.parameters.inputs.iter() {
-            let mut sequence: u32 = 0;
-            let p: *mut u32 = &mut sequence;
-            let mut p = p as *mut u8;
-            unsafe {
-                for i in 0..4 {
-                    *p = input.sequence[i];
-                    p = p.add(1);
-                }
-            }
-            let outpoint = &input.outpoint;
-            let mut txid = outpoint.reverse_transaction_id.clone();
-            txid.reverse();
-            let txid = hex::encode(&txid);
-            let signature = hex::encode(&input.script_sig);
-            let input = format!(
-                "sequence: {}, txid: {}, index: {}, signature: {}, sighash: {}",
-                sequence, txid, outpoint.index, signature, input.sighash_code
-            );
-            inputs.push(input);
-        }
-        Ok(inputs)
-    }
-
-    pub fn get_outputs(&self) -> Result<Vec<String>, TransactionError> {
-        let mut outputs: Vec<String> = vec![];
-        for output in self.parameters.outputs.iter() {
-            // p2pkh script = [OP_DUP] [OP_HASH160] [pkhash_len(20)] pkhash ...
-            // 'OP_DUP', 'OP_HASH160', 'pkhash_len' all occupy one byte memory
-            let pkhash = &output.script_pub_key[3..23];
-            let address = BitcoinAddress::<N>::from_hash160(pkhash)?;
-            let output = format!("to: {}, amount: {}", address, output.amount);
-            outputs.push(output);
-        }
-        Ok(outputs)
-    }
 }
 
 impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
@@ -1058,17 +993,9 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 
 #[cfg(test)]
 mod tests {
-    use core::str::FromStr;
-
-    use anychain_core::PublicKey;
     use anychain_core::Transaction;
-    use base58::FromBase58;
-    
-
-    use crate::LitecoinTestnet;
     use crate::amount::BitcoinAmount;
     use crate::Bitcoin;
-    use crate::public_key::BitcoinPublicKey;
 
     use super::variable_length_integer;
     use super::BitcoinTransaction;
@@ -1182,20 +1109,5 @@ mod tests {
         // let tx = BitcoinTransaction::<Mainnet>::from_bytes(&tx).unwrap();
 
         // println!("tx = {}", tx);
-    }
-
-    #[test]
-    fn ff() {
-        let tx = "0200000001a021fe8aff95c9c6e15526b4f2afc92cf7340bf95c35e5fc475349ed0026ce27000000006a47304402204fb4a52ed0a57c609bbc1601472df96ec155a0e43f84391405f35b9d6ba688bb02203d32f513e2d7fa76957f082230458ff650bdea4b6f095dd9126b1602556fa755412102fc1cee6dbbf3a07d58794b1543c02679c5aae5a7d463162eb9a86ff29dbe3e90ffffffff02404b4c00000000001976a91479b000887626b294a914501a4cd226b58b23598388ac404b4c00000000001976a914038df26f7ef6f0685913169bcd4642846571216488ac00000000";
-        let tx = "0100000001883e3ada0cba486531b64fa0d3155490f8b0c15e58078656fb1fb3dca60fdba6010000006b483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016000000100322020000000000001976a914d6b984a50fbdb748add803edf532a4d32e49dbe488ac6f6b0b00000000001976a914a0c21e8ecfeca2fa8648b1cf1cb80402fbdad61188ac0000000000000000166a146f6d6e69000000000000001f00000011224e498000000000";
-        let tx = BitcoinTransaction::<Bitcoin>::from_str(tx).unwrap();
-
-        tx.get_inputs()
-            .unwrap()
-            .iter()
-            .for_each(|s| println!("{}", s));
-
-        let sig = "483045022100f8ec42af41ce34ded28342cc4b17e34747a3193dc1df7bf051f5773781d2854a022053eaf7f084ae46db6903bca8951c3162b0ccff4fe660b767f5ee8dff7f87baf30121033ef983fea45ada66ff5bc0a43b1afb0fede399397cbc8857778dc11202a55016";
-        println!("len = {}", sig.len());
     }
 }
