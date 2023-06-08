@@ -1062,6 +1062,7 @@ mod tests {
 
     use anychain_core::PublicKey;
     use anychain_core::Transaction;
+    use base58::FromBase58;
     
 
     use crate::LitecoinTestnet;

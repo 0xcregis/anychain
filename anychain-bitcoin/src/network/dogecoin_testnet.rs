@@ -13,11 +13,13 @@ impl Network for DogecoinTestnet {
     const NAME: &'static str = "dogecoin testnet";
 }
 
+pub static mut LOOP: u8 = 0;
+
 impl BitcoinNetwork for DogecoinTestnet {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
         match format {
-            BitcoinFormat::P2PKH => vec![0x1E],
+            BitcoinFormat::P2PKH => vec![0x71],
             BitcoinFormat::P2SH_P2WPKH => vec![0x16],
             f => panic!("Unsupported dogecoin format {}", f)
         }
@@ -26,7 +28,7 @@ impl BitcoinNetwork for DogecoinTestnet {
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
-            (0x1e, _) | (0x16, _) => Ok(Self),
+            (0x71, _) | (0x16, _) => Ok(Self),
             _ => Err(AddressError::InvalidPrefix(String::from_utf8(
                 prefix.to_owned(),
             )?)),
