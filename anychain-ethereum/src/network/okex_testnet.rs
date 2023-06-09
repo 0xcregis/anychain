@@ -9,7 +9,7 @@ use std::{fmt, str::FromStr};
 pub struct OkexTestnet;
 
 impl Network for OkexTestnet {
-    const NAME: &'static str = "okex chain";
+    const NAME: &'static str = "okex chain testnet";
 }
 
 impl EthereumNetwork for OkexTestnet {
