@@ -12,13 +12,13 @@ anychain-bitcoin is a Rust crate that provides a simple and efficient way to int
 ## Installation
 
 To use anychain-bitcoin in your Rust project, add the following to your Cargo.toml file:
-```
+```toml
 [dependencies]
 anychain-bitcoin = "0.1.0"
 ```
 
 Then, import the crate in your code:
-```
+```rust
 extern crate anychain_bitcoin;
 ```
 
