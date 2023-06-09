@@ -30,6 +30,12 @@ pub use self::binance_smart_chain::*;
 pub mod binance_smart_chain_testnet;
 pub use self::binance_smart_chain_testnet::*;
 
+pub mod okex;
+pub use self::okex::*;
+
+pub mod okex_testnet;
+pub use self::okex_testnet::*;
+
 /// The interface for an Ethereum network.
 pub trait EthereumNetwork: Network {
     const CHAIN_ID: u32;
