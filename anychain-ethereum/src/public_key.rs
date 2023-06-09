@@ -62,6 +62,7 @@ impl Display for EthereumPublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::public_key::libsecp256k1::SecretKey;
 
     fn test_from_secret_key(expected_public_key: &EthereumPublicKey, secret_key: &SecretKey) {
         let public_key = EthereumPublicKey::from_secret_key(secret_key);
@@ -129,7 +130,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = EthereumAddress::from_str(address).unwrap();
-                let public_key = EthereumPublicKey::from_str(&public_key).unwrap();
+                let public_key = EthereumPublicKey::from_str(public_key).unwrap();
                 test_to_address(&address, &public_key);
             });
         }

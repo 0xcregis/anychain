@@ -182,7 +182,7 @@ mod tests {
         fn from_str() {
             VALID_P2SH_P2WPKH_PROGRAMS.iter().for_each(
                 |&(program_str, expected_version, expected_program, _)| {
-                    test_from_str(program_str, expected_version, &expected_program);
+                    test_from_str(program_str, expected_version, expected_program);
                 },
             );
         }

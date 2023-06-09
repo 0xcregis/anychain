@@ -574,7 +574,7 @@ mod tests {
         #[test]
         fn from_invalid_address() {
             INVALID.iter().for_each(|invalid_bech32| {
-                assert_eq!(true, BitcoinAddress::<N>::from_str(invalid_bech32).is_err());
+                assert!(BitcoinAddress::<N>::from_str(invalid_bech32).is_err());
             });
         }
 
@@ -631,7 +631,7 @@ mod tests {
         #[test]
         fn from_invalid_address() {
             INVALID.iter().for_each(|invalid_bech32| {
-                assert_eq!(true, BitcoinAddress::<N>::from_str(invalid_bech32).is_err());
+                assert!(BitcoinAddress::<N>::from_str(invalid_bech32).is_err());
             });
         }
 

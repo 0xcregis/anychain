@@ -19,7 +19,7 @@ impl BitcoinNetwork for LitecoinTestnet {
         match format {
             BitcoinFormat::P2PKH => vec![0x6F],
             BitcoinFormat::P2SH_P2WPKH => vec![0x3A],
-            f => panic!("Unsupported litecoin format {}", f)
+            f => panic!("Unsupported litecoin format {}", f),
         }
     }
 

@@ -204,9 +204,8 @@ mod tests {
             "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e",
         );
         param.set_contract(ct);
-        let transaction = TronTransaction::new(&param).unwrap();
 
-        return transaction;
+        TronTransaction::new(&param).unwrap()
     }
 
     #[test]

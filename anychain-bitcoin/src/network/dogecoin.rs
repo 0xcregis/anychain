@@ -19,7 +19,7 @@ impl BitcoinNetwork for Dogecoin {
         match format {
             BitcoinFormat::P2PKH => vec![0x1E],
             BitcoinFormat::P2SH_P2WPKH => vec![0x16],
-            f => panic!("Unsupported dogecoin format {}", f)
+            f => panic!("Unsupported dogecoin format {}", f),
         }
     }
 

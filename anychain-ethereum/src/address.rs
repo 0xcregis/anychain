@@ -193,6 +193,6 @@ mod tests {
         )
         .unwrap();
         let address = EthereumAddress::from_public_key(&pubkey, &EthereumFormat::Standard).unwrap();
-        println!("{}", address.to_string())
+        println!("{}", address)
     }
 }

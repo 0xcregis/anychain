@@ -446,10 +446,12 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         self.outpoint.address = Some(address.clone());
         let script = create_script_pub_key(&address)?;
         match address.format() {
-            BitcoinFormat::P2PKH | BitcoinFormat::Bech32 =>
-                self.outpoint.script_pub_key = Some(script),
-            BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH =>
-                self.outpoint.redeem_script = Some(script),
+            BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => {
+                self.outpoint.script_pub_key = Some(script)
+            }
+            BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => {
+                self.outpoint.redeem_script = Some(script)
+            }
         }
         Ok(())
     }
@@ -947,12 +949,15 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(transaction)
     }
 
-    pub fn input(&mut self, index: u32) -> Result<&mut BitcoinTransactionInput<N>, TransactionError> {
+    pub fn input(
+        &mut self,
+        index: u32,
+    ) -> Result<&mut BitcoinTransactionInput<N>, TransactionError> {
         if index as usize >= self.parameters.inputs.len() {
             return Err(TransactionError::Message(format!(
                 "you are referring to input {}, which is out of bound",
                 index
-            )))
+            )));
         }
         Ok(&mut self.parameters.inputs[index as usize])
     }
@@ -1001,9 +1006,9 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 
 #[cfg(test)]
 mod tests {
-    use anychain_core::Transaction;
     use crate::amount::BitcoinAmount;
     use crate::Bitcoin;
+    use anychain_core::Transaction;
 
     use super::variable_length_integer;
     use super::BitcoinTransaction;
@@ -1114,8 +1119,8 @@ mod tests {
 
         let tx = tx.sign_p2pkh(signature, public_key, 0).unwrap();
 
-        // let tx = BitcoinTransaction::<Mainnet>::from_bytes(&tx).unwrap();
+        let tx = BitcoinTransaction::<Bitcoin>::from_bytes(&tx).unwrap();
 
-        // println!("tx = {}", tx);
+        println!("tx = {}", tx);
     }
 }

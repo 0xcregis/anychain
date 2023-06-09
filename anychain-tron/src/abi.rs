@@ -78,10 +78,8 @@ mod test_mod {
         let address = TronAddress::from_str("TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr").unwrap();
         let amount = U256::from_dec_str("20000000000000000000").unwrap();
 
-        let call_data = contract_function_call(
-            "transfer",
-            &vec![Param::from(&address), Param::from(amount)],
-        );
+        let call_data =
+            contract_function_call("transfer", &[Param::from(&address), Param::from(amount)]);
 
         assert_eq!(
             "a9059cbb000000000000000000000041436d74fc1577266b7\

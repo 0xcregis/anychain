@@ -289,8 +289,8 @@ mod tests {
                 234, 218, 188, 213, 253, 10, 92, 251, 17, 190, 150, 100, 177, 1, 22,
             ],
             [
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 1,
             ],
         ];
 
@@ -299,8 +299,7 @@ mod tests {
             .map(|sk| {
                 let format = BitcoincashFormat::CashAddr;
                 let sk = SecretKey::parse(sk).unwrap();
-                let address = BitcoincashAddress::<Mainnet>::from_secret_key(&sk, &format).unwrap();
-                address
+                BitcoincashAddress::<Mainnet>::from_secret_key(&sk, &format).unwrap()
             })
             .collect();
 

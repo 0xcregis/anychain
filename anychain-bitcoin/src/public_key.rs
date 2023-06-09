@@ -155,7 +155,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = BitcoinAddress::<N>::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
                 test_to_address(&address, &BitcoinFormat::P2PKH, &public_key);
             });
         }
@@ -219,7 +219,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = BitcoinAddress::<N>::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
                 test_to_address(&address, &BitcoinFormat::P2PKH, &public_key);
             });
         }
@@ -283,7 +283,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = BitcoinAddress::<N>::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
                 test_to_address(&address, &BitcoinFormat::P2PKH, &public_key);
             });
         }
@@ -347,7 +347,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = BitcoinAddress::<N>::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
                 test_to_address(&address, &BitcoinFormat::P2PKH, &public_key);
             });
         }
@@ -411,7 +411,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = BitcoinAddress::<N>::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
                 test_to_address(&address, &BitcoinFormat::P2SH_P2WPKH, &public_key);
             });
         }
@@ -475,7 +475,7 @@ mod tests {
         fn to_address() {
             KEYPAIRS.iter().for_each(|(_, public_key, address)| {
                 let address = BitcoinAddress::<N>::from_str(address).unwrap();
-                let public_key = BitcoinPublicKey::<N>::from_str(&public_key).unwrap();
+                let public_key = BitcoinPublicKey::<N>::from_str(public_key).unwrap();
                 test_to_address(&address, &BitcoinFormat::P2SH_P2WPKH, &public_key);
             });
         }
