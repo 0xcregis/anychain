@@ -128,8 +128,8 @@ impl<N: BitcoincashNetwork> BitcoincashTransactionInput<N> {
         let mut vin = [0u8; 4];
         let mut sequence = [0u8; 4];
 
-        reader.read(&mut transaction_hash)?;
-        reader.read(&mut vin)?;
+        let _ = reader.read(&mut transaction_hash)?;
+        let _ = reader.read(&mut vin)?;
 
         let outpoint = Outpoint::<N> {
             reverse_transaction_id: transaction_hash.to_vec(),
@@ -141,11 +141,11 @@ impl<N: BitcoincashNetwork> BitcoincashTransactionInput<N> {
 
         let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
-            s.read(&mut byte)?;
+            let _ = s.read(&mut byte)?;
             Ok(byte[0])
         })?;
 
-        reader.read(&mut sequence)?;
+        let _ = reader.read(&mut sequence)?;
 
         let script_sig_len = read_variable_length_integer(&script_sig[..])?;
 
@@ -214,11 +214,11 @@ impl BitcoincashTransactionOutput {
     /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut amount = [0u8; 8];
-        reader.read(&mut amount)?;
+        let _ = reader.read(&mut amount)?;
 
         let script_pub_key: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
-            s.read(&mut byte)?;
+            let _ = s.read(&mut byte)?;
             Ok(byte[0])
         })?;
 
@@ -268,13 +268,13 @@ impl<N: BitcoincashNetwork> BitcoincashTransactionParameters<N> {
     /// Read and output the Bitcoin transaction parameters
     pub fn read<R: Read>(mut reader: R) -> Result<Self, TransactionError> {
         let mut version = [0u8; 4];
-        reader.read(&mut version)?;
+        let _ = reader.read(&mut version)?;
 
         let inputs = BitcoinVector::read(&mut reader, BitcoincashTransactionInput::<N>::read)?;
         let outputs = BitcoinVector::read(&mut reader, BitcoincashTransactionOutput::read)?;
 
         let mut lock_time = [0u8; 4];
-        reader.read(&mut lock_time)?;
+        let _ = reader.read(&mut lock_time)?;
 
         let tx = BitcoincashTransactionParameters::<N> {
             version: u32::from_le_bytes(version),
@@ -337,7 +337,7 @@ impl<N: BitcoincashNetwork> Transaction for BitcoincashTransaction<N> {
         let mut tx = self.parameters.version.to_le_bytes().to_vec();
         tx.extend(variable_length_integer(self.parameters.inputs.len() as u64)?);
         for input in &self.parameters.inputs {
-            tx.extend(input.serialize(!input.script_sig.is_some())?);
+            tx.extend(input.serialize(input.script_sig.is_none())?);
         }
         tx.extend(variable_length_integer(
             self.parameters.outputs.len() as u64

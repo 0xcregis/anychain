@@ -140,11 +140,10 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     fn sign(&mut self, rs: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
         let message = libsecp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)?;
         let recovery_id = libsecp256k1::RecoveryId::parse(recid)?;
-        let signature = rs.clone();
 
         let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
             &message,
-            &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
+            &libsecp256k1::Signature::parse_standard_slice(rs.as_slice())?,
             &recovery_id,
         )?);
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);

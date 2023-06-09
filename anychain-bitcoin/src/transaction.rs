@@ -34,13 +34,13 @@ pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> 
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, TransactionError> {
     let mut flag = [0u8; 1];
-    reader.read(&mut flag)?;
+    let _ = reader.read(&mut flag)?;
 
     match flag[0] {
         0..=252 => Ok(flag[0] as usize),
         0xfd => {
             let mut size = [0u8; 2];
-            reader.read(&mut size)?;
+            let _ = reader.read(&mut size)?;
             match u16::from_le_bytes(size) {
                 s if s < 253 => Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
                 s => Ok(s as usize),
@@ -48,7 +48,7 @@ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, Tra
         }
         0xfe => {
             let mut size = [0u8; 4];
-            reader.read(&mut size)?;
+            let _ = reader.read(&mut size)?;
             match u32::from_le_bytes(size) {
                 s if s < 65536 => Err(TransactionError::InvalidVariableSizeInteger(s as usize)),
                 s => Ok(s as usize),
@@ -56,7 +56,7 @@ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, Tra
         }
         _ => {
             let mut size = [0u8; 8];
-            reader.read(&mut size)?;
+            let _ = reader.read(&mut size)?;
             match u64::from_le_bytes(size) {
                 s if s < 4294967296 => {
                     Err(TransactionError::InvalidVariableSizeInteger(s as usize))
@@ -476,8 +476,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut vin = [0u8; 4];
         let mut sequence = [0u8; 4];
 
-        reader.read(&mut transaction_hash)?;
-        reader.read(&mut vin)?;
+        let _ = reader.read(&mut transaction_hash)?;
+        let _ = reader.read(&mut vin)?;
 
         let outpoint = Outpoint::<N>::new(
             transaction_hash.to_vec(),
@@ -490,11 +490,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
         let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
-            s.read(&mut byte)?;
+            let _ = s.read(&mut byte)?;
             Ok(byte[0])
         })?;
 
-        reader.read(&mut sequence)?;
+        let _ = reader.read(&mut sequence)?;
 
         let script_sig_len = read_variable_length_integer(&script_sig[..])?;
 
@@ -591,11 +591,11 @@ impl BitcoinTransactionOutput {
     /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut amount = [0u8; 8];
-        reader.read(&mut amount)?;
+        let _ = reader.read(&mut amount)?;
 
         let script_pub_key: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
-            s.read(&mut byte)?;
+            let _ = s.read(&mut byte)?;
             Ok(byte[0])
         })?;
 
@@ -664,14 +664,14 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
     /// Read and output the Bitcoin transaction parameters
     pub fn read<R: Read>(mut reader: R) -> Result<Self, TransactionError> {
         let mut version = [0u8; 4];
-        reader.read(&mut version)?;
+        let _ = reader.read(&mut version)?;
 
         let mut inputs = BitcoinVector::read(&mut reader, BitcoinTransactionInput::<N>::read)?;
 
         let segwit_flag = match inputs.is_empty() {
             true => {
                 let mut flag = [0u8; 1];
-                reader.read(&mut flag)?;
+                let _ = reader.read(&mut flag)?;
                 match flag[0] {
                     1 => {
                         inputs =
@@ -691,7 +691,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
                 let witnesses: Vec<Vec<u8>> = BitcoinVector::read(&mut reader, |s| {
                     let (size, witness) = BitcoinVector::read_witness(s, |sr| {
                         let mut byte = [0u8; 1];
-                        sr.read(&mut byte)?;
+                        let _ = sr.read(&mut byte)?;
                         Ok(byte[0])
                     })?;
                     Ok([variable_length_integer(size as u64)?, witness?].concat())
@@ -708,7 +708,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
         }
 
         let mut lock_time = [0u8; 4];
-        reader.read(&mut lock_time)?;
+        let _ = reader.read(&mut lock_time)?;
 
         let transaction_parameters = BitcoinTransactionParameters::<N> {
             version: u32::from_le_bytes(version),
