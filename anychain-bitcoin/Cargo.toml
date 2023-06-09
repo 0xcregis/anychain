@@ -1,9 +1,13 @@
 [package]
 name = "anychain-bitcoin"
+description = "A Rust library for Bitcoin-focused cryptocurrency wallets, enabling seamless transactions on the Bitcoin blockchain"
+authors = ["Cregis.com"]
 version = "0.1.0"
+license = "MIT"
+homepage = "https://www.cregis.com/"
+repository = "https://github.com/cregis-web3/anychain"
+keywords = ["bitcoin", "blockchain", "cryptocurrency", "wallet", "transactions"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.0.1"}
