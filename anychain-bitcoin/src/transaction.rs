@@ -456,6 +456,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         Ok(())
     }
 
+    pub fn set_amount(&mut self, amount: BitcoinAmount) -> Result<(), TransactionError> {
+        self.outpoint.amount = Some(amount);
+        Ok(())
+    }
+
     pub fn set_sequence(&mut self, sequence: Vec<u8>) {
         self.sequence = sequence;
     }
