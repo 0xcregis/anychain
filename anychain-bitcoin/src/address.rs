@@ -160,9 +160,18 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
         let mut redeem = [0u8; 22];
         redeem[1] = 0x14;
-        redeem[2..].copy_from_slice(&hash160(
-            &public_key.to_secp256k1_public_key().serialize_compressed(),
-        ));
+        if public_key.is_compressed() {
+            redeem[2..].copy_from_slice(&hash160(
+                public_key
+                    .to_secp256k1_public_key()
+                    .serialize_compressed()
+                    .as_ref(),
+            ));
+        } else {
+            redeem[2..].copy_from_slice(&hash160(
+                public_key.to_secp256k1_public_key().serialize().as_ref(),
+            ));
+        }
         redeem
     }
 }
