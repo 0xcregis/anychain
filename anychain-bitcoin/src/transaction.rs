@@ -323,42 +323,50 @@ impl<N: BitcoinNetwork> Outpoint<N> {
                 let redeem_script = match address.format() {
                     BitcoinFormat::P2PKH => match redeem_script {
                         Some(_) => return Err(TransactionError::InvalidInputs("P2PKH".into())),
-                        None => match script_pub_key[0] != Opcode::OP_DUP as u8
-                            && script_pub_key[1] != Opcode::OP_HASH160 as u8
-                            && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_CHECKSIG as u8
-                        {
-                            true => {
-                                return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()))
+                        None => {
+                            if !(script_pub_key[0] == Opcode::OP_DUP as u8
+                                && script_pub_key[1] == Opcode::OP_HASH160 as u8
+                                && script_pub_key[script_pub_key.len() - 2]
+                                    == Opcode::OP_EQUALVERIFY as u8
+                                && script_pub_key[script_pub_key.len() - 1]
+                                    == Opcode::OP_CHECKSIG as u8)
+                            {
+                                return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
                             }
-                            false => None,
-                        },
+                            None
+                        }
                     },
                     BitcoinFormat::P2WSH => match redeem_script {
-                        Some(redeem_script) => match script_pub_key[0] != 0x00_u8
-                            && script_pub_key[1] != 0x20_u8
-                            && script_pub_key.len() != 34 // zero [32-byte sha256(witness script)]
-                        {
-                            true => return Err(TransactionError::InvalidScriptPubKey("P2WSH".into())),
-                            false => Some(redeem_script),
-                        },
+                        Some(redeem_script) => {
+                            if !(script_pub_key[0] == 0x00
+                                && script_pub_key[1] == 0x20
+                                && script_pub_key.len() == 34)
+                            {
+                                // zero [32-byte sha256(witness script)]
+                                Some(redeem_script)
+                            } else {
+                                return Err(TransactionError::InvalidScriptPubKey("P2WSH".into()));
+                            }
+                        }
                         None => return Err(TransactionError::InvalidInputs("P2WSH".into())),
                     },
                     BitcoinFormat::P2SH_P2WPKH => match redeem_script {
-                        Some(redeem_script) => match script_pub_key[0] != Opcode::OP_HASH160 as u8
-                            && script_pub_key[script_pub_key.len() - 1] != Opcode::OP_EQUAL as u8
-                        {
-                            true => {
+                        Some(redeem_script) => {
+                            if !(script_pub_key[0] == Opcode::OP_HASH160 as u8
+                                && script_pub_key[script_pub_key.len() - 1]
+                                    == Opcode::OP_EQUAL as u8)
+                            {
                                 return Err(TransactionError::InvalidScriptPubKey(
                                     "P2SH_P2WPKH".into(),
-                                ))
+                                ));
                             }
-                            false => Some(redeem_script),
-                        },
+                            Some(redeem_script)
+                        }
                         None => return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into())),
                     },
-                    BitcoinFormat::Bech32 => match redeem_script.is_some() {
-                        true => return Err(TransactionError::InvalidInputs("Bech32".into())),
-                        false => None,
+                    BitcoinFormat::Bech32 => match redeem_script {
+                        Some(_) => return Err(TransactionError::InvalidInputs("Bech32".into())),
+                        None => None,
                     },
                 };
 
