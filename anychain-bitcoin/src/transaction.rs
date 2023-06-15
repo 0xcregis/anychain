@@ -113,7 +113,7 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             Ok(script)
         }
         BitcoinFormat::P2WSH => {
-            let (_hrp, data, _variant) = bech32::decode(&address.to_string())?;
+            let (_, data, _) = bech32::decode(&address.to_string())?;
             let (v, script) = data.split_at(1);
             let script = Vec::from_base32(script)?;
             let mut script_bytes = vec![v[0].to_u8(), script.len() as u8];
@@ -313,64 +313,14 @@ impl<N: BitcoinNetwork> Outpoint<N> {
         index: u32,
         address: Option<BitcoinAddress<N>>,
         amount: Option<BitcoinAmount>,
-        redeem_script: Option<Vec<u8>>,
-        script_pub_key: Option<Vec<u8>>,
     ) -> Result<Self, TransactionError> {
         let (script_pub_key, redeem_script) = match address.clone() {
-            Some(address) => {
-                let script_pub_key =
-                    script_pub_key.unwrap_or(create_script_pub_key::<N>(&address)?);
-                let redeem_script = match address.format() {
-                    BitcoinFormat::P2PKH => match redeem_script {
-                        Some(_) => return Err(TransactionError::InvalidInputs("P2PKH".into())),
-                        None => {
-                            if !(script_pub_key[0] == Opcode::OP_DUP as u8
-                                && script_pub_key[1] == Opcode::OP_HASH160 as u8
-                                && script_pub_key[script_pub_key.len() - 2]
-                                    == Opcode::OP_EQUALVERIFY as u8
-                                && script_pub_key[script_pub_key.len() - 1]
-                                    == Opcode::OP_CHECKSIG as u8)
-                            {
-                                return Err(TransactionError::InvalidScriptPubKey("P2PKH".into()));
-                            }
-                            None
-                        }
-                    },
-                    BitcoinFormat::P2WSH => match redeem_script {
-                        Some(redeem_script) => {
-                            if !(script_pub_key[0] == 0x00
-                                && script_pub_key[1] == 0x20
-                                && script_pub_key.len() == 34)
-                            {
-                                // zero [32-byte sha256(witness script)]
-                                Some(redeem_script)
-                            } else {
-                                return Err(TransactionError::InvalidScriptPubKey("P2WSH".into()));
-                            }
-                        }
-                        None => return Err(TransactionError::InvalidInputs("P2WSH".into())),
-                    },
-                    BitcoinFormat::P2SH_P2WPKH => match redeem_script {
-                        Some(redeem_script) => {
-                            if !(script_pub_key[0] == Opcode::OP_HASH160 as u8
-                                && script_pub_key[script_pub_key.len() - 1]
-                                    == Opcode::OP_EQUAL as u8)
-                            {
-                                return Err(TransactionError::InvalidScriptPubKey(
-                                    "P2SH_P2WPKH".into(),
-                                ));
-                            }
-                            Some(redeem_script)
-                        }
-                        None => return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into())),
-                    },
-                    BitcoinFormat::Bech32 => match redeem_script {
-                        Some(_) => return Err(TransactionError::InvalidInputs("Bech32".into())),
-                        None => None,
-                    },
-                };
-
-                (Some(script_pub_key), redeem_script)
+            Some(addr) => {
+                let script = create_script_pub_key(&addr)?;
+                match addr.format() {
+                    BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => (Some(script), None),
+                    BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => (None, Some(script)),
+                }
             }
             None => (None, None),
         };
@@ -379,8 +329,8 @@ impl<N: BitcoinNetwork> Outpoint<N> {
             reverse_transaction_id,
             index,
             amount,
-            redeem_script,
             script_pub_key,
+            redeem_script,
             address,
         })
     }
@@ -417,8 +367,6 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         index: u32,
         address: Option<BitcoinAddress<N>>,
         amount: Option<BitcoinAmount>,
-        redeem_script: Option<Vec<u8>>,
-        script_pub_key: Option<Vec<u8>>,
     ) -> Result<Self, TransactionError> {
         if transaction_id.len() != 32 {
             return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
@@ -429,14 +377,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let outpoint = Outpoint::<N>::new(
-            reverse_transaction_id,
-            index,
-            address,
-            amount,
-            redeem_script,
-            script_pub_key,
-        )?;
+        let outpoint = Outpoint::<N>::new(reverse_transaction_id, index, address, amount)?;
 
         Ok(Self {
             outpoint,
@@ -497,8 +438,6 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let outpoint = Outpoint::<N>::new(
             transaction_hash.to_vec(),
             u32::from_le_bytes(vin),
-            None,
-            None,
             None,
             None,
         )?;
