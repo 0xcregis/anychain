@@ -519,12 +519,12 @@ pub struct BitcoinTransactionOutput {
 impl BitcoinTransactionOutput {
     /// Returns a Bitcoin transaction output.
     pub fn new<N: BitcoinNetwork>(
-        address: &BitcoinAddress<N>,
+        address: BitcoinAddress<N>,
         amount: BitcoinAmount,
     ) -> Result<Self, TransactionError> {
         Ok(Self {
             amount,
-            script_pub_key: create_script_pub_key::<N>(address)?,
+            script_pub_key: create_script_pub_key::<N>(&address)?,
         })
     }
 
@@ -914,16 +914,23 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(&mut self.parameters.inputs[index as usize])
     }
 
-    pub fn txid_p2pkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
-        let sighash = self.parameters.inputs[index as usize].sighash_code;
-        let preimage = self.p2pkh_hash_preimage(index as usize, sighash)?;
-        Ok(double_sha2(&preimage).to_vec())
-    }
-
-    pub fn txid_p2sh_p2wpkh(&self, index: u32) -> Result<Vec<u8>, TransactionError> {
-        let sighash = self.parameters.inputs[index as usize].sighash_code;
-        let preimage = self.segwit_hash_preimage(index as usize, sighash)?;
-        Ok(double_sha2(&preimage).to_vec())
+    pub fn txid(&mut self, index: u32) -> Result<Vec<u8>, TransactionError> {
+        let input = self.input(index)?;
+        let sighash = input.sighash_code;
+        match input.get_address() {
+            Some(addr) => {
+                let preimage = match addr.format() {
+                    BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => {
+                        self.p2pkh_hash_preimage(index as usize, sighash)?
+                    }
+                    BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => {
+                        self.segwit_hash_preimage(index as usize, sighash)?
+                    }
+                };
+                Ok(double_sha2(&preimage).to_vec())
+            }
+            None => Err(TransactionError::MissingOutpointAddress),
+        }
     }
 
     /// Insert 'signature' and 'public_key' into the 'script_sig' field of the input at
@@ -959,66 +966,15 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 #[cfg(test)]
 mod tests {
     use crate::amount::BitcoinAmount;
+    use crate::transaction::BitcoinTransactionOutput;
     use crate::Bitcoin;
+    use crate::BitcoinAddress;
     use anychain_core::Transaction;
 
-    use super::variable_length_integer;
     use super::BitcoinTransaction;
     use super::BitcoinTransactionInput;
-    use super::BitcoinTransactionOutput;
     use super::BitcoinTransactionParameters;
-    use super::Opcode;
-    use super::Outpoint;
-    use super::SignatureHash;
     use anychain_core::libsecp256k1::{sign, Message, SecretKey};
-
-    fn output(address: [u8; 20], amount: i64) -> BitcoinTransactionOutput {
-        BitcoinTransactionOutput {
-            amount: BitcoinAmount(amount),
-            script_pub_key: script_public_key(address),
-        }
-    }
-
-    fn input(
-        txid: Vec<u8>,
-        index: u32,
-        address: [u8; 20],
-        amount: i64,
-    ) -> BitcoinTransactionInput<Bitcoin> {
-        let mut reverse_transaction_id = txid;
-        reverse_transaction_id.reverse();
-
-        let outpoint = Outpoint::<Bitcoin> {
-            reverse_transaction_id,
-            index,
-            amount: Some(BitcoinAmount(amount)),
-            script_pub_key: Some(script_public_key(address)),
-            redeem_script: None,
-            address: None,
-        };
-
-        BitcoinTransactionInput {
-            outpoint,
-            script_sig: vec![],
-            sequence: BitcoinTransactionInput::<Bitcoin>::DEFAULT_SEQUENCE.to_vec(),
-            sighash_code: SignatureHash::SIGHASH_ALL_SIGHASH_FORKID,
-            witnesses: vec![],
-            is_signed: false,
-            additional_witness: None,
-            witness_script_data: None,
-        }
-    }
-
-    fn script_public_key(hash: [u8; 20]) -> Vec<u8> {
-        let mut script = vec![];
-        script.push(Opcode::OP_DUP as u8);
-        script.push(Opcode::OP_HASH160 as u8);
-        script.extend(variable_length_integer(hash.len() as u64).unwrap());
-        script.extend(hash);
-        script.push(Opcode::OP_EQUALVERIFY as u8);
-        script.push(Opcode::OP_CHECKSIG as u8);
-        script
-    }
 
     #[test]
     fn f() {
@@ -1041,17 +997,33 @@ mod tests {
             131,
         ] as [u8; 20];
 
-        let input = input(prev_txid, 0, from, 10100000);
-        let out = output(to, 5000000);
-        let out1 = output(from, 5000000);
+        let from = BitcoinAddress::<Bitcoin>::from_hash160(&from).unwrap();
+        let to = BitcoinAddress::<Bitcoin>::from_hash160(&to).unwrap();
+
+        let input = BitcoinTransactionInput::<Bitcoin>::new(
+            prev_txid,
+            0,
+            Some(from.clone()),
+            Some(BitcoinAmount::from_satoshi(10100000).unwrap()),
+        )
+        .unwrap();
+
+        let output1 =
+            BitcoinTransactionOutput::new(to, BitcoinAmount::from_satoshi(5000000).unwrap())
+                .unwrap();
+
+        let output2 =
+            BitcoinTransactionOutput::new(from, BitcoinAmount::from_satoshi(5000000).unwrap())
+                .unwrap();
 
         let params =
-            BitcoinTransactionParameters::<Bitcoin>::new(vec![input], vec![out, out1]).unwrap();
+            BitcoinTransactionParameters::<Bitcoin>::new(vec![input], vec![output1, output2])
+                .unwrap();
         let mut tx = BitcoinTransaction::<Bitcoin>::new(&params).unwrap();
 
         println!("raw tx = {}\n", tx);
 
-        let hash = tx.txid_p2pkh(0).unwrap();
+        let hash = tx.txid(0).unwrap();
 
         let signing_key = [
             56, 127, 139, 242, 234, 208, 96, 112, 134, 251, 100, 45, 230, 217, 251, 107, 58, 234,
