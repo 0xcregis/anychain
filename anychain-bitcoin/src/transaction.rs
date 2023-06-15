@@ -6,7 +6,8 @@ use crate::public_key::BitcoinPublicKey;
 use crate::witness_program::WitnessProgram;
 use anychain_core::no_std::{io::Read, *};
 use anychain_core::{
-    crypto::checksum as double_sha2, Transaction, TransactionError, TransactionId,
+    crypto::checksum as double_sha2, libsecp256k1::Signature, Transaction, TransactionError,
+    TransactionId,
 };
 
 use base58::FromBase58;
@@ -914,18 +915,14 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(&mut self.parameters.inputs[index as usize])
     }
 
-    pub fn txid(&mut self, index: u32) -> Result<Vec<u8>, TransactionError> {
+    pub fn digest(&mut self, index: u32) -> Result<Vec<u8>, TransactionError> {
         let input = self.input(index)?;
         let sighash = input.sighash_code;
         match input.get_address() {
             Some(addr) => {
                 let preimage = match addr.format() {
-                    BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => {
-                        self.p2pkh_hash_preimage(index as usize, sighash)?
-                    }
-                    BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => {
-                        self.segwit_hash_preimage(index as usize, sighash)?
-                    }
+                    BitcoinFormat::P2PKH => self.p2pkh_hash_preimage(index as usize, sighash)?,
+                    _ => self.segwit_hash_preimage(index as usize, sighash)?,
                 };
                 Ok(double_sha2(&preimage).to_vec())
             }
@@ -933,25 +930,64 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         }
     }
 
-    /// Insert 'signature' and 'public_key' into the 'script_sig' field of the input at
-    /// 'index' to make this input signed, and returns the signed transaction stream
-    pub fn sign_p2pkh(
+    /// Insert 'signature' and 'public_key' into the
+    /// input at 'index' to make this input signed
+    pub fn sign(
         &mut self,
-        mut signature: Vec<u8>,
+        signature: Vec<u8>,
         public_key: Vec<u8>,
         index: u32,
-    ) -> Result<Vec<u8>, TransactionError> {
-        let input = &mut self.parameters.inputs[index as usize];
-
-        signature.push((input.sighash_code as u32).to_le_bytes()[0]);
+    ) -> Result<(), TransactionError> {
+        let input = self.input(index)?;
+        let mut signature = Signature::parse_standard_slice(&signature)?
+            .serialize_der()
+            .as_ref()
+            .to_vec();
+        signature.push(input.sighash_code as u8);
 
         let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
-        let public_key = [vec![public_key.len() as u8], public_key].concat();
+        let public_key = [
+            variable_length_integer(public_key.len() as u64)?,
+            public_key,
+        ]
+        .concat();
 
-        input.script_sig = [signature, public_key].concat();
-        input.is_signed = true;
+        match input.get_address().unwrap().format() {
+            BitcoinFormat::P2PKH => {
+                input.script_sig = [signature, public_key].concat();
+                input.is_signed = true;
+            }
+            BitcoinFormat::P2SH_P2WPKH => {
+                let input_script = match &input.outpoint.redeem_script {
+                    Some(script) => script.clone(),
+                    None => {
+                        return Err(TransactionError::Message(
+                            "Missing redeem script".to_string(),
+                        ))
+                    }
+                };
+                input.script_sig = [
+                    variable_length_integer(input_script.len() as u64)?,
+                    input_script,
+                ]
+                .concat();
+                input.witnesses.append(&mut vec![signature, public_key]);
+                input.is_signed = true;
+                self.parameters.segwit_flag = true;
+            }
+            BitcoinFormat::Bech32 => {
+                input.witnesses.append(&mut vec![signature, public_key]);
+                input.is_signed = true;
+                self.parameters.segwit_flag = true;
+            }
+            BitcoinFormat::P2WSH => {
+                return Err(TransactionError::Message(
+                    "P2WSH signing not supported".to_string(),
+                ))
+            }
+        }
 
-        self.to_bytes()
+        Ok(())
     }
 }
 
@@ -1023,7 +1059,7 @@ mod tests {
 
         println!("raw tx = {}\n", tx);
 
-        let hash = tx.txid(0).unwrap();
+        let hash = tx.digest(0).unwrap();
 
         let signing_key = [
             56, 127, 139, 242, 234, 208, 96, 112, 134, 251, 100, 45, 230, 217, 251, 107, 58, 234,
@@ -1037,11 +1073,13 @@ mod tests {
         let signature = sign(&msg, &signing_key).0;
 
         // let signature = signature.serialize().to_vec();
-        let signature = signature.serialize_der().as_ref().to_vec();
+        let signature = signature.serialize().as_ref().to_vec();
 
         println!("len = {}", signature.len());
 
-        let tx = tx.sign_p2pkh(signature, public_key, 0).unwrap();
+        tx.sign(signature, public_key, 0).unwrap();
+
+        let tx = tx.to_bytes().unwrap();
 
         let tx = BitcoinTransaction::<Bitcoin>::from_bytes(&tx).unwrap();
 
