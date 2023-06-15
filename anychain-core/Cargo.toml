@@ -1,10 +1,7 @@
 [package]
 name = "anychain-core"
 version = "0.0.1"
-authors = [
-    "shawn",
-    "cregis.com"
-]
+authors = ["Shawndslee", "cregis.com"]
 description = "A core support for cryptocurrency wallets"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["bitcoin", "blockchain", "cryptocurrency", "ethereum", "no_std"]
