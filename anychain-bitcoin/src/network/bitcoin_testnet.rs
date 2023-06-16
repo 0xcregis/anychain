@@ -27,7 +27,7 @@ impl BitcoinNetwork for BitcoinTestnet {
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
-            (0x6F, _) | (0x00, _) | (0xC4, _) | (0x74, 0x62) => Ok(Self),
+            (0x6F, _) | (0xC4, _) | (0x74, 0x62) => Ok(Self),
             _ => Err(AddressError::InvalidPrefix(String::from_utf8(
                 prefix.to_owned(),
             )?)),
