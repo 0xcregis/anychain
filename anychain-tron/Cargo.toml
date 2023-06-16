@@ -1,6 +1,12 @@
 [package]
 name = "anychain-tron"
+description = "A Rust library for Tron-focused cryptocurrency wallets, enabling seamless transactions on the Tron blockchain"
+authors = ["Shawndslee", "cregis.com"]
 version = "0.1.0"
+license = "MIT"
+homepage = "https://www.cregis.com/"
+repository = "https://github.com/0xcregis/anychain"
+keywords = ["tron", "blockchain", "cryptocurrency", "wallet", "transactions"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
