@@ -7,15 +7,15 @@ use anychain_bitcoin::{
         BitcoinTransaction, BitcoinTransactionInput, BitcoinTransactionOutput,
         BitcoinTransactionParameters,
     },
-    BitcoinTestnet as Testnet, BitcoinAddress, BitcoinFormat,
+    BitcoinAddress, BitcoinFormat, BitcoinTestnet as Testnet,
 };
 
 use anychain_core::{hex, libsecp256k1, Address, PublicKey, Transaction};
 
 fn address_from_secret_key() {
     let secret_key = [
-        1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 71, 1, 1, 1, 1, 8, 1, 1, 1, 111, 1, 1, 103, 1, 1, 57, 1, 1,
-        1, 1,
+        1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 71, 1, 1, 1, 1, 8, 1, 1, 1, 111, 1, 1, 103, 1, 1, 57,
+        1, 1, 1, 1,
     ];
 
     let secret_key = libsecp256k1::SecretKey::parse(&secret_key).unwrap();
@@ -82,11 +82,13 @@ fn amount_gen() {
 
 fn transaction_gen() {
     let secret_key = [
-        1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 71, 1, 1, 1, 1, 8, 1, 1, 1, 111, 1, 1, 103, 1, 1, 57, 1, 1,
-        1, 1,
+        1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 71, 1, 1, 1, 1, 8, 1, 1, 1, 111, 1, 1, 103, 1, 1, 57,
+        1, 1, 1, 1,
     ];
     let secret_key = libsecp256k1::SecretKey::parse(&secret_key).unwrap();
-    let public_key = libsecp256k1::PublicKey::from_secret_key(&secret_key).serialize_compressed().to_vec();
+    let public_key = libsecp256k1::PublicKey::from_secret_key(&secret_key)
+        .serialize_compressed()
+        .to_vec();
 
     let recipient = "2MsRNMaKe8YWcdUaRi8jwa2aHG85kzsbUHe";
     let amount = 500000;
@@ -97,28 +99,28 @@ fn transaction_gen() {
             "39f420dc156f4ac1ad753a9fae1206973d9eede39a004c04496b7f9f525c77b8",
             0,
             "mm21MpCm2cVYBxZvxk6DaQC7C4o5Ukq2Wf",
-            1378890
+            1378890,
         ),
         (
             "312afea64f1efeefc6bdf73827daeee99ff025c9f1dc036bb62ff708c4eedcad",
             0,
             "2NCwYikg4pdCGPjgiK3T4Y1DW6Dnp5eobfy",
-            1818565
+            1818565,
         ),
         (
             "dc163eb31a9cdd5a8bb49066477375f9a0068791176e7b4a61e54751581449ae",
             1,
             "tb1q83t5qrd4yzrd477eskjp5f8ujtrf6enwgw87rn",
-            1481548
-        )
+            1481548,
+        ),
     ];
 
-    for i in 0..inputs.len() {
+    for (i, item) in inputs.iter().enumerate() {
         let input = BitcoinTransactionInput::new(
-            hex::decode(inputs[i].0).unwrap(),
-            inputs[i].1,
-            Some(BitcoinAddress::<Testnet>::from_str(inputs[i].2).unwrap()),
-            Some(BitcoinAmount::from_satoshi(inputs[i].3).unwrap()),
+            hex::decode(item.0).unwrap(),
+            item.1,
+            Some(BitcoinAddress::<Testnet>::from_str(item.2).unwrap()),
+            Some(BitcoinAmount::from_satoshi(item.3).unwrap()),
         )
         .unwrap();
 
@@ -129,8 +131,8 @@ fn transaction_gen() {
         .unwrap();
 
         let output2 = BitcoinTransactionOutput::new(
-            BitcoinAddress::<Testnet>::from_str(inputs[i].2).unwrap(),
-            BitcoinAmount::from_satoshi(inputs[i].3 - amount - fee).unwrap(),
+            BitcoinAddress::<Testnet>::from_str(item.2).unwrap(),
+            BitcoinAmount::from_satoshi(item.3 - amount - fee).unwrap(),
         )
         .unwrap();
 
