@@ -13,6 +13,9 @@ use anychain_bitcoin::{
 use anychain_core::{hex, libsecp256k1, Address, PublicKey, Transaction};
 
 fn address_from_secret_key() {
+    // Generates Bitcoin addresses from a secret key.
+    // It generates three types of addresses: P2PKH, P2SH_P2WPKH, and Bech32.
+
     let secret_key = [
         1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 71, 1, 1, 1, 1, 8, 1, 1, 1, 111, 1, 1, 103, 1, 1, 57,
         1, 1, 1, 1,
@@ -36,6 +39,9 @@ fn address_from_secret_key() {
 }
 
 fn address_from_public_key() {
+    // Generates Bitcoin addresses from a public key.
+    // Generates three types of addresses: P2PKH, P2SH_P2WPKH, and Bech32.
+
     let public_key = [
         3, 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52,
         96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143,
@@ -57,6 +63,9 @@ fn address_from_public_key() {
 }
 
 fn address_from_str() {
+    // Parses a Bitcoin address from a string.
+    // It takes a string representation of a Bitcoin address and converts it into a BitcoinAddress object.
+
     let addr = "mm21MpCm2cVYBxZvxk6DaQC7C4o5Ukq2Wf";
 
     let addr = BitcoinAddress::<Testnet>::from_str(addr).unwrap();
@@ -65,6 +74,9 @@ fn address_from_str() {
 }
 
 fn address_validation() {
+    // Validates a Bitcoin address.
+    // It checks whether a given string is a valid Bitcoin address.
+
     let addr = "mm21MpCm2cVYBxZvxk6DaQC7C4o5Ukq2Wf";
 
     let status = BitcoinAddress::<Testnet>::is_valid(addr);
@@ -73,6 +85,9 @@ fn address_validation() {
 }
 
 fn amount_gen() {
+    // Generates Bitcoin amounts in satoshi from BTC and satoshi values.
+    // It demonstrates how to create BitcoinAmount objects from BTC and satoshi values.
+
     let amount1 = BitcoinAmount::from_btc(1).unwrap();
     let amount2 = BitcoinAmount::from_satoshi(1000).unwrap();
 
@@ -81,6 +96,9 @@ fn amount_gen() {
 }
 
 fn transaction_gen() {
+    // Generates a Bitcoin transaction.
+    // It creates a transaction with multiple inputs and outputs, signs it with a secret key, and prints the transaction.
+
     let secret_key = [
         1, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 1, 71, 1, 1, 1, 1, 8, 1, 1, 1, 111, 1, 1, 103, 1, 1, 57,
         1, 1, 1, 1,
@@ -152,10 +170,21 @@ fn transaction_gen() {
 }
 
 fn main() {
+    // Generates Bitcoin addresses from a secret key
     address_from_secret_key();
+
+    // Generates Bitcoin addresses from a public key
     address_from_public_key();
+
+    // Parses a Bitcoin address from a string
     address_from_str();
+
+    // Validates a Bitcoin address
     address_validation();
+
+    // Generates Bitcoin amounts in satoshi from BTC and satoshi values
     amount_gen();
+
+    // Generates a Bitcoin transaction
     transaction_gen();
 }
