@@ -475,15 +475,12 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut input = vec![];
         input.extend(&self.outpoint.reverse_transaction_id);
         input.extend(&self.outpoint.index.to_le_bytes());
-
         match raw {
             true => input.extend(vec![0x00]),
             false => match self.script_sig.len() {
                 0 => match &self.outpoint.address {
                     Some(address) => match address.format() {
-                        BitcoinFormat::Bech32 => input.extend(vec![0x00]),
-                        BitcoinFormat::P2WSH => input.extend(vec![0x00]),
-                        _ => {
+                        BitcoinFormat::P2PKH => {
                             let script_pub_key = match &self.outpoint.script_pub_key {
                                 Some(script) => script,
                                 None => {
@@ -493,6 +490,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
                             input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                             input.extend(script_pub_key);
                         }
+                        _ => input.extend(vec![0x00]),
                     },
                     None => input.extend(vec![0x00]),
                 },

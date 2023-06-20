@@ -96,10 +96,10 @@ fn transaction_gen() {
 
     let inputs = [
         (
-            "39f420dc156f4ac1ad753a9fae1206973d9eede39a004c04496b7f9f525c77b8",
-            0,
+            "c226dd928aa04b83dc5f2ab4100374e0eb16ff60885fa17d924ea2af15a64692",
+            1,
             "mm21MpCm2cVYBxZvxk6DaQC7C4o5Ukq2Wf",
-            1378890,
+            868890,
         ),
         (
             "312afea64f1efeefc6bdf73827daeee99ff025c9f1dc036bb62ff708c4eedcad",
@@ -115,7 +115,7 @@ fn transaction_gen() {
         ),
     ];
 
-    for (i, item) in inputs.iter().enumerate() {
+    for item in inputs.iter() {
         let input = BitcoinTransactionInput::new(
             hex::decode(item.0).unwrap(),
             item.1,
@@ -145,17 +145,17 @@ fn transaction_gen() {
         let msg = libsecp256k1::Message::parse_slice(&hash).unwrap();
         let sig = libsecp256k1::sign(&msg, &secret_key).0.serialize().to_vec();
 
-        let _ = tx.sign(sig, public_key.clone(), i as u32);
+        tx.sign(sig, public_key.clone(), 0).unwrap();
 
         println!("tx = {}\n", tx);
     }
 }
 
 fn main() {
-    address_from_secret_key();
-    address_from_public_key();
-    address_from_str();
-    address_validation();
-    amount_gen();
+    // address_from_secret_key();
+    // address_from_public_key();
+    // address_from_str();
+    // address_validation();
+    // amount_gen();
     transaction_gen();
 }
