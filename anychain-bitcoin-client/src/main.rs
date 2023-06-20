@@ -152,10 +152,10 @@ fn transaction_gen() {
 }
 
 fn main() {
-    // address_from_secret_key();
-    // address_from_public_key();
-    // address_from_str();
-    // address_validation();
-    // amount_gen();
+    address_from_secret_key();
+    address_from_public_key();
+    address_from_str();
+    address_validation();
+    amount_gen();
     transaction_gen();
 }
