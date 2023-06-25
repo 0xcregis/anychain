@@ -28,9 +28,11 @@ impl BitcoinNetwork for Bitcoin {
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
             (0x00, _) | (0x05, _) | (0x62, 0x63) => Ok(Self),
-            _ => Err(AddressError::InvalidPrefix(String::from_utf8(
-                prefix.to_owned(),
-            )?)),
+            _ => Err(AddressError::Message(format!(
+                "Invalid version byte {:#0x} for network {}",
+                prefix[0],
+                Self::NAME
+            ))),
         }
     }
 }

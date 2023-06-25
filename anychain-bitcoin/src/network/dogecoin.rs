@@ -27,9 +27,11 @@ impl BitcoinNetwork for Dogecoin {
     fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
         match (prefix[0], prefix[1]) {
             (0x1E, _) | (0x16, _) => Ok(Self),
-            _ => Err(AddressError::InvalidPrefix(String::from_utf8(
-                prefix.to_owned(),
-            )?)),
+            _ => Err(AddressError::Message(format!(
+                "Invalid version byte {:#0x} for network {}",
+                prefix[0],
+                Self::NAME
+            ))),
         }
     }
 }
