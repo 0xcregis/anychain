@@ -421,6 +421,24 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         })
     }
 
+    pub fn set_public_key(
+        &mut self,
+        public_key: BitcoinPublicKey<N>,
+        format: BitcoinFormat,
+    ) -> Result<(), TransactionError> {
+        let address = public_key.to_address(&format)?;
+        self.format = Some(format.clone());
+        self.script_pub_key = Some(create_script_pub_key(&address)?);
+        self.address = Some(address);
+        self.redeem_script = match format {
+            BitcoinFormat::P2SH_P2WPKH => {
+                Some(BitcoinAddress::<N>::create_redeem_script(&public_key).to_vec())
+            }
+            _ => None,
+        };
+        Ok(())
+    }
+
     pub fn set_redeem_script(&mut self, redeem_script: Vec<u8>) -> Result<(), TransactionError> {
         self.redeem_script = Some(redeem_script);
         Ok(())
