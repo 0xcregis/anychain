@@ -54,6 +54,14 @@ impl<N: BitcoinNetwork> BitcoinPublicKey<N> {
         self.public_key
     }
 
+    /// Serialize the Bitcoin public key as a vector of u8
+    pub fn serialize(&self) -> Vec<u8> {
+        match self.compressed {
+            true => self.public_key.serialize_compressed().to_vec(),
+            false => self.public_key.serialize().to_vec(),
+        }
+    }
+
     /// Returns `true` if the public key is in compressed form.
     pub fn is_compressed(&self) -> bool {
         self.compressed

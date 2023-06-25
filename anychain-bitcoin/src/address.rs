@@ -1,6 +1,7 @@
 use crate::format::BitcoinFormat;
 use crate::network::BitcoinNetwork;
 use crate::public_key::BitcoinPublicKey;
+use crate::transaction::Opcode;
 use crate::witness_program::WitnessProgram;
 use anychain_core::libsecp256k1;
 use anychain_core::{
@@ -56,34 +57,26 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
 }
 
 impl<N: BitcoinNetwork> BitcoinAddress<N> {
-    pub fn from_hash160(hash: &[u8]) -> Result<Self, AddressError> {
-        let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
-        address[1..21].copy_from_slice(hash);
+    // pub fn from_hash160(hash: &[u8]) -> Result<Self, AddressError> {
+    //     let mut address = [0u8; 25];
+    //     address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
+    //     address[1..21].copy_from_slice(hash);
 
-        let sum = &checksum(&address[0..21])[0..4];
-        address[21..25].copy_from_slice(sum);
+    //     let sum = &checksum(&address[0..21])[0..4];
+    //     address[21..25].copy_from_slice(sum);
 
-        Ok(Self {
-            address: address.to_base58(),
-            format: BitcoinFormat::P2PKH,
-            _network: PhantomData,
-        })
-    }
+    //     Ok(Self {
+    //         address: address.to_base58(),
+    //         format: BitcoinFormat::P2PKH,
+    //         _network: PhantomData,
+    //     })
+    // }
 
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let public_key = match public_key.is_compressed() {
-            true => public_key
-                .to_secp256k1_public_key()
-                .serialize_compressed()
-                .to_vec(),
-            false => public_key.to_secp256k1_public_key().serialize().to_vec(),
-        };
-
         let mut address = [0u8; 25];
         address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
-        address[1..21].copy_from_slice(&hash160(&public_key));
+        address[1..21].copy_from_slice(&hash160(&public_key.serialize()));
 
         let sum = &checksum(&address[0..21])[0..4];
         address[21..25].copy_from_slice(sum);
@@ -136,11 +129,11 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     /// Returns a Bech32 address from a given Bitcoin public key.
     pub fn bech32(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let redeem_script = Self::create_redeem_script(public_key);
-        let version = u5::try_from_u8(redeem_script[0])?;
-
-        let mut data = vec![version];
-        data.extend_from_slice(&redeem_script[2..].to_vec().to_base32());
+        let data = [
+            vec![u5::try_from_u8(0)?], // version byte: 0
+            hash160(&public_key.serialize()).to_base32(),
+        ]
+        .concat();
 
         let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
@@ -157,21 +150,10 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     }
 
     /// Returns a redeem script for a given Bitcoin public key.
-    fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
+    pub fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
         let mut redeem = [0u8; 22];
-        redeem[1] = 0x14;
-        if public_key.is_compressed() {
-            redeem[2..].copy_from_slice(&hash160(
-                public_key
-                    .to_secp256k1_public_key()
-                    .serialize_compressed()
-                    .as_ref(),
-            ));
-        } else {
-            redeem[2..].copy_from_slice(&hash160(
-                public_key.to_secp256k1_public_key().serialize().as_ref(),
-            ));
-        }
+        redeem[1] = Opcode::OP_PUSHBYTES_20 as u8;
+        redeem[2..].copy_from_slice(&hash160(&public_key.serialize()));
         redeem
     }
 }
