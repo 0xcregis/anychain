@@ -29,7 +29,7 @@ impl BitcoinNetwork for BitcoinTestnet {
         match (prefix[0], prefix[1]) {
             (0x6F, _) | (0xC4, _) | (0x74, 0x62) => Ok(Self),
             _ => Err(AddressError::Message(format!(
-                "Invalid version byte {:#0x}, {:#0x} for network {}",
+                "Invalid version bytes {:#0x}, {:#0x} for network {}",
                 prefix[0],
                 prefix[1],
                 Self::NAME,

@@ -28,7 +28,7 @@ impl BitcoinNetwork for Litecoin {
         match (prefix[0], prefix[1]) {
             (0x30, _) | (0x32, _) => Ok(Self),
             _ => Err(AddressError::Message(format!(
-                "Invalid version byte {:#0x}, {:#0x} for network {}",
+                "Invalid version bytes {:#0x}, {:#0x} for network {}",
                 prefix[0],
                 prefix[1],
                 Self::NAME,

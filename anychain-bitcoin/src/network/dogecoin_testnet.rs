@@ -30,7 +30,7 @@ impl BitcoinNetwork for DogecoinTestnet {
         match (prefix[0], prefix[1]) {
             (0x71, _) | (0xC4, _) => Ok(Self),
             _ => Err(AddressError::Message(format!(
-                "Invalid version byte {:#0x}, {:#0x} for network {}",
+                "Invalid version bytes {:#0x}, {:#0x} for network {}",
                 prefix[0],
                 prefix[1],
                 Self::NAME,
