@@ -321,8 +321,6 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     pub address: Option<BitcoinAddress<N>>,
     /// The address format of the utxo pointed by this input
     pub format: Option<BitcoinFormat>,
-    /// The public key associated with the utxo pointed by this input
-    // pub public_key: Option<BitcoinPublicKey<N>>,
     /// The 'scriptPubkey' of the utxo pointed by this input
     pub script_pub_key: Option<Vec<u8>>,
     /// An optional redeem script in case of an SegWit utxo
@@ -396,11 +394,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
                     let script_pub_key = create_script_pub_key(&addr)?;
                     (Some(addr), Some(script_pub_key), None)
                 }
-                None => {
-                    return Err(TransactionError::Message(
-                        "Neither an address nor a public key is provided for the input".to_string(),
-                    ))
-                }
+                None => (None, None, None),
             },
         };
 
