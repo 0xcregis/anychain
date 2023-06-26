@@ -13,14 +13,14 @@ repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.0.1"}
-base58 = { version = "0.2" }
-bech32 = { version = "0.9.0" }
-serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-sha2 = { version = "0.10.2", default-features = false }
-rand = { version = "0.8.5"}
-hex = "0.4"
-thiserror = "1.0"
+base58 = { workspace = true }
+bech32 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
 
 [features]
 default = ["std"]

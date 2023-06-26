@@ -15,14 +15,14 @@ repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.0.1" }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-sha3 = "0.10.1"
-sha2 = "0.10"
-hex = "0.4"
-rand = { version = "0.8.5", default-features = false }
-base58 = "0.2"
-bytes = "1.0"
-protobuf = { version = "3.1.0" }
-thiserror = "1.0"
-chrono = "0.4"
-ethabi = "17.2.0"
+serde = { workspace = true }
+sha3 = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+base58 = { workspace = true }
+bytes = { workspace = true }
+protobuf = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+ethabi = { workspace = true }
