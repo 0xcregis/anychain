@@ -1,32 +1,34 @@
 [package]
 name = "anychain-core"
 version = "0.0.1"
-authors = ["Shawndslee", "cregis.com"]
 description = "A core support for cryptocurrency wallets"
 categories = ["command-line-utilities", "cryptocurrency"]
 keywords = ["bitcoin", "blockchain", "cryptocurrency", "ethereum", "no_std"]
 readme = "README.md"
-license = "MIT/Apache-2.0"
-edition = "2018"
-homepage = "https://www.cregis.com/"
-repository = "https://github.com/0xcregis/anychain"
+
+# Workspace inherited keys
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
-sha3 = "0.10.1"
-thiserror = "1.0"
-ethereum-types = "0.13.1"
-ripemd = "0.1.1"
-blake2b_simd = "1.0.0"
-bech32 = "0.9.0"
-hex = "0.4.2"
-libsecp256k1 = "0.7.1"
-bls-signatures = "0.13.0"
-base58 = { version = "0.2", optional = true }
-rand = { version = "0.8.5", default-features = false }
-rand_core = { version = "0.6.3", default-features = false }
-rlp = { version = "0.5.1", default-features = false }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-sha2 = { version = "0.10.2", default-features = false }
+sha3 = { workspace = true }
+thiserror = { workspace = true }
+ethereum-types = { workspace = true }
+ripemd = { workspace = true }
+blake2b_simd = { workspace = true }
+bech32 = { workspace = true }
+hex = { workspace = true }
+libsecp256k1 = { workspace = true }
+bls-signatures = { workspace = true }
+base58 = { workspace = true , optional = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+rlp = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
 
 [features]
 default = ["std"]

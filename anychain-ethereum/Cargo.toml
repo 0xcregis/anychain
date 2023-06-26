@@ -1,21 +1,23 @@
 [package]
 name = "anychain-ethereum"
 description = "A Rust library for Ethereum-focused cryptocurrency wallets, enabling seamless transactions on the Ethereum blockchain"
-authors = ["Shawndslee", "Cregis.com"]
 version = "0.0.1"
-license = "MIT"
-homepage = "https://www.cregis.com/"
-repository = "https://github.com/cregis-web3/anychain"
 keywords = ["blockchain", "crypto", "cryptocurrency", "ethereum", "wallet"]
-edition = "2021"
+
+# Workspace inherited keys
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.0.1"}
-rand = { version = "0.8.5", default-features = false }
-regex = { version = "1.3" }
-rlp = { version = "0.5.1", default-features = false }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-ethabi = "17.2.0"
+rand = { workspace = true }
+regex = { workspace = true }
+rlp = { workspace = true }
+serde = { workspace = true }
+ethabi = { workspace = true }
 
 [features]
 default = ["std"]
