@@ -438,8 +438,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         Ok(())
     }
 
-    pub fn set_balance(&mut self, balance: BitcoinAmount) -> Result<(), TransactionError> {
-        self.balance = Some(balance);
+    pub fn set_balance(&mut self, balance: i64) -> Result<(), TransactionError> {
+        self.balance = Some(BitcoinAmount(balance));
         Ok(())
     }
 
