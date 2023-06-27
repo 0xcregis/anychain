@@ -526,6 +526,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         };
 
         input.extend(&self.sequence);
+
         Ok(input)
     }
 }
@@ -904,7 +905,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     }
 
     /// Returns the transaction with the traditional serialization (no witness).
-    fn to_transaction_bytes_without_witness(&self) -> Result<Vec<u8>, TransactionError> {
+    pub fn to_transaction_bytes_without_witness(&self) -> Result<Vec<u8>, TransactionError> {
         let mut transaction = self.parameters.version.to_le_bytes().to_vec();
 
         transaction.extend(variable_length_integer(self.parameters.inputs.len() as u64)?);
