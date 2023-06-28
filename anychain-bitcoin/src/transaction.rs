@@ -443,6 +443,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         Ok(())
     }
 
+    pub fn set_format(&mut self, format: BitcoinFormat) -> Result<(), TransactionError> {
+        self.format = Some(format);
+        Ok(())
+    }
+
     pub fn get_address(&self) -> Option<BitcoinAddress<N>> {
         self.address.clone()
     }
