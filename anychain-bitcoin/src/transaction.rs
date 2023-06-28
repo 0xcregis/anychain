@@ -456,6 +456,10 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         self.balance
     }
 
+    pub fn get_format(&self) -> Option<BitcoinFormat> {
+        self.format.clone()
+    }
+
     /// Read and output a Bitcoin transaction input
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut transaction_hash = [0u8; 32];
@@ -980,7 +984,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         ]
         .concat();
 
-        match input.get_address().unwrap().format() {
+        match input.get_format().unwrap() {
             BitcoinFormat::P2PKH => {
                 input.script_sig = [signature, public_key].concat();
                 input.is_signed = true;
