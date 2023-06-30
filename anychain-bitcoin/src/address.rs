@@ -1,8 +1,4 @@
-use crate::format::BitcoinFormat;
-use crate::network::BitcoinNetwork;
-use crate::public_key::BitcoinPublicKey;
-use crate::transaction::Opcode;
-use crate::witness_program::WitnessProgram;
+use crate::{BitcoinFormat, BitcoinNetwork, BitcoinPublicKey, Opcode, Prefix, WitnessProgram};
 use anychain_core::libsecp256k1;
 use anychain_core::{
     crypto::{checksum, hash160},
@@ -12,7 +8,8 @@ use anychain_core::{no_std::*, PublicKey};
 
 use base58::{FromBase58, ToBase58};
 use bech32::{self, u5, FromBase32, ToBase32, Variant};
-use core::{convert::TryFrom, fmt, marker::PhantomData, str::FromStr};
+use core::hash::Hash;
+use core::{fmt, marker::PhantomData, str::FromStr};
 use sha2::{Digest, Sha256};
 
 /// Represents a Bitcoin address
@@ -24,6 +21,95 @@ pub struct BitcoinAddress<N: BitcoinNetwork> {
     format: BitcoinFormat,
     /// PhantomData
     _network: PhantomData<N>,
+}
+
+pub static BASE32_ENCODE_TABLE: [u8; 32] = [
+    b'q', b'p', b'z', b'r', b'y', b'9', b'x', b'8', b'g', b'f', b'2', b't', b'v', b'd', b'w', b'0',
+    b's', b'3', b'j', b'n', b'5', b'4', b'k', b'h', b'c', b'e', b'6', b'm', b'u', b'a', b'7', b'l',
+];
+
+pub static BASE32_DECODE_TABLE: [i8; 128] = [
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    15, -1, 10, 17, 21, 20, 26, 30, 7, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1, 1, 0, 3, 16, 11, 28, 12, 14, 6,
+    4, 2, -1, -1, -1, -1, -1,
+];
+
+fn checksum_bch(feed: Vec<u8>) -> [u8; 5] {
+    let mut c = 1u64;
+
+    for d in feed.iter() {
+        let c0 = (c >> 35) as u8;
+        c = ((c & 0x07ffffffff) << 5) ^ (*d as u64);
+
+        if c0 & 0x01 != 0 {
+            c ^= 0x98f2bc8e61;
+        }
+        if c0 & 0x02 != 0 {
+            c ^= 0x79b76d99e2;
+        }
+        if c0 & 0x04 != 0 {
+            c ^= 0xf33e5fb3c4;
+        }
+        if c0 & 0x08 != 0 {
+            c ^= 0xae2eabe2a8;
+        }
+        if c0 & 0x10 != 0 {
+            c ^= 0x1e4f43e470;
+        }
+    }
+
+    c ^= 1;
+
+    let mut ret = [0u8; 5];
+
+    for (i, byte) in ret.iter_mut().enumerate() {
+        *byte = (c >> (8 * i)) as u8;
+    }
+
+    ret
+}
+
+fn compute_checksum_bch(payload: &str, prefix: &str) -> Result<String, AddressError> {
+    let mut payload = payload.as_bytes().to_vec();
+    for byte in payload.clone() {
+        match BASE32_DECODE_TABLE.get(byte as usize) {
+            Some(val) if *val != -1 => {}
+            _ => {
+                return Err(AddressError::Message(format!(
+                    "Invalid base32 character '{}' for Bitcoin cash",
+                    byte as char
+                )))
+            }
+        }
+    }
+
+    payload
+        .iter_mut()
+        .for_each(|byte| *byte = BASE32_DECODE_TABLE[*byte as usize] as u8);
+
+    let prefix = prefix.as_bytes().to_vec();
+    let prefix: Vec<u8> = prefix.iter().map(|byte| byte & 0x1f).collect();
+    let template = vec![0u8; 8];
+
+    let mut feed = prefix;
+
+    feed.push(0);
+    feed.extend(&payload);
+    feed.extend(&template);
+
+    let mut chechsum = checksum_bch(feed).to_vec();
+    chechsum.reverse();
+
+    let chechsum: Vec<u8> = chechsum
+        .to_base32()
+        .iter()
+        .map(|byte| BASE32_ENCODE_TABLE[byte.to_u8() as usize])
+        .collect();
+
+    Ok(String::from_utf8(chechsum)?)
 }
 
 impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
@@ -52,33 +138,19 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
             )),
             BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(public_key),
             BitcoinFormat::Bech32 => Self::bech32(public_key),
+            BitcoinFormat::CashAddr => Self::cash_addr(public_key),
         }
     }
 }
 
 impl<N: BitcoinNetwork> BitcoinAddress<N> {
-    // pub fn from_hash160(hash: &[u8]) -> Result<Self, AddressError> {
-    //     let mut address = [0u8; 25];
-    //     address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
-    //     address[1..21].copy_from_slice(hash);
-
-    //     let sum = &checksum(&address[0..21])[0..4];
-    //     address[21..25].copy_from_slice(sum);
-
-    //     Ok(Self {
-    //         address: address.to_base58(),
-    //         format: BitcoinFormat::P2PKH,
-    //         _network: PhantomData,
-    //     })
-    // }
-
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
+        address[0] = N::to_address_prefix(BitcoinFormat::P2PKH).version();
         address[1..21].copy_from_slice(&hash160(&public_key.serialize()));
 
-        let sum = &checksum(&address[0..21])[0..4];
+        let sum = &checksum(&address[..21])[..4];
         address[21..25].copy_from_slice(sum);
 
         Ok(Self {
@@ -89,11 +161,11 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     }
 
     // Returns a P2WSH address in Bech32 format from a given Bitcoin script
-    pub fn p2wsh(original_script: &Vec<u8>) -> Result<Self, AddressError> {
+    pub fn p2wsh(original_script: &[u8]) -> Result<Self, AddressError> {
         let script = Sha256::digest(original_script).to_vec();
 
         // Organize as a hash
-        let v = N::to_address_prefix(&BitcoinFormat::P2WSH)[0];
+        let v = N::to_address_prefix(BitcoinFormat::P2WSH).version();
         let version = u5::try_from_u8(v)?;
 
         let mut data = vec![version];
@@ -101,7 +173,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         // Get the SHA256 hash of the script
         data.extend_from_slice(&script.to_vec().to_base32());
 
-        let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
+        let prefix = N::to_address_prefix(BitcoinFormat::Bech32).prefix();
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
 
         Ok(Self {
@@ -114,7 +186,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
     pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(&BitcoinFormat::P2SH_P2WPKH)[0];
+        address[0] = N::to_address_prefix(BitcoinFormat::P2SH_P2WPKH).version();
         address[1..21].copy_from_slice(&hash160(&Self::create_redeem_script(public_key)));
 
         let sum = &checksum(&address[0..21])[0..4];
@@ -135,11 +207,33 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         ]
         .concat();
 
-        let prefix = String::from_utf8(N::to_address_prefix(&BitcoinFormat::Bech32))?;
+        let prefix = N::to_address_prefix(BitcoinFormat::Bech32).prefix();
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
+
         Ok(Self {
             address: bech32,
             format: BitcoinFormat::Bech32,
+            _network: PhantomData,
+        })
+    }
+
+    pub fn cash_addr(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+        let mut payload = vec![0u8]; // payload starts with version byte: 0
+        payload.extend(&hash160(&public_key.serialize()));
+
+        let payload: Vec<u8> = payload
+            .to_base32()
+            .iter()
+            .map(|byte| BASE32_ENCODE_TABLE[byte.to_u8() as usize])
+            .collect();
+
+        let payload = String::from_utf8(payload)?;
+        let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
+        let checksum = compute_checksum_bch(&payload, &prefix)?;
+
+        Ok(Self {
+            address: format!("{}:{}{}", prefix, payload, checksum),
+            format: BitcoinFormat::CashAddr,
             _network: PhantomData,
         })
     }
@@ -158,84 +252,147 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     }
 }
 
-impl<'a, N: BitcoinNetwork> TryFrom<&'a str> for BitcoinAddress<N> {
-    type Error = AddressError;
-
-    fn try_from(address: &'a str) -> Result<Self, Self::Error> {
-        Self::from_str(address)
-    }
-}
-
 impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
-        if address.len() < 14 || address.len() > 74 {
-            return Err(AddressError::InvalidCharacterLength(address.len()));
-        }
+        if address.starts_with("bitcoincash") || address.starts_with("bchtest") {
+            // we are processing a bitcoin cash address in CashAddr format
+            let prefix = address.split(':').collect::<Vec<&str>>()[0];
 
-        let prefix = &address.to_lowercase()[0..2];
+            // check if the address prefix corresponds to the correct network.
+            let _ = N::from_address_prefix(Prefix::from_prefix(prefix));
 
-        if let Ok(format) = BitcoinFormat::from_address_prefix(prefix.as_bytes()) {
-            if BitcoinFormat::Bech32 == format {
-                let (_, data, _) = bech32::decode(address)?;
-                if data.is_empty() {
-                    return Err(AddressError::InvalidAddress(address.to_owned()));
+            if address.len() != prefix.len() + 1 + 34 + 8 {
+                return Err(AddressError::InvalidCharacterLength(
+                    address.len() - prefix.len() - 1,
+                ));
+            }
+            let payload = &address[prefix.len() + 1..prefix.len() + 1 + 34];
+            let checksum_provided = &address[address.len() - 8..address.len()];
+
+            // check if the payload produces the provided checksum
+            let checksum_gen = compute_checksum_bch(payload, prefix)?;
+            if checksum_provided != checksum_gen {
+                return Err(AddressError::InvalidChecksum(
+                    checksum_provided.to_string(),
+                    checksum_gen,
+                ));
+            }
+
+            Ok(BitcoinAddress {
+                address: address.to_string(),
+                format: BitcoinFormat::CashAddr,
+                _network: PhantomData,
+            })
+        } else if address.starts_with("bc1")
+            || address.starts_with("tb1")
+            || address.starts_with("ltc1")
+            || address.starts_with("tltc1")
+        {
+            // we are processing an address in Bech32 format
+            let (hrp, data, _) = bech32::decode(address)?;
+
+            if data.is_empty() {
+                return Err(AddressError::InvalidAddress(address.to_owned()));
+            }
+
+            // check if the address prefix corresponds to the correct network.
+            let _ = N::from_address_prefix(Prefix::from_prefix(&hrp))?;
+
+            let version = data[0].to_u8();
+            let mut program = Vec::from_base32(&data[1..])?;
+
+            let mut data = vec![version, program.len() as u8];
+            data.append(&mut program);
+
+            // check if the witness program is valid.
+            let _ = WitnessProgram::new(data.as_slice())?;
+
+            Ok(Self {
+                address: address.to_string(),
+                format: BitcoinFormat::Bech32,
+                _network: PhantomData,
+            })
+        } else {
+            let has_uppercase = |s: &str| {
+                for c in s.chars() {
+                    if c.is_ascii_uppercase() {
+                        return true;
+                    }
+                }
+                false
+            };
+
+            if has_uppercase(address) {
+                // we are processing an address in p2pkh or p2sh_p2wpkh format
+                let data = address.from_base58()?;
+
+                if data.len() != 25 {
+                    return Err(AddressError::InvalidByteLength(data.len()));
                 }
 
-                // let data = bech32.data();
-                let version = data[0].to_u8();
-                let mut program = Vec::from_base32(&data[1..])?;
+                let version = Prefix::from_version(data[0]);
 
-                let mut data = vec![version, program.len() as u8];
-                data.append(&mut program);
+                // check if the address prefix corresponds to the correct network
+                let _ = N::from_address_prefix(version.clone())?;
 
-                // Check that the witness program is valid.
-                let _ = WitnessProgram::new(data.as_slice())?;
+                let format = BitcoinFormat::from_address_prefix(version)?;
 
-                // Check that the address prefix corresponds to the correct network.
-                let _ = N::from_address_prefix(prefix.as_bytes())?;
+                // check if the payload produces the provided checksum
+                match format {
+                    BitcoinFormat::P2PKH | BitcoinFormat::P2SH_P2WPKH => {
+                        let checksum_gen = &checksum(&data[..21])[..4];
+                        let checksum_provided = &data[21..];
+                        if *checksum_gen != *checksum_provided {
+                            return Err(AddressError::InvalidChecksum(
+                                address.to_string(),
+                                [data[..21].to_vec(), checksum_gen.to_vec()]
+                                    .concat()
+                                    .to_base58(),
+                            ));
+                        }
+                    }
+                    _ => {
+                        return Err(AddressError::Message(format!(
+                            "Unrecognized version byte {}",
+                            data[0],
+                        )))
+                    }
+                }
 
-                return Ok(Self {
-                    address: address.to_owned(),
-                    format: BitcoinFormat::Bech32,
+                Ok(Self {
+                    address: address.to_string(),
+                    format,
                     _network: PhantomData,
-                });
-            }
-        }
+                })
+            } else {
+                // we are processing a bitcoin cash address in CashAddr format without an explicit prefix
+                let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
 
-        let data = address.from_base58()?;
+                if address.len() != 42 {
+                    return Err(AddressError::InvalidCharacterLength(address.len()));
+                }
 
-        if data.len() != 25 {
-            return Err(AddressError::InvalidByteLength(data.len()));
-        }
+                let payload = &address[..34];
+                let checksum_provided = &address[34..];
 
-        // Check if the address prefix corresponds to the correct network
-        let _ = N::from_address_prefix(&data[0..2])?;
-        let format = BitcoinFormat::from_address_prefix(&data[0..2])?;
-
-        // Check if the payload produces the provided checksum
-        match format {
-            BitcoinFormat::P2PKH | BitcoinFormat::P2SH_P2WPKH => {
-                let checksum_gen = &checksum(&data[..21])[..4];
-                let checksum_provided = &data[21..];
-                if *checksum_gen != *checksum_provided {
+                // check if the payload produces the provided checksum
+                let checksum_gen = compute_checksum_bch(payload, &prefix)?;
+                if checksum_provided != checksum_gen {
                     return Err(AddressError::InvalidChecksum(
-                        address.to_string(),
-                        [data[..21].to_vec(), checksum_gen.to_vec()]
-                            .concat()
-                            .to_base58(),
+                        checksum_provided.to_string(),
+                        checksum_gen,
                     ));
                 }
-            }
-            BitcoinFormat::Bech32 | BitcoinFormat::P2WSH => {}
-        }
 
-        Ok(Self {
-            address: address.into(),
-            format,
-            _network: PhantomData,
-        })
+                Ok(Self {
+                    address: address.to_string(),
+                    format: BitcoinFormat::CashAddr,
+                    _network: PhantomData,
+                })
+            }
+        }
     }
 }
 
@@ -249,6 +406,7 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinAddress<N> {
 mod tests {
     use super::*;
     use crate::network::*;
+    use anychain_core::{hex, Network};
 
     fn test_from_str<N: BitcoinNetwork>(expected_address: &str, expected_format: &BitcoinFormat) {
         let address = BitcoinAddress::<N>::from_str(expected_address).unwrap();
@@ -693,10 +851,92 @@ mod tests {
 
     #[test]
     fn f() {
-        let addr = "QairL6d7qXbn8hvtW6smoDYVcykhcFSLoQ";
+        let secret_key = [
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1,
+        ];
 
-        let addr = BitcoinAddress::<LitecoinTestnet>::from_str(addr).unwrap();
+        let secret_key = libsecp256k1::SecretKey::parse(&secret_key).unwrap();
 
-        println!("addr = {}", addr);
+        let formats = [
+            BitcoinFormat::P2PKH,
+            BitcoinFormat::P2SH_P2WPKH,
+            // BitcoinFormat::Bech32,
+            // BitcoinFormat::CashAddr
+        ];
+
+        for format in formats {
+            let address = BitcoinAddress::<Bitcoin>::from_secret_key(&secret_key, &format).unwrap();
+            println!("{} {} address = \n{}\n", Bitcoin::NAME, format, address);
+
+            let address =
+                BitcoinAddress::<BitcoinTestnet>::from_secret_key(&secret_key, &format).unwrap();
+            println!(
+                "{} {} address = \n{}\n",
+                BitcoinTestnet::NAME,
+                format,
+                address
+            );
+
+            let address =
+                BitcoinAddress::<Bitcoincash>::from_secret_key(&secret_key, &format).unwrap();
+            println!("{} {} address = \n{}\n", Bitcoincash::NAME, format, address);
+
+            let address =
+                BitcoinAddress::<BitcoincashTestnet>::from_secret_key(&secret_key, &format)
+                    .unwrap();
+            println!(
+                "{} {} address = \n{}\n",
+                BitcoincashTestnet::NAME,
+                format,
+                address
+            );
+
+            let address =
+                BitcoinAddress::<Litecoin>::from_secret_key(&secret_key, &format).unwrap();
+            println!("{} {} address = \n{}\n", Litecoin::NAME, format, address);
+
+            let address =
+                BitcoinAddress::<LitecoinTestnet>::from_secret_key(&secret_key, &format).unwrap();
+            println!(
+                "{} {} address = \n{}\n",
+                LitecoinTestnet::NAME,
+                format,
+                address
+            );
+
+            let address =
+                BitcoinAddress::<Dogecoin>::from_secret_key(&secret_key, &format).unwrap();
+            println!("{} {} address = \n{}\n", Dogecoin::NAME, format, address);
+
+            let address =
+                BitcoinAddress::<DogecoinTestnet>::from_secret_key(&secret_key, &format).unwrap();
+            println!(
+                "{} {} address = \n{}\n",
+                DogecoinTestnet::NAME,
+                format,
+                address
+            );
+        }
+    }
+
+    #[test]
+    fn ff() {
+        let addr1 = "qzuu4gwvj0xjy4p7xj7n5gn4ewk4m3ujeqx3crgj59";
+        let addr2 = "qpkxa3xypl6rfp4nzewh9xrqnv90n2yxrcr0pmwas4";
+        let addr3 = "bchtest:qzuu4gwvj0xjy4p7xj7n5gn4ewk4m3ujeqx3crgj59";
+        let addr4 = "bitcoincash:qpkxa3xypl6rfp4nzewh9xrqnv90n2yxrcr0pmwas4";
+        let addr5 = "2MvtZ4txAvbaWRW2gXRmmrcUpQfsqNgpfUm";
+
+        let addr1 = BitcoinAddress::<BitcoincashTestnet>::from_str(addr1).unwrap();
+        let addr2 = BitcoinAddress::<Bitcoincash>::from_str(addr2).unwrap();
+        let addr3 = BitcoinAddress::<BitcoincashTestnet>::from_str(addr3).unwrap();
+        let addr4 = BitcoinAddress::<Bitcoincash>::from_str(addr4).unwrap();
+        let addr5 = BitcoinAddress::<BitcoinTestnet>::from_str(addr5).unwrap();
+
+        println!(
+            "address1 = {}\naddress2 = {}\naddress3 = {}\naddress4 = {}\naddress5 = {}",
+            addr1, addr2, addr3, addr4, addr5,
+        );
     }
 }

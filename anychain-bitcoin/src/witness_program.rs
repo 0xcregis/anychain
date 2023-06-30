@@ -21,7 +21,7 @@
 //!
 
 use anychain_core::no_std::*;
-use anychain_core::{AddressError, TransactionError};
+use anychain_core::{hex, AddressError, TransactionError};
 
 use core::str::FromStr;
 

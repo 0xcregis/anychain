@@ -1,18 +1,19 @@
-use crate::address::BitcoinAddress;
-use crate::amount::BitcoinAmount;
-use crate::format::BitcoinFormat;
-use crate::network::BitcoinNetwork;
-use crate::public_key::BitcoinPublicKey;
-use crate::witness_program::WitnessProgram;
-use anychain_core::no_std::{io::Read, *};
-use anychain_core::PublicKey;
+use crate::{
+    BitcoinAddress, BitcoinAmount, BitcoinFormat, BitcoinNetwork, BitcoinPublicKey, WitnessProgram,
+    BASE32_DECODE_TABLE,
+};
 use anychain_core::{
     crypto::checksum as double_sha2, libsecp256k1::Signature, Transaction, TransactionError,
     TransactionId,
 };
+use anychain_core::{
+    hex,
+    no_std::{io::Read, *},
+    PublicKey,
+};
 
 use base58::FromBase58;
-use bech32::{self, FromBase32};
+use bech32::{u5, FromBase32};
 use core::{fmt, str::FromStr};
 use serde::Serialize;
 pub use sha2::{Digest, Sha256};
@@ -141,6 +142,39 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             program_bytes.extend(program);
 
             Ok(WitnessProgram::new(&program_bytes)?.to_scriptpubkey())
+        }
+        BitcoinFormat::CashAddr => {
+            let address = address.to_string();
+            let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
+
+            let start = if address.starts_with(&prefix) {
+                prefix.len() + 1
+            } else {
+                0
+            };
+
+            // trim the prefix and the checksum
+            let bytes_u8 = address.as_bytes()[start..address.len() - 8].to_vec();
+
+            println!("payload len = {}", bytes_u8.len());
+
+            let bytes_u5: Vec<u5> = bytes_u8
+                .iter()
+                .map(|byte| u5::try_from_u8(BASE32_DECODE_TABLE[*byte as usize] as u8).unwrap())
+                .collect();
+            let payload = Vec::<u8>::from_base32(&bytes_u5)?;
+            // trim the version byte, left the public key hash
+            let hash = payload[1..].to_vec();
+
+            let mut script = vec![];
+            script.push(Opcode::OP_DUP as u8);
+            script.push(Opcode::OP_HASH160 as u8);
+            script.extend(variable_length_integer(hash.len() as u64)?);
+            script.extend(hash);
+            script.push(Opcode::OP_EQUALVERIFY as u8);
+            script.push(Opcode::OP_CHECKSIG as u8);
+
+            Ok(script)
         }
     }
 }
@@ -438,13 +472,13 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         Ok(())
     }
 
-    pub fn set_balance(&mut self, balance: i64) -> Result<(), TransactionError> {
-        self.balance = Some(BitcoinAmount(balance));
+    pub fn set_format(&mut self, format: BitcoinFormat) -> Result<(), TransactionError> {
+        self.format = Some(format);
         Ok(())
     }
 
-    pub fn set_format(&mut self, format: BitcoinFormat) -> Result<(), TransactionError> {
-        self.format = Some(format);
+    pub fn set_balance(&mut self, balance: i64) -> Result<(), TransactionError> {
+        self.balance = Some(BitcoinAmount(balance));
         Ok(())
     }
 
@@ -452,12 +486,12 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         self.address.clone()
     }
 
-    pub fn get_balance(&self) -> Option<BitcoinAmount> {
-        self.balance
-    }
-
     pub fn get_format(&self) -> Option<BitcoinFormat> {
         self.format.clone()
+    }
+
+    pub fn get_balance(&self) -> Option<BitcoinAmount> {
+        self.balance
     }
 
     /// Read and output a Bitcoin transaction input
@@ -861,6 +895,10 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
                 Some(script) => script[1..].to_vec(),
                 None => return Err(TransactionError::MissingOutpointScriptPublicKey),
             },
+            BitcoinFormat::CashAddr => match &input.script_pub_key {
+                Some(script) => script.to_vec(),
+                None => return Err(TransactionError::MissingOutpointScriptPublicKey),
+            },
             BitcoinFormat::P2WSH => match &input.redeem_script {
                 Some(redeem_script) => redeem_script.to_vec(),
                 None => return Err(TransactionError::InvalidInputs("P2WSH".into())),
@@ -869,13 +907,11 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
                 Some(redeem_script) => redeem_script[1..].to_vec(),
                 None => return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into())),
             },
-            BitcoinFormat::P2PKH => {
-                return Err(TransactionError::UnsupportedPreimage("P2PKH".into()))
-            }
+            _ => return Err(TransactionError::UnsupportedPreimage("P2PKH".into())),
         };
 
         let mut script_code = vec![];
-        if format == BitcoinFormat::P2WSH {
+        if format == BitcoinFormat::P2WSH || format == BitcoinFormat::CashAddr {
             script_code.extend(script);
         } else {
             script_code.push(Opcode::OP_DUP as u8);
@@ -985,7 +1021,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         .concat();
 
         match input.get_format().unwrap() {
-            BitcoinFormat::P2PKH => {
+            BitcoinFormat::P2PKH | BitcoinFormat::CashAddr => {
                 input.script_sig = [signature, public_key].concat();
                 input.is_signed = true;
             }

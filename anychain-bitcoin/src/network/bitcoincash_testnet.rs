@@ -6,21 +6,21 @@ use core::{fmt, str::FromStr};
 use serde::Serialize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Bitcoin;
+pub struct BitcoincashTestnet;
 
-impl Network for Bitcoin {
-    const NAME: &'static str = "bitcoin";
+impl Network for BitcoincashTestnet {
+    const NAME: &'static str = "bitcoin cash testnet";
 }
 
-impl BitcoinNetwork for Bitcoin {
+impl BitcoinNetwork for BitcoincashTestnet {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: BitcoinFormat) -> Prefix {
         match format {
-            BitcoinFormat::P2PKH => Prefix::Version(0x00),
+            BitcoinFormat::P2PKH => Prefix::Version(0x6f),
             BitcoinFormat::P2WSH => Prefix::Version(0x00),
-            BitcoinFormat::P2SH_P2WPKH => Prefix::Version(0x05),
-            BitcoinFormat::Bech32 => Prefix::AddressPrefix("bc".to_string()),
-            f => panic!("{} does not support address format {}", Self::NAME, f),
+            BitcoinFormat::P2SH_P2WPKH => Prefix::Version(0xc4),
+            BitcoinFormat::Bech32 => Prefix::AddressPrefix("tb".to_string()),
+            BitcoinFormat::CashAddr => Prefix::AddressPrefix("bchtest".to_string()),
         }
     }
 
@@ -28,7 +28,7 @@ impl BitcoinNetwork for Bitcoin {
     fn from_address_prefix(prefix: Prefix) -> Result<Self, AddressError> {
         match prefix {
             Prefix::Version(version) => match version {
-                0x00 | 0x05 => Ok(Self),
+                0x6f | 0xc4 => Ok(Self),
                 _ => Err(AddressError::Message(format!(
                     "Invalid version byte {:#0x} for network {}",
                     version,
@@ -36,9 +36,9 @@ impl BitcoinNetwork for Bitcoin {
                 ))),
             },
             Prefix::AddressPrefix(prefix) => match prefix.as_str() {
-                "bc" => Ok(Self),
+                "tb" | "bchtest" => Ok(Self),
                 _ => Err(AddressError::Message(format!(
-                    "Invalid Bech32 prefix for network {}",
+                    "Invalid Bech32 or CashAddr prefix for network {}",
                     Self::NAME,
                 ))),
             },
@@ -46,7 +46,7 @@ impl BitcoinNetwork for Bitcoin {
     }
 }
 
-impl FromStr for Bitcoin {
+impl FromStr for BitcoincashTestnet {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -57,7 +57,7 @@ impl FromStr for Bitcoin {
     }
 }
 
-impl fmt::Display for Bitcoin {
+impl fmt::Display for BitcoincashTestnet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

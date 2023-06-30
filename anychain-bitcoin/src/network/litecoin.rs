@@ -1,5 +1,4 @@
-use crate::format::BitcoinFormat;
-use crate::network::BitcoinNetwork;
+use crate::{BitcoinFormat, BitcoinNetwork, Prefix};
 use anychain_core::no_std::*;
 use anychain_core::{AddressError, Network, NetworkError};
 
@@ -15,24 +14,34 @@ impl Network for Litecoin {
 
 impl BitcoinNetwork for Litecoin {
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
+    fn to_address_prefix(format: BitcoinFormat) -> Prefix {
         match format {
-            BitcoinFormat::P2PKH => vec![0x30],
-            BitcoinFormat::P2SH_P2WPKH => vec![0x32],
-            f => panic!("Unsupported litecoin format {}", f),
+            BitcoinFormat::P2PKH => Prefix::Version(0x30),
+            BitcoinFormat::P2WSH => Prefix::Version(0x00),
+            BitcoinFormat::P2SH_P2WPKH => Prefix::Version(0x32),
+            BitcoinFormat::Bech32 => Prefix::AddressPrefix("ltc".to_string()),
+            f => panic!("{} does not support address format {}", Self::NAME, f),
         }
     }
 
     /// Returns the network of the given address prefix.
-    fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
-        match (prefix[0], prefix[1]) {
-            (0x30, _) | (0x32, _) => Ok(Self),
-            _ => Err(AddressError::Message(format!(
-                "Invalid version bytes {:#0x}, {:#0x} for network {}",
-                prefix[0],
-                prefix[1],
-                Self::NAME,
-            ))),
+    fn from_address_prefix(prefix: Prefix) -> Result<Self, AddressError> {
+        match prefix {
+            Prefix::Version(version) => match version {
+                0x30 | 0x32 => Ok(Self),
+                _ => Err(AddressError::Message(format!(
+                    "Invalid version byte {:#0x} for network {}",
+                    version,
+                    Self::NAME,
+                ))),
+            },
+            Prefix::AddressPrefix(prefix) => match prefix.as_str() {
+                "ltc" => Ok(Self),
+                _ => Err(AddressError::Message(format!(
+                    "Invalid Bech32 prefix for network {}",
+                    Self::NAME,
+                ))),
+            },
         }
     }
 }

@@ -1,6 +1,8 @@
 use anychain_core::{
-    crypto::checksum as double_sha2, crypto::hash160, libsecp256k1, no_std::String, Address,
-    AddressError, PublicKey,
+    crypto::{checksum as double_sha2, hash160},
+    libsecp256k1,
+    no_std::String,
+    Address, AddressError, PublicKey,
 };
 use base58::{FromBase58, ToBase58};
 use bech32::ToBase32;

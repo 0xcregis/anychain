@@ -1,5 +1,4 @@
-use crate::format::BitcoinFormat;
-use crate::network::BitcoinNetwork;
+use crate::{BitcoinFormat, BitcoinNetwork, Prefix};
 use anychain_core::no_std::*;
 use anychain_core::{AddressError, Network, NetworkError};
 
@@ -17,22 +16,28 @@ pub static mut LOOP: u8 = 0;
 
 impl BitcoinNetwork for DogecoinTestnet {
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: &BitcoinFormat) -> Vec<u8> {
+    fn to_address_prefix(format: BitcoinFormat) -> Prefix {
         match format {
-            BitcoinFormat::P2PKH => vec![0x71],
-            BitcoinFormat::P2SH_P2WPKH => vec![0xC4],
-            f => panic!("Unsupported dogecoin format {}", f),
+            BitcoinFormat::P2PKH => Prefix::Version(0x71),
+            BitcoinFormat::P2WSH => Prefix::Version(0x00),
+            BitcoinFormat::P2SH_P2WPKH => Prefix::Version(0xc4),
+            f => panic!("{} does not support address format {}", Self::NAME, f),
         }
     }
 
     /// Returns the network of the given address prefix.
-    fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
-        match (prefix[0], prefix[1]) {
-            (0x71, _) | (0xC4, _) => Ok(Self),
+    fn from_address_prefix(prefix: Prefix) -> Result<Self, AddressError> {
+        match prefix {
+            Prefix::Version(version) => match version {
+                0x71 | 0xc4 => Ok(Self),
+                _ => Err(AddressError::Message(format!(
+                    "Invalid version byte {:#0x} for network {}",
+                    version,
+                    Self::NAME,
+                ))),
+            },
             _ => Err(AddressError::Message(format!(
-                "Invalid version bytes {:#0x}, {:#0x} for network {}",
-                prefix[0],
-                prefix[1],
+                "{} does not support address format Bech32 or CashAddr",
                 Self::NAME,
             ))),
         }
