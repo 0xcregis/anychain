@@ -156,8 +156,6 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             // trim the prefix and the checksum
             let bytes_u8 = address.as_bytes()[start..address.len() - 8].to_vec();
 
-            println!("payload len = {}", bytes_u8.len());
-
             let bytes_u5: Vec<u5> = bytes_u8
                 .iter()
                 .map(|byte| u5::try_from_u8(BASE32_DECODE_TABLE[*byte as usize] as u8).unwrap())
