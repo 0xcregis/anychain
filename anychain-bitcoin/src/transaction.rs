@@ -375,7 +375,7 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
-    const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+    const DEFAULT_SEQUENCE: [u8; 4] = [0xf2, 0xff, 0xff, 0xff];
 
     /// Returns a new Bitcoin transaction input.
     pub fn new(
