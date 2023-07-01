@@ -480,6 +480,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         Ok(())
     }
 
+    pub fn set_sequence(&mut self, sequence: u32) -> Result<(), TransactionError> {
+        self.sequence = u32::to_le_bytes(sequence).to_vec();
+        Ok(())
+    }
+
     pub fn get_address(&self) -> Option<BitcoinAddress<N>> {
         self.address.clone()
     }
@@ -490,6 +495,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
     pub fn get_balance(&self) -> Option<BitcoinAmount> {
         self.balance
+    }
+
+    pub fn get_sequence(&self) -> u32 {
+        let sequence: [u8; 4] = self.sequence.clone().try_into().unwrap();
+        u32::from_le_bytes(sequence)
     }
 
     /// Read and output a Bitcoin transaction input
