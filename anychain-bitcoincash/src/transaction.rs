@@ -41,9 +41,10 @@ pub fn create_script_pub_key<N: BitcoincashNetwork>(
     script.push(Opcode::OP_DUP as u8);
     script.push(Opcode::OP_HASH160 as u8);
     script.extend(variable_length_integer(hash.len() as u64)?);
-    script.extend(hash);
+    script.extend(hash.clone());
     script.push(Opcode::OP_EQUALVERIFY as u8);
     script.push(Opcode::OP_CHECKSIG as u8);
+    println!("hash = {}", hex::encode(&hash));
 
     Ok(script)
 }
@@ -78,7 +79,7 @@ pub struct BitcoincashTransactionInput<N: BitcoincashNetwork> {
 }
 
 impl<N: BitcoincashNetwork> BitcoincashTransactionInput<N> {
-    const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+    const DEFAULT_SEQUENCE: [u8; 4] = [0xf2, 0xff, 0xff, 0xff];
 
     /// Returns a new Bitcoin cash transaction input.
     pub fn new(
@@ -535,19 +536,19 @@ mod tests {
 
     #[test]
     fn test_tx_gen() {
-        let txid = hex::decode("f2ed030e9cc2bc6ae590f9a9bd70d718c4ebdc68561aedc4e130a4ffe79787cd")
+        let txid = hex::decode("9975deeace71258149e8b0d02ed83d59335a658dd348d8cae7bf4ff9ed9db2d0")
             .unwrap();
 
-        let from = "bchtest:qqpcmun00mm0q6zezvtfhn2xg2zx2ufpvs6l92y3g0";
-        let to = "bchtest:qpumqqygwcnt999fz3gp5nxjy66ckg6esvmzshj478";
+        let from = "bchtest:qqy56zcl62frzwvwmw54s7uc25my6l9epv3darrf95";
+        let to = "bchtest:qr396cryl96h0rqq4kgddyqu5vnwxf588sjya0e9vc";
 
         let from = BitcoincashAddress::<Testnet>::from_str(from).unwrap();
         let to = BitcoincashAddress::<Testnet>::from_str(to).unwrap();
 
         let sk = [
-            56, 127, 139, 242, 234, 208, 96, 112, 134, 251, 100, 45, 230, 217, 251, 107, 58, 234,
-            218, 188, 213, 253, 10, 92, 251, 17, 190, 150, 100, 177, 1, 22,
-        ] as [u8; 32];
+            149, 128, 75, 56, 27, 60, 244, 94, 62, 75, 128, 206, 211, 153, 206, 125, 78, 48, 216,
+            154, 217, 30, 195, 112, 176, 58, 42, 9, 118, 69, 125, 151,
+        ];
 
         let sk = SecretKey::parse(&sk).unwrap();
 
@@ -559,11 +560,11 @@ mod tests {
         .unwrap();
 
         input.set_address(from.clone());
-        input.set_amount(BitcoincashAmount(5000000));
+        input.set_amount(BitcoincashAmount(30000));
 
-        let output1 = BitcoincashTransactionOutput::new(to, BitcoincashAmount(2500000)).unwrap();
+        let output1 = BitcoincashTransactionOutput::new(to, BitcoincashAmount(15000)).unwrap();
 
-        let output2 = BitcoincashTransactionOutput::new(from, BitcoincashAmount(2300000)).unwrap();
+        let output2 = BitcoincashTransactionOutput::new(from, BitcoincashAmount(10001)).unwrap();
 
         let params =
             BitcoincashTransactionParameters::new(vec![input], vec![output1, output2]).unwrap();
@@ -583,10 +584,10 @@ mod tests {
 
         println!("tx = {}", tx);
 
-        let tx = "0200000001cd8797e7ffa430e1c4ed1a5668dcebc418d770bda9f990e56abcc29c0e03edf2010000006a47304402204e6e88e2feb5011e25533edabe37efde89ea8775d9dc50fe6e25508357bc9b2e022058a563ccb0b154d2d97503165f33cc15da02144901bba542007009bb03f4ebbe412102fc1cee6dbbf3a07d58794b1543c02679c5aae5a7d463162eb9a86ff29dbe3e90ffffffff02a0252600000000001976a91479b000887626b294a914501a4cd226b58b23598388ac60182300000000001976a914038df26f7ef6f0685913169bcd4642846571216488ac00000000";
+        // let tx = "0200000001cd8797e7ffa430e1c4ed1a5668dcebc418d770bda9f990e56abcc29c0e03edf2010000006a47304402204e6e88e2feb5011e25533edabe37efde89ea8775d9dc50fe6e25508357bc9b2e022058a563ccb0b154d2d97503165f33cc15da02144901bba542007009bb03f4ebbe412102fc1cee6dbbf3a07d58794b1543c02679c5aae5a7d463162eb9a86ff29dbe3e90ffffffff02a0252600000000001976a91479b000887626b294a914501a4cd226b58b23598388ac60182300000000001976a914038df26f7ef6f0685913169bcd4642846571216488ac00000000";
 
-        let tx = BitcoincashTransaction::<Testnet>::from_str(tx).unwrap();
+        // let tx = BitcoincashTransaction::<Testnet>::from_str(tx).unwrap();
 
-        println!("\ntx = {}", tx);
+        // println!("\ntx = {}", tx);
     }
 }

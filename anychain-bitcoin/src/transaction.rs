@@ -1060,7 +1060,9 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             Some(addr) => {
                 let preimage = match addr.format() {
                     BitcoinFormat::P2PKH => self.p2pkh_hash_preimage(index as usize, sighash)?,
-                    BitcoinFormat::CashAddr => self.cash_addr_hash_preimage(index as usize, sighash)?,
+                    BitcoinFormat::CashAddr => {
+                        self.cash_addr_hash_preimage(index as usize, sighash)?
+                    }
                     _ => self.segwit_hash_preimage(index as usize, sighash)?,
                 };
                 Ok(double_sha2(&preimage).to_vec())
