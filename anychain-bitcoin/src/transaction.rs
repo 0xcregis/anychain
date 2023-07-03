@@ -957,6 +957,59 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         Ok(preimage)
     }
 
+    pub fn cash_addr_hash_preimage(
+        &self,
+        vin: usize,
+        sighash: SignatureHash,
+    ) -> Result<Vec<u8>, TransactionError> {
+        let mut prev_outputs = vec![];
+        let mut prev_sequences = vec![];
+        let mut outputs = vec![];
+
+        for input in &self.parameters.inputs {
+            prev_outputs.extend(&input.outpoint.reverse_transaction_id);
+            prev_outputs.extend(&input.outpoint.index.to_le_bytes());
+            prev_sequences.extend(&input.sequence);
+        }
+
+        for output in &self.parameters.outputs {
+            outputs.extend(&output.serialize()?);
+        }
+
+        let input = &self.parameters.inputs[vin];
+
+        let script_code = input.script_pub_key.clone().unwrap();
+
+        let script_code = [
+            variable_length_integer(script_code.len() as u64)?,
+            script_code,
+        ]
+        .concat();
+
+        let hash_prev_outputs = double_sha2(&prev_outputs);
+        let hash_sequence = double_sha2(&prev_sequences);
+        let hash_outputs = double_sha2(&outputs);
+        let balance = match &input.balance {
+            Some(balance) => balance.0.to_le_bytes(),
+            None => return Err(TransactionError::MissingOutpointAmount),
+        };
+
+        let mut preimage = vec![];
+        preimage.extend(&self.parameters.version.to_le_bytes());
+        preimage.extend(hash_prev_outputs);
+        preimage.extend(hash_sequence);
+        preimage.extend(&input.outpoint.reverse_transaction_id);
+        preimage.extend(&input.outpoint.index.to_le_bytes());
+        preimage.extend(&script_code);
+        preimage.extend(&balance);
+        preimage.extend(&input.sequence);
+        preimage.extend(hash_outputs);
+        preimage.extend(&self.parameters.lock_time.to_le_bytes());
+        preimage.extend(&(sighash as u32).to_le_bytes());
+
+        Ok(preimage)
+    }
+
     /// Returns the transaction with the traditional serialization (no witness).
     pub fn to_transaction_bytes_without_witness(&self) -> Result<Vec<u8>, TransactionError> {
         let mut transaction = self.parameters.version.to_le_bytes().to_vec();
@@ -998,6 +1051,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             Some(addr) => {
                 let preimage = match addr.format() {
                     BitcoinFormat::P2PKH => self.p2pkh_hash_preimage(index as usize, sighash)?,
+                    BitcoinFormat::CashAddr => self.cash_addr_hash_preimage(index as usize, sighash)?,
                     _ => self.segwit_hash_preimage(index as usize, sighash)?,
                 };
                 Ok(double_sha2(&preimage).to_vec())
