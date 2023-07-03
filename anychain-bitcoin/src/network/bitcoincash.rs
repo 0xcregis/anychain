@@ -6,13 +6,13 @@ use core::{fmt, str::FromStr};
 use serde::Serialize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Bitcoincash;
+pub struct BitcoinCash;
 
-impl Network for Bitcoincash {
+impl Network for BitcoinCash {
     const NAME: &'static str = "bitcoin cash";
 }
 
-impl BitcoinNetwork for Bitcoincash {
+impl BitcoinNetwork for BitcoinCash {
     /// Returns the address prefix of the given network.
     fn to_address_prefix(format: BitcoinFormat) -> Prefix {
         match format {
@@ -46,7 +46,7 @@ impl BitcoinNetwork for Bitcoincash {
     }
 }
 
-impl FromStr for Bitcoincash {
+impl FromStr for BitcoinCash {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -57,7 +57,7 @@ impl FromStr for Bitcoincash {
     }
 }
 
-impl fmt::Display for Bitcoincash {
+impl fmt::Display for BitcoinCash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

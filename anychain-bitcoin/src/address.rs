@@ -879,15 +879,15 @@ mod tests {
             );
 
             let address =
-                BitcoinAddress::<Bitcoincash>::from_secret_key(&secret_key, &format).unwrap();
-            println!("{} {} address = \n{}\n", Bitcoincash::NAME, format, address);
+                BitcoinAddress::<BitcoinCash>::from_secret_key(&secret_key, &format).unwrap();
+            println!("{} {} address = \n{}\n", BitcoinCash::NAME, format, address);
 
             let address =
-                BitcoinAddress::<BitcoincashTestnet>::from_secret_key(&secret_key, &format)
+                BitcoinAddress::<BitcoinCashTestnet>::from_secret_key(&secret_key, &format)
                     .unwrap();
             println!(
                 "{} {} address = \n{}\n",
-                BitcoincashTestnet::NAME,
+                BitcoinCashTestnet::NAME,
                 format,
                 address
             );
@@ -928,10 +928,10 @@ mod tests {
         let addr4 = "bitcoincash:qpkxa3xypl6rfp4nzewh9xrqnv90n2yxrcr0pmwas4";
         let addr5 = "2MvtZ4txAvbaWRW2gXRmmrcUpQfsqNgpfUm";
 
-        let addr1 = BitcoinAddress::<BitcoincashTestnet>::from_str(addr1).unwrap();
-        let addr2 = BitcoinAddress::<Bitcoincash>::from_str(addr2).unwrap();
-        let addr3 = BitcoinAddress::<BitcoincashTestnet>::from_str(addr3).unwrap();
-        let addr4 = BitcoinAddress::<Bitcoincash>::from_str(addr4).unwrap();
+        let addr1 = BitcoinAddress::<BitcoinCashTestnet>::from_str(addr1).unwrap();
+        let addr2 = BitcoinAddress::<BitcoinCash>::from_str(addr2).unwrap();
+        let addr3 = BitcoinAddress::<BitcoinCashTestnet>::from_str(addr3).unwrap();
+        let addr4 = BitcoinAddress::<BitcoinCash>::from_str(addr4).unwrap();
         let addr5 = BitcoinAddress::<BitcoinTestnet>::from_str(addr5).unwrap();
 
         println!(
