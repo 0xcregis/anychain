@@ -485,6 +485,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         Ok(())
     }
 
+    pub fn set_sighash(&mut self, sighash: SignatureHash) -> Result<(), TransactionError> {
+        self.sighash_code = sighash;
+        Ok(())
+    }
+
     pub fn get_address(&self) -> Option<BitcoinAddress<N>> {
         self.address.clone()
     }
@@ -500,6 +505,10 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
     pub fn get_sequence(&self) -> u32 {
         let sequence: [u8; 4] = self.sequence.clone().try_into().unwrap();
         u32::from_le_bytes(sequence)
+    }
+
+    pub fn get_sighash(&self) -> SignatureHash {
+        self.sighash_code
     }
 
     /// Read and output a Bitcoin transaction input
