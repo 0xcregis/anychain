@@ -21,7 +21,6 @@ anychain-polkadot = { path = "./anychain-polkadot" }
 members = [
     "anychain-core",
     "anychain-bitcoin",
-    "anychain-bitcoin-client",
     "anychain-ethereum",
     "anychain-tron",
     "anychain-filecoin",
