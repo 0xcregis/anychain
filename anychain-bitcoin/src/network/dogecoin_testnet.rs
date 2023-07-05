@@ -16,12 +16,16 @@ pub static mut LOOP: u8 = 0;
 
 impl BitcoinNetwork for DogecoinTestnet {
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: BitcoinFormat) -> Prefix {
+    fn to_address_prefix(format: BitcoinFormat) -> Result<Prefix, AddressError> {
         match format {
-            BitcoinFormat::P2PKH => Prefix::Version(0x71),
-            BitcoinFormat::P2WSH => Prefix::Version(0x00),
-            BitcoinFormat::P2SH_P2WPKH => Prefix::Version(0xc4),
-            f => panic!("{} does not support address format {}", Self::NAME, f),
+            BitcoinFormat::P2PKH => Ok(Prefix::Version(0x71)),
+            BitcoinFormat::P2WSH => Ok(Prefix::Version(0x00)),
+            BitcoinFormat::P2SH_P2WPKH => Ok(Prefix::Version(0xc4)),
+            f => Err(AddressError::Message(format!(
+                "{} does not support address format {}",
+                Self::NAME,
+                f,
+            ))),
         }
     }
 

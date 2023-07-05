@@ -147,7 +147,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(BitcoinFormat::P2PKH).version();
+        address[0] = N::to_address_prefix(BitcoinFormat::P2PKH)?.version();
         address[1..21].copy_from_slice(&hash160(&public_key.serialize()));
 
         let sum = &checksum(&address[..21])[..4];
@@ -165,7 +165,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         let script = Sha256::digest(original_script).to_vec();
 
         // Organize as a hash
-        let v = N::to_address_prefix(BitcoinFormat::P2WSH).version();
+        let v = N::to_address_prefix(BitcoinFormat::P2WSH)?.version();
         let version = u5::try_from_u8(v)?;
 
         let mut data = vec![version];
@@ -173,7 +173,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         // Get the SHA256 hash of the script
         data.extend_from_slice(&script.to_vec().to_base32());
 
-        let prefix = N::to_address_prefix(BitcoinFormat::Bech32).prefix();
+        let prefix = N::to_address_prefix(BitcoinFormat::Bech32)?.prefix();
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
 
         Ok(Self {
@@ -186,7 +186,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
     pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(BitcoinFormat::P2SH_P2WPKH).version();
+        address[0] = N::to_address_prefix(BitcoinFormat::P2SH_P2WPKH)?.version();
         address[1..21].copy_from_slice(&hash160(&Self::create_redeem_script(public_key)));
 
         let sum = &checksum(&address[0..21])[0..4];
@@ -207,7 +207,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         ]
         .concat();
 
-        let prefix = N::to_address_prefix(BitcoinFormat::Bech32).prefix();
+        let prefix = N::to_address_prefix(BitcoinFormat::Bech32)?.prefix();
         let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
 
         Ok(Self {
@@ -228,7 +228,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
             .collect();
 
         let payload = String::from_utf8(payload)?;
-        let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
+        let prefix = N::to_address_prefix(BitcoinFormat::CashAddr)?.prefix();
         let checksum = compute_checksum_bch(&payload, &prefix)?;
 
         Ok(Self {
@@ -368,7 +368,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
                 })
             } else {
                 // we are processing a bitcoin cash address in CashAddr format without an explicit prefix
-                let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
+                let prefix = N::to_address_prefix(BitcoinFormat::CashAddr)?.prefix();
 
                 if address.len() != 42 {
                     return Err(AddressError::InvalidCharacterLength(address.len()));

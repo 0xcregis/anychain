@@ -145,7 +145,7 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
         }
         BitcoinFormat::CashAddr => {
             let address = address.to_string();
-            let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
+            let prefix = N::to_address_prefix(BitcoinFormat::CashAddr)?.prefix();
 
             let start = if address.starts_with(&prefix) {
                 prefix.len() + 1

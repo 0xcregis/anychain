@@ -29,7 +29,7 @@ pub use self::dogecoin_testnet::*;
 /// The interface for a Bitcoin network.
 pub trait BitcoinNetwork: Network {
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: BitcoinFormat) -> Prefix;
+    fn to_address_prefix(format: BitcoinFormat) -> Result<Prefix, AddressError>;
 
     /// Returns the network of the given address prefix.
     fn from_address_prefix(prefix: Prefix) -> Result<Self, AddressError>;
