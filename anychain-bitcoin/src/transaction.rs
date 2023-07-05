@@ -1,17 +1,19 @@
-use crate::address::BitcoinAddress;
-use crate::amount::BitcoinAmount;
-use crate::format::BitcoinFormat;
-use crate::network::BitcoinNetwork;
-use crate::public_key::BitcoinPublicKey;
-use crate::witness_program::WitnessProgram;
-use anychain_core::no_std::{io::Read, *};
+use crate::{
+    BitcoinAddress, BitcoinAmount, BitcoinFormat, BitcoinNetwork, BitcoinPublicKey, WitnessProgram,
+    BASE32_DECODE_TABLE,
+};
 use anychain_core::{
     crypto::checksum as double_sha2, libsecp256k1::Signature, Transaction, TransactionError,
     TransactionId,
 };
+use anychain_core::{
+    hex,
+    no_std::{io::Read, *},
+    PublicKey,
+};
 
 use base58::FromBase58;
-use bech32::{self, FromBase32};
+use bech32::{u5, FromBase32};
 use core::{fmt, str::FromStr};
 use serde::Serialize;
 pub use sha2::{Digest, Sha256};
@@ -140,6 +142,37 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             program_bytes.extend(program);
 
             Ok(WitnessProgram::new(&program_bytes)?.to_scriptpubkey())
+        }
+        BitcoinFormat::CashAddr => {
+            let address = address.to_string();
+            let prefix = N::to_address_prefix(BitcoinFormat::CashAddr).prefix();
+
+            let start = if address.starts_with(&prefix) {
+                prefix.len() + 1
+            } else {
+                0
+            };
+
+            // trim the prefix and the checksum
+            let bytes_u8 = address.as_bytes()[start..address.len() - 8].to_vec();
+
+            let bytes_u5: Vec<u5> = bytes_u8
+                .iter()
+                .map(|byte| u5::try_from_u8(BASE32_DECODE_TABLE[*byte as usize] as u8).unwrap())
+                .collect();
+            let payload = Vec::<u8>::from_base32(&bytes_u5)?;
+            // trim the version byte, left the public key hash
+            let hash = payload[1..].to_vec();
+
+            let mut script = vec![];
+            script.push(Opcode::OP_DUP as u8);
+            script.push(Opcode::OP_HASH160 as u8);
+            script.extend(variable_length_integer(hash.len() as u64)?);
+            script.extend(hash);
+            script.push(Opcode::OP_EQUALVERIFY as u8);
+            script.push(Opcode::OP_CHECKSIG as u8);
+
+            Ok(script)
         }
     }
 }
@@ -291,57 +324,39 @@ impl fmt::Display for Opcode {
 }
 
 /// Represents a Bitcoin transaction outpoint
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Outpoint<N: BitcoinNetwork> {
-    /// The previous transaction hash (32 bytes) (uses reversed hash order from Bitcoin RPC)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Outpoint {
+    /// Hash of the previous transaction (32 bytes) (uses reversed hash order from Bitcoin RPC)
     pub reverse_transaction_id: Vec<u8>,
-    /// The index of the transaction input (4 bytes)
+    /// The index of certain utxo in the previous transaction (4 bytes)
     pub index: u32,
-    /// The amount associated with this input (used for SegWit transaction signatures)
-    pub amount: Option<BitcoinAmount>,
-    /// The script public key associated with spending this input
-    pub script_pub_key: Option<Vec<u8>>,
-    /// An optional redeem script (for SegWit transactions)
-    pub redeem_script: Option<Vec<u8>>,
-    /// The address of the outpoint
-    pub address: Option<BitcoinAddress<N>>,
 }
 
-impl<N: BitcoinNetwork> Outpoint<N> {
+impl Outpoint {
     /// Returns a new Bitcoin transaction outpoint
-    pub fn new(
-        reverse_transaction_id: Vec<u8>,
-        index: u32,
-        address: Option<BitcoinAddress<N>>,
-        amount: Option<BitcoinAmount>,
-    ) -> Result<Self, TransactionError> {
-        let (script_pub_key, redeem_script) = match address.clone() {
-            Some(addr) => {
-                let script = create_script_pub_key(&addr)?;
-                match addr.format() {
-                    BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => (Some(script), None),
-                    BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => (None, Some(script)),
-                }
-            }
-            None => (None, None),
-        };
-
-        Ok(Self {
+    pub fn new(reverse_transaction_id: Vec<u8>, index: u32) -> Self {
+        Self {
             reverse_transaction_id,
             index,
-            amount,
-            script_pub_key,
-            redeem_script,
-            address,
-        })
+        }
     }
 }
 
 /// Represents a Bitcoin transaction input
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
     /// The outpoint (36 bytes)
-    pub outpoint: Outpoint<N>,
+    pub outpoint: Outpoint,
+    /// The balance of the utxo pointed by this input (used for SegWit transaction signatures)
+    pub balance: Option<BitcoinAmount>,
+    /// The address of the utxo pointed by this input
+    pub address: Option<BitcoinAddress<N>>,
+    /// The address format of the utxo pointed by this input
+    pub format: Option<BitcoinFormat>,
+    /// The 'scriptPubkey' of the utxo pointed by this input
+    pub script_pub_key: Option<Vec<u8>>,
+    /// An optional redeem script in case of an SegWit utxo
+    pub redeem_script: Option<Vec<u8>>,
     /// The transaction input script (variable size)
     pub script_sig: Vec<u8>,
     /// The sequence number (4 bytes) (0xFFFFFFFF unless lock > 0)
@@ -360,14 +375,17 @@ pub struct BitcoinTransactionInput<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
-    const DEFAULT_SEQUENCE: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+    const DEFAULT_SEQUENCE: [u8; 4] = [0xf2, 0xff, 0xff, 0xff];
 
-    /// Returns a new Bitcoin transaction input without the script (unlocking).
+    /// Returns a new Bitcoin transaction input.
     pub fn new(
         transaction_id: Vec<u8>,
         index: u32,
+        public_key: Option<BitcoinPublicKey<N>>,
+        format: Option<BitcoinFormat>,
         address: Option<BitcoinAddress<N>>,
-        amount: Option<BitcoinAmount>,
+        balance: Option<BitcoinAmount>,
+        sighash: SignatureHash,
     ) -> Result<Self, TransactionError> {
         if transaction_id.len() != 32 {
             return Err(TransactionError::InvalidTransactionId(transaction_id.len()));
@@ -378,13 +396,50 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut reverse_transaction_id = transaction_id;
         reverse_transaction_id.reverse();
 
-        let outpoint = Outpoint::<N>::new(reverse_transaction_id, index, address, amount)?;
+        let format = match format {
+            Some(f) => Some(f),
+            None => Some(BitcoinFormat::P2PKH),
+        };
+
+        let (address, script_pub_key, redeem_script) = match public_key {
+            Some(pk) => {
+                let addr = pk.to_address(&format.clone().unwrap())?;
+                if let Some(v) = address {
+                    if v != addr {
+                        return Err(TransactionError::Message(format!(
+                            "Provided address {} does not match the provided public key {}",
+                            addr, pk,
+                        )));
+                    }
+                }
+                let script_pub_key = create_script_pub_key(&addr)?;
+                let redeem_script = match format {
+                    Some(BitcoinFormat::P2SH_P2WPKH) => {
+                        Some(BitcoinAddress::<N>::create_redeem_script(&pk).to_vec())
+                    }
+                    _ => None,
+                };
+                (Some(addr), Some(script_pub_key), redeem_script)
+            }
+            None => match address {
+                Some(addr) => {
+                    let script_pub_key = create_script_pub_key(&addr)?;
+                    (Some(addr), Some(script_pub_key), None)
+                }
+                None => (None, None, None),
+            },
+        };
 
         Ok(Self {
-            outpoint,
+            outpoint: Outpoint::new(reverse_transaction_id, index),
+            balance,
+            address,
+            format,
+            script_pub_key,
+            redeem_script,
             script_sig: vec![],
             sequence: BitcoinTransactionInput::<N>::DEFAULT_SEQUENCE.to_vec(),
-            sighash_code: SignatureHash::SIGHASH_ALL,
+            sighash_code: sighash,
             witnesses: vec![],
             is_signed: false,
             additional_witness: None,
@@ -392,39 +447,68 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         })
     }
 
-    pub fn set_address(&mut self, address: BitcoinAddress<N>) -> Result<(), TransactionError> {
-        self.outpoint.address = Some(address.clone());
-        let script = create_script_pub_key(&address)?;
-        match address.format() {
-            BitcoinFormat::P2PKH | BitcoinFormat::Bech32 => {
-                self.outpoint.script_pub_key = Some(script)
+    pub fn set_public_key(
+        &mut self,
+        public_key: BitcoinPublicKey<N>,
+        format: BitcoinFormat,
+    ) -> Result<(), TransactionError> {
+        let address = public_key.to_address(&format)?;
+        self.format = Some(format.clone());
+        self.script_pub_key = Some(create_script_pub_key(&address)?);
+        self.address = Some(address);
+        self.redeem_script = match format {
+            BitcoinFormat::P2SH_P2WPKH => {
+                Some(BitcoinAddress::<N>::create_redeem_script(&public_key).to_vec())
             }
-            BitcoinFormat::P2SH_P2WPKH | BitcoinFormat::P2WSH => {
-                self.outpoint.redeem_script = Some(script)
-            }
-        }
+            _ => None,
+        };
         Ok(())
     }
 
-    pub fn set_amount(&mut self, amount: BitcoinAmount) -> Result<(), TransactionError> {
-        self.outpoint.amount = Some(amount);
+    pub fn set_redeem_script(&mut self, redeem_script: Vec<u8>) -> Result<(), TransactionError> {
+        self.redeem_script = Some(redeem_script);
         Ok(())
     }
 
-    pub fn set_sequence(&mut self, sequence: Vec<u8>) {
-        self.sequence = sequence;
+    pub fn set_format(&mut self, format: BitcoinFormat) -> Result<(), TransactionError> {
+        self.format = Some(format);
+        Ok(())
     }
 
-    pub fn set_sighash(&mut self, sighash: SignatureHash) {
+    pub fn set_balance(&mut self, balance: i64) -> Result<(), TransactionError> {
+        self.balance = Some(BitcoinAmount(balance));
+        Ok(())
+    }
+
+    pub fn set_sequence(&mut self, sequence: u32) -> Result<(), TransactionError> {
+        self.sequence = u32::to_le_bytes(sequence).to_vec();
+        Ok(())
+    }
+
+    pub fn set_sighash(&mut self, sighash: SignatureHash) -> Result<(), TransactionError> {
         self.sighash_code = sighash;
+        Ok(())
     }
 
     pub fn get_address(&self) -> Option<BitcoinAddress<N>> {
-        self.outpoint.address.clone()
+        self.address.clone()
     }
 
-    pub fn get_amount(&self) -> Option<BitcoinAmount> {
-        self.outpoint.amount
+    pub fn get_format(&self) -> Option<BitcoinFormat> {
+        self.format.clone()
+    }
+
+    pub fn get_balance(&self) -> Option<BitcoinAmount> {
+        self.balance
+    }
+
+    pub fn get_sequence(&self) -> u32 {
+        let sequence: [u8; 4] = self.sequence.clone().try_into().unwrap();
+        u32::from_le_bytes(sequence)
+    }
+
+    pub fn get_sighash(&self) -> SignatureHash {
+        self.sighash_code
     }
 
     /// Read and output a Bitcoin transaction input
@@ -436,12 +520,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let _ = reader.read(&mut transaction_hash)?;
         let _ = reader.read(&mut vin)?;
 
-        let outpoint = Outpoint::<N>::new(
-            transaction_hash.to_vec(),
-            u32::from_le_bytes(vin),
-            None,
-            None,
-        )?;
+        let outpoint = Outpoint::new(transaction_hash.to_vec(), u32::from_le_bytes(vin));
 
         let script_sig: Vec<u8> = BitcoinVector::read(&mut reader, |s| {
             let mut byte = [0u8; 1];
@@ -460,6 +539,11 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
 
         Ok(Self {
             outpoint,
+            balance: None,
+            address: None,
+            format: None,
+            script_pub_key: None,
+            redeem_script: None,
             script_sig: script_sig.to_vec(),
             sequence: sequence.to_vec(),
             sighash_code,
@@ -475,16 +559,13 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         let mut input = vec![];
         input.extend(&self.outpoint.reverse_transaction_id);
         input.extend(&self.outpoint.index.to_le_bytes());
-
         match raw {
             true => input.extend(vec![0x00]),
             false => match self.script_sig.len() {
-                0 => match &self.outpoint.address {
+                0 => match &self.address {
                     Some(address) => match address.format() {
-                        BitcoinFormat::Bech32 => input.extend(vec![0x00]),
-                        BitcoinFormat::P2WSH => input.extend(vec![0x00]),
-                        _ => {
-                            let script_pub_key = match &self.outpoint.script_pub_key {
+                        BitcoinFormat::P2PKH => {
+                            let script_pub_key = match &self.script_pub_key {
                                 Some(script) => script,
                                 None => {
                                     return Err(TransactionError::MissingOutpointScriptPublicKey)
@@ -493,6 +574,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
                             input.extend(variable_length_integer(script_pub_key.len() as u64)?);
                             input.extend(script_pub_key);
                         }
+                        _ => input.extend(vec![0x00]),
                     },
                     None => input.extend(vec![0x00]),
                 },
@@ -504,6 +586,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         };
 
         input.extend(&self.sequence);
+
         Ok(input)
     }
 }
@@ -587,7 +670,7 @@ impl fmt::Display for BitcoinTransactionId {
 }
 
 /// Represents the Bitcoin transaction parameters
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinTransactionParameters<N: BitcoinNetwork> {
     /// The version number (4 bytes)
     pub version: u32,
@@ -678,7 +761,7 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
 }
 
 /// Represents a Bitcoin transaction
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinTransaction<N: BitcoinNetwork> {
     /// The transaction parameters (version, inputs, outputs, lock_time, segwit_flag)
     pub parameters: BitcoinTransactionParameters<N>,
@@ -819,31 +902,33 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         }
 
         let input = &self.parameters.inputs[vin];
-        let format = match &input.outpoint.address {
+        let format = match &input.address {
             Some(address) => address.format(),
             None => return Err(TransactionError::MissingOutpointAddress),
         };
 
         let script = match format {
-            BitcoinFormat::Bech32 => match &input.outpoint.script_pub_key {
+            BitcoinFormat::Bech32 => match &input.script_pub_key {
                 Some(script) => script[1..].to_vec(),
                 None => return Err(TransactionError::MissingOutpointScriptPublicKey),
             },
-            BitcoinFormat::P2WSH => match &input.outpoint.redeem_script {
+            BitcoinFormat::CashAddr => match &input.script_pub_key {
+                Some(script) => script.to_vec(),
+                None => return Err(TransactionError::MissingOutpointScriptPublicKey),
+            },
+            BitcoinFormat::P2WSH => match &input.redeem_script {
                 Some(redeem_script) => redeem_script.to_vec(),
                 None => return Err(TransactionError::InvalidInputs("P2WSH".into())),
             },
-            BitcoinFormat::P2SH_P2WPKH => match &input.outpoint.redeem_script {
+            BitcoinFormat::P2SH_P2WPKH => match &input.redeem_script {
                 Some(redeem_script) => redeem_script[1..].to_vec(),
                 None => return Err(TransactionError::InvalidInputs("P2SH_P2WPKH".into())),
             },
-            BitcoinFormat::P2PKH => {
-                return Err(TransactionError::UnsupportedPreimage("P2PKH".into()))
-            }
+            _ => return Err(TransactionError::UnsupportedPreimage("P2PKH".into())),
         };
 
         let mut script_code = vec![];
-        if format == BitcoinFormat::P2WSH {
+        if format == BitcoinFormat::P2WSH || format == BitcoinFormat::CashAddr {
             script_code.extend(script);
         } else {
             script_code.push(Opcode::OP_DUP as u8);
@@ -860,8 +945,8 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         let hash_prev_outputs = double_sha2(&prev_outputs);
         let hash_sequence = double_sha2(&prev_sequences);
         let hash_outputs = double_sha2(&outputs);
-        let outpoint_amount = match &input.outpoint.amount {
-            Some(amount) => amount.0.to_le_bytes(),
+        let balance = match &input.balance {
+            Some(balance) => balance.0.to_le_bytes(),
             None => return Err(TransactionError::MissingOutpointAmount),
         };
 
@@ -872,7 +957,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         preimage.extend(&input.outpoint.reverse_transaction_id);
         preimage.extend(&input.outpoint.index.to_le_bytes());
         preimage.extend(&script_code);
-        preimage.extend(&outpoint_amount);
+        preimage.extend(&balance);
         preimage.extend(&input.sequence);
         preimage.extend(hash_outputs);
         preimage.extend(&self.parameters.lock_time.to_le_bytes());
@@ -882,7 +967,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     }
 
     /// Returns the transaction with the traditional serialization (no witness).
-    fn to_transaction_bytes_without_witness(&self) -> Result<Vec<u8>, TransactionError> {
+    pub fn to_transaction_bytes_without_witness(&self) -> Result<Vec<u8>, TransactionError> {
         let mut transaction = self.parameters.version.to_le_bytes().to_vec();
 
         transaction.extend(variable_length_integer(self.parameters.inputs.len() as u64)?);
@@ -952,13 +1037,13 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
         ]
         .concat();
 
-        match input.get_address().unwrap().format() {
-            BitcoinFormat::P2PKH => {
+        match input.get_format().unwrap() {
+            BitcoinFormat::P2PKH | BitcoinFormat::CashAddr => {
                 input.script_sig = [signature, public_key].concat();
                 input.is_signed = true;
             }
             BitcoinFormat::P2SH_P2WPKH => {
-                let input_script = match &input.outpoint.redeem_script {
+                let input_script = match &input.redeem_script {
                     Some(script) => script.clone(),
                     None => {
                         return Err(TransactionError::Message(
@@ -996,93 +1081,5 @@ impl<N: BitcoinNetwork> FromStr for BitcoinTransaction<N> {
 
     fn from_str(transaction: &str) -> Result<Self, Self::Err> {
         Self::from_bytes(&hex::decode(transaction)?)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::amount::BitcoinAmount;
-    use crate::transaction::BitcoinTransactionOutput;
-    use crate::Bitcoin;
-    use crate::BitcoinAddress;
-    use anychain_core::Transaction;
-
-    use super::BitcoinTransaction;
-    use super::BitcoinTransactionInput;
-    use super::BitcoinTransactionParameters;
-    use anychain_core::libsecp256k1::{sign, Message, SecretKey};
-
-    #[test]
-    fn f() {
-        let prev_txid = "27ce2600ed495347fce5355cf90b34f72cc9aff2b42655e1c6c995ff8afe21a0";
-        let prev_txid = hex::decode(prev_txid).unwrap();
-
-        let from = [
-            3, 141, 242, 111, 126, 246, 240, 104, 89, 19, 22, 155, 205, 70, 66, 132, 101, 113, 33,
-            100,
-        ] as [u8; 20];
-
-        let public_key = [
-            2, 252, 28, 238, 109, 187, 243, 160, 125, 88, 121, 75, 21, 67, 192, 38, 121, 197, 170,
-            229, 167, 212, 99, 22, 46, 185, 168, 111, 242, 157, 190, 62, 144,
-        ]
-        .to_vec();
-
-        let to = [
-            121, 176, 0, 136, 118, 38, 178, 148, 169, 20, 80, 26, 76, 210, 38, 181, 139, 35, 89,
-            131,
-        ] as [u8; 20];
-
-        let from = BitcoinAddress::<Bitcoin>::from_hash160(&from).unwrap();
-        let to = BitcoinAddress::<Bitcoin>::from_hash160(&to).unwrap();
-
-        let input = BitcoinTransactionInput::<Bitcoin>::new(
-            prev_txid,
-            0,
-            Some(from.clone()),
-            Some(BitcoinAmount::from_satoshi(10100000).unwrap()),
-        )
-        .unwrap();
-
-        let output1 =
-            BitcoinTransactionOutput::new(to, BitcoinAmount::from_satoshi(5000000).unwrap())
-                .unwrap();
-
-        let output2 =
-            BitcoinTransactionOutput::new(from, BitcoinAmount::from_satoshi(5000000).unwrap())
-                .unwrap();
-
-        let params =
-            BitcoinTransactionParameters::<Bitcoin>::new(vec![input], vec![output1, output2])
-                .unwrap();
-        let mut tx = BitcoinTransaction::<Bitcoin>::new(&params).unwrap();
-
-        println!("raw tx = {}\n", tx);
-
-        let hash = tx.digest(0).unwrap();
-
-        let signing_key = [
-            56, 127, 139, 242, 234, 208, 96, 112, 134, 251, 100, 45, 230, 217, 251, 107, 58, 234,
-            218, 188, 213, 253, 10, 92, 251, 17, 190, 150, 100, 177, 1, 22,
-        ] as [u8; 32];
-
-        let signing_key = SecretKey::parse_slice(&signing_key).unwrap();
-        let msg = Message::parse_slice(&hash).unwrap();
-
-        // here we sign the hash with 'signing_key'
-        let signature = sign(&msg, &signing_key).0;
-
-        // let signature = signature.serialize().to_vec();
-        let signature = signature.serialize().as_ref().to_vec();
-
-        println!("len = {}", signature.len());
-
-        tx.sign(signature, public_key, 0).unwrap();
-
-        let tx = tx.to_bytes().unwrap();
-
-        let tx = BitcoinTransaction::<Bitcoin>::from_bytes(&tx).unwrap();
-
-        println!("tx = {}", tx);
     }
 }

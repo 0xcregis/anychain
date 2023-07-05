@@ -1,4 +1,4 @@
-use crate::network::BitcoinNetwork;
+use crate::Prefix;
 use anychain_core::no_std::*;
 use anychain_core::{AddressError, Format};
 
@@ -19,32 +19,32 @@ pub enum BitcoinFormat {
     P2SH_P2WPKH,
     /// Bech32, e.g. bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx
     Bech32,
+    /// CashAddr, e.g. bitcoincash:qpkxa3xypl6rfp4nzewh9xrqnv90n2yxrcr0pmwas4
+    CashAddr,
 }
 
 impl Format for BitcoinFormat {}
 
 impl BitcoinFormat {
-    /// Returns the address prefix of the given network.
-    pub fn to_address_prefix<N: BitcoinNetwork>(&self) -> Vec<u8> {
-        N::to_address_prefix(self)
-    }
-
     /// Returns the format of the given address prefix.
-    pub fn from_address_prefix(prefix: &[u8]) -> Result<Self, AddressError> {
-        if prefix.len() < 2 {
-            return Err(AddressError::InvalidPrefix(String::from_utf8(
-                prefix.to_vec(),
-            )?));
-        }
-        match (prefix[0], prefix[1]) {
-            (0x00, _) | (0x6F, _) | (0x30, _) | (0x1e, _) | (0x71, _) => Ok(BitcoinFormat::P2PKH),
-            (0x05, _) | (0xC4, _) | (0x32, _) | (0x3a, _) | (0x16, _) => {
-                Ok(BitcoinFormat::P2SH_P2WPKH)
-            }
-            (0x62, 0x63) | (0x74, 0x62) => Ok(BitcoinFormat::Bech32),
-            _ => Err(AddressError::InvalidPrefix(String::from_utf8(
-                prefix.to_vec(),
-            )?)),
+    pub fn from_address_prefix(prefix: Prefix) -> Result<Self, AddressError> {
+        match prefix {
+            Prefix::AddressPrefix(prefix) => match prefix.as_str() {
+                "bc" | "tb" | "ltc" | "tltc" => Ok(Self::Bech32),
+                "bitcoincash" | "bchtest" => Ok(Self::CashAddr),
+                _ => Err(AddressError::Message(format!(
+                    "Unrecognized address prefix {}",
+                    prefix,
+                ))),
+            },
+            Prefix::Version(version) => match version {
+                0x00 | 0x6f | 0x1e | 0x71 | 0x30 => Ok(Self::P2PKH),
+                0x05 | 0xc4 | 0x16 | 0x32 | 0x3a => Ok(Self::P2SH_P2WPKH),
+                _ => Err(AddressError::Message(format!(
+                    "Unrecognized version byte {}",
+                    version,
+                ))),
+            },
         }
     }
 }
@@ -56,6 +56,7 @@ impl fmt::Display for BitcoinFormat {
             BitcoinFormat::P2WSH => write!(f, "p2wsh"),
             BitcoinFormat::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),
             BitcoinFormat::Bech32 => write!(f, "bech32"),
+            BitcoinFormat::CashAddr => write!(f, "cash_addr"),
         }
     }
 }

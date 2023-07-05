@@ -1,9 +1,6 @@
-use crate::address::BitcoinAddress;
-use crate::format::BitcoinFormat;
-use crate::network::BitcoinNetwork;
-use anychain_core::{libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
-
-use core::{fmt, fmt::Display, marker::PhantomData, str::FromStr};
+use crate::{BitcoinAddress, BitcoinFormat, BitcoinNetwork};
+use anychain_core::{hex, libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
+use core::{fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin public key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +51,14 @@ impl<N: BitcoinNetwork> BitcoinPublicKey<N> {
         self.public_key
     }
 
+    /// Serialize the Bitcoin public key as a vector of u8
+    pub fn serialize(&self) -> Vec<u8> {
+        match self.compressed {
+            true => self.public_key.serialize_compressed().to_vec(),
+            false => self.public_key.serialize().to_vec(),
+        }
+    }
+
     /// Returns `true` if the public key is in compressed form.
     pub fn is_compressed(&self) -> bool {
         self.compressed
@@ -72,7 +77,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
     }
 }
 
-impl<N: BitcoinNetwork> Display for BitcoinPublicKey<N> {
+impl<N: BitcoinNetwork> fmt::Display for BitcoinPublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.compressed {
             for s in &self.public_key.serialize_compressed()[..] {

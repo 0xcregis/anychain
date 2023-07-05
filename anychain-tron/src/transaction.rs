@@ -8,6 +8,7 @@ use anychain_core::TransactionError;
 use anychain_core::TransactionId;
 use protobuf::Message;
 use std::fmt;
+use std::str::FromStr;
 
 /// Represents the parameters for a Tron transaction
 #[derive(Debug, Clone, PartialEq)]
@@ -118,7 +119,13 @@ pub struct TronTransaction {
     pub signature: Option<TronTransactionSignature>,
 }
 
-impl TronTransaction {}
+impl FromStr for TronTransaction {
+    type Err = TransactionError;
+
+    fn from_str(tx: &str) -> Result<Self, Self::Err> {
+        Self::from_bytes(&hex::decode(tx)?)
+    }
+}
 
 impl Transaction for TronTransaction {
     type Address = TronAddress;

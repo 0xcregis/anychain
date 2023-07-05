@@ -2,7 +2,6 @@
 members = [
     "anychain-core",
     "anychain-bitcoin",
-    "anychain-bitcoincash",
     "anychain-ethereum",
     "anychain-tron",
     "anychain-filecoin",

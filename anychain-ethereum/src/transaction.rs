@@ -359,8 +359,12 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
 impl<N: EthereumNetwork> FromStr for EthereumTransaction<N> {
     type Err = TransactionError;
 
-    fn from_str(transaction: &str) -> Result<Self, Self::Err> {
-        Self::from_bytes(&hex::decode(transaction)?)
+    fn from_str(tx: &str) -> Result<Self, Self::Err> {
+        let tx = match &tx[..2] {
+            "0x" => &tx[2..],
+            _ => tx,
+        };
+        Self::from_bytes(&hex::decode(tx)?)
     }
 }
 
