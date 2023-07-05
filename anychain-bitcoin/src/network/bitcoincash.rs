@@ -14,13 +14,13 @@ impl Network for BitcoinCash {
 
 impl BitcoinNetwork for BitcoinCash {
     /// Returns the address prefix of the given network.
-    fn to_address_prefix(format: BitcoinFormat) -> Prefix {
+    fn to_address_prefix(format: BitcoinFormat) -> Result<Prefix, AddressError> {
         match format {
-            BitcoinFormat::P2PKH => Prefix::Version(0x00),
-            BitcoinFormat::P2WSH => Prefix::Version(0x00),
-            BitcoinFormat::P2SH_P2WPKH => Prefix::Version(0x05),
-            BitcoinFormat::Bech32 => Prefix::AddressPrefix("bc".to_string()),
-            BitcoinFormat::CashAddr => Prefix::AddressPrefix("bitcoincash".to_string()),
+            BitcoinFormat::P2PKH => Ok(Prefix::Version(0x00)),
+            BitcoinFormat::P2WSH => Ok(Prefix::Version(0x00)),
+            BitcoinFormat::P2SH_P2WPKH => Ok(Prefix::Version(0x05)),
+            BitcoinFormat::Bech32 => Ok(Prefix::AddressPrefix("bc".to_string())),
+            BitcoinFormat::CashAddr => Ok(Prefix::AddressPrefix("bitcoincash".to_string())),
         }
     }
 
