@@ -12,7 +12,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.0.1"}
+anychain-core = { path = "../anychain-core", version = "0.1.1"}
 rand = { workspace = true }
 regex = { workspace = true }
 rlp = { workspace = true }
