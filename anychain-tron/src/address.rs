@@ -92,6 +92,11 @@ impl TryFrom<&[u8]> for TronAddress {
     fn try_from(value: &[u8]) -> Result<Self, AddressError> {
         if value.len() != 21 {
             Err(AddressError::InvalidAddress("Invalid length".to_string()))
+        } else if value[0] != ADDRESS_TYPE_PREFIX {
+            Err(AddressError::Message(format!(
+                "Invalid version byte {}",
+                value[0]
+            )))
         } else {
             let mut raw = [0u8; 21];
             raw[..21].copy_from_slice(value);
