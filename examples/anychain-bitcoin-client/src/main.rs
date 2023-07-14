@@ -1,12 +1,9 @@
 use std::str::FromStr;
 
 use anychain_bitcoin::{
-    amount::BitcoinAmount,
-    public_key::BitcoinPublicKey,
-    transaction::{
-        BitcoinTransaction, BitcoinTransactionInput, BitcoinTransactionOutput,
-        BitcoinTransactionParameters,
-    },
+    BitcoinAmount, BitcoinPublicKey,
+    BitcoinTransaction, BitcoinTransactionInput, BitcoinTransactionOutput,
+    BitcoinTransactionParameters, SignatureHash,
     BitcoinAddress, BitcoinFormat, BitcoinTestnet as Testnet,
 };
 
@@ -104,9 +101,8 @@ fn transaction_gen() {
         1, 1, 1, 1,
     ];
     let secret_key = libsecp256k1::SecretKey::parse(&secret_key).unwrap();
-    let public_key = libsecp256k1::PublicKey::from_secret_key(&secret_key)
-        .serialize_compressed()
-        .to_vec();
+    let public_key = libsecp256k1::PublicKey::from_secret_key(&secret_key);
+    let public_key = BitcoinPublicKey::<Testnet>::from_secp256k1_public_key(public_key, true);
 
     let recipient = "2MsRNMaKe8YWcdUaRi8jwa2aHG85kzsbUHe";
     let amount = 500000;
@@ -120,12 +116,6 @@ fn transaction_gen() {
             1378890,
         ),
         (
-            "312afea64f1efeefc6bdf73827daeee99ff025c9f1dc036bb62ff708c4eedcad",
-            0,
-            "2NCwYikg4pdCGPjgiK3T4Y1DW6Dnp5eobfy",
-            1818565,
-        ),
-        (
             "dc163eb31a9cdd5a8bb49066477375f9a0068791176e7b4a61e54751581449ae",
             1,
             "tb1q83t5qrd4yzrd477eskjp5f8ujtrf6enwgw87rn",
@@ -137,8 +127,11 @@ fn transaction_gen() {
         let input = BitcoinTransactionInput::new(
             hex::decode(item.0).unwrap(),
             item.1,
+            None,
+            None,
             Some(BitcoinAddress::<Testnet>::from_str(item.2).unwrap()),
             Some(BitcoinAmount::from_satoshi(item.3).unwrap()),
+            SignatureHash::SIGHASH_ALL,
         )
         .unwrap();
 
@@ -163,7 +156,7 @@ fn transaction_gen() {
         let msg = libsecp256k1::Message::parse_slice(&hash).unwrap();
         let sig = libsecp256k1::sign(&msg, &secret_key).0.serialize().to_vec();
 
-        let _ = tx.sign(sig, public_key.clone(), i as u32);
+        let _ = tx.input(0).unwrap().sign(sig, public_key.serialize());
 
         println!("tx = {}\n", tx);
     }

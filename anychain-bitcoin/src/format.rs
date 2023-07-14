@@ -3,6 +3,7 @@ use anychain_core::no_std::*;
 use anychain_core::{AddressError, Format};
 
 use core::fmt;
+use core::str::FromStr;
 use serde::Serialize;
 
 /// Represents the format of a Bitcoin address
@@ -57,6 +58,24 @@ impl fmt::Display for BitcoinFormat {
             BitcoinFormat::P2SH_P2WPKH => write!(f, "p2sh_p2wpkh"),
             BitcoinFormat::Bech32 => write!(f, "bech32"),
             BitcoinFormat::CashAddr => write!(f, "cash_addr"),
+        }
+    }
+}
+
+impl FromStr for BitcoinFormat {
+    type Err = AddressError;
+
+    fn from_str(format: &str) -> Result<Self, AddressError> {
+        match format {
+            "p2pkh" => Ok(BitcoinFormat::P2PKH),
+            "p2sh_p2wpkh" => Ok(BitcoinFormat::P2SH_P2WPKH),
+            "p2wsh" => Ok(BitcoinFormat::P2WSH),
+            "bech32" => Ok(BitcoinFormat::Bech32),
+            "cash_addr" => Ok(BitcoinFormat::CashAddr),
+            _ => Err(AddressError::Message(format!(
+                "Unrecognized bitcoin address format {}",
+                format,
+            ))),
         }
     }
 }

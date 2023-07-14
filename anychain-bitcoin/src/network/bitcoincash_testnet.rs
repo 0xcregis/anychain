@@ -30,7 +30,7 @@ impl BitcoinNetwork for BitcoinCashTestnet {
             Prefix::Version(version) => match version {
                 0x6f | 0xc4 => Ok(Self),
                 _ => Err(AddressError::Message(format!(
-                    "Invalid version byte {:#0x} for network {}",
+                    "Invalid version byte {:#0x} for {} network",
                     version,
                     Self::NAME,
                 ))),
@@ -38,7 +38,7 @@ impl BitcoinNetwork for BitcoinCashTestnet {
             Prefix::AddressPrefix(prefix) => match prefix.as_str() {
                 "tb" | "bchtest" => Ok(Self),
                 _ => Err(AddressError::Message(format!(
-                    "Invalid Bech32 or CashAddr prefix for network {}",
+                    "Invalid Bech32 or CashAddr prefix for {} network",
                     Self::NAME,
                 ))),
             },

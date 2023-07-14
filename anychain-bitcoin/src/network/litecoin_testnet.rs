@@ -34,7 +34,7 @@ impl BitcoinNetwork for LitecoinTestnet {
             Prefix::Version(version) => match version {
                 0x6f | 0x3a => Ok(Self),
                 _ => Err(AddressError::Message(format!(
-                    "Invalid version byte {:#0x} for network {}",
+                    "Invalid version byte {:#0x} for {} network",
                     version,
                     Self::NAME,
                 ))),
@@ -42,7 +42,7 @@ impl BitcoinNetwork for LitecoinTestnet {
             Prefix::AddressPrefix(prefix) => match prefix.as_str() {
                 "tltc" => Ok(Self),
                 _ => Err(AddressError::Message(format!(
-                    "Invalid Bech32 prefix for network {}",
+                    "Invalid Bech32 prefix for {} network",
                     Self::NAME,
                 ))),
             },
