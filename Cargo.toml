@@ -2,6 +2,7 @@
 members = [
     "anychain-core",
     "anychain-bitcoin",
+    "anychain-bitcoin-cli",
     "anychain-ethereum",
     "anychain-tron",
     "anychain-filecoin",

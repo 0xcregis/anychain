@@ -261,7 +261,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
             let prefix = address.split(':').collect::<Vec<&str>>()[0];
 
             // check if the address prefix corresponds to the correct network.
-            let _ = N::from_address_prefix(Prefix::from_prefix(prefix));
+            let _ = N::from_address_prefix(Prefix::from_prefix(prefix))?;
 
             if address.len() != prefix.len() + 1 + 34 + 8 {
                 return Err(AddressError::InvalidCharacterLength(

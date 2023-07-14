@@ -33,7 +33,7 @@ impl BitcoinNetwork for Dogecoin {
             Prefix::Version(version) => match version {
                 0x1e | 0x16 => Ok(Self),
                 _ => Err(AddressError::Message(format!(
-                    "Invalid version byte {:#0x} for network {}",
+                    "Invalid version byte {:#0x} for {} network",
                     version,
                     Self::NAME,
                 ))),
