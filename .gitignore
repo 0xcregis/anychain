@@ -19,3 +19,4 @@ Cargo.lock
 
 # MaxOS files
 .DS_Store
+*.swp
