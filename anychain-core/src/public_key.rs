@@ -6,16 +6,16 @@ use core::{
     str::FromStr,
 };
 
-/// The interface for a generic public key.
+/// Generic public key.
 pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Sized {
     type SecretKey;
     type Address: Address;
     type Format: Format;
 
-    /// Returns the address corresponding to the given public key.
+    /// Returns a public key given an secp256k1 secret key.
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self;
 
-    /// Returns the address of the corresponding private key.
+    /// Returns an address corresponding to this public key.
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
 
