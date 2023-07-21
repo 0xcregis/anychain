@@ -103,7 +103,7 @@ impl TransactionId for EthereumTransactionId {}
 
 impl fmt::Display for EthereumTransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", &hex::encode(&self.txid))
+        write!(f, "0x{}", hex::encode(&self.txid))
     }
 }
 
