@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.1"}
 base58 = { workspace = true }
+sha2 = { workspace = true }

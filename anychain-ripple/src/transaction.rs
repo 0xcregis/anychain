@@ -1,22 +1,28 @@
 use std::fmt::Display;
 
 use crate::{RippleAddress, RippleFormat, RipplePublicKey};
-use anychain_core::{hex, Transaction, TransactionError, TransactionId};
+use anychain_core::{
+    crypto::{hash160, sha512},
+    hex,
+    libsecp256k1::Signature,
+    Transaction, TransactionError, TransactionId,
+};
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 struct RippleTransactionParameters {
-    account: [u8; 20],
     destination: [u8; 20],
     fee: u32,
     sequence: u32,
     destination_tag: u32,
     amount: u64,
     memos: Vec<String>,
+    public_key: [u8; 33],
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 struct RippleTransaction {
     params: RippleTransactionParameters,
+    signature: Option<Vec<u8>>,
 }
 
 impl Transaction for RippleTransaction {
@@ -29,21 +35,61 @@ impl Transaction for RippleTransaction {
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         Ok(Self {
             params: parameters.clone(),
+            signature: None,
         })
     }
 
-    fn sign(&mut self, _signature: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
-        Ok(vec![])
+    fn sign(&mut self, rs: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
+        if rs.len() != 64 {
+            return Err(TransactionError::Message(format!(
+                "Invalid signature length {}",
+                rs.len(),
+            )));
+        }
+        self.signature = Some(rs);
+        self.to_bytes()
     }
 
-    fn from_bytes(_transaction: &[u8]) -> Result<Self, TransactionError> {
-        Err(TransactionError::Message("to be developed".to_string()))
+    fn from_bytes(stream: &[u8]) -> Result<Self, TransactionError> {
+        Self::from_st(&SerializedType::deserialize(stream)?)
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
+        self.to_st()?.serialize()
+    }
+
+    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
+        match &self.signature {
+            // compute the txid of the signed tx
+            Some(_) => {
+                // prefix the tx stream with "TXN\0"
+                let mut stream = vec![b'T', b'X', b'N', 0];
+                stream.extend(self.to_bytes()?);
+                // we take the first half of the sha512 hash as txid
+                let txid = sha512(&stream)[..32].to_vec();
+                Ok(RippleTransactionId { txid })
+            }
+            // compute the raw tx's digest for signing
+            None => {
+                // preifx the tx stream with "STX\0"
+                let mut stream = vec![b'S', b'T', b'X', 0];
+                stream.extend(self.to_bytes()?);
+                // we take the first half of the sha512 hash as digest for signing
+                let digest = sha512(&stream)[..32].to_vec();
+                Ok(RippleTransactionId { txid: digest })
+            }
+        }
+    }
+}
+
+impl RippleTransaction {
+    fn to_st(&self) -> Result<SerializedType, TransactionError> {
+        let mut account_id = [0u8; 20];
+        account_id.copy_from_slice(&hash160(&self.params.public_key));
+
         let account = SerializedType::Account {
             field_value: 1,
-            account_id: self.params.account,
+            account_id,
         };
 
         let dest = SerializedType::Account {
@@ -98,22 +144,41 @@ impl Transaction for RippleTransaction {
             elems: memos,
         };
 
-        let tx = SerializedType::Object {
-            field_value: 0,
-            members: vec![account, dest, fee, sequence, dest_tag, amount, memos],
+        let public_key = SerializedType::Blob {
+            field_value: 3,
+            buffer: self.params.public_key.to_vec(),
         };
 
-        tx.serialize()
+        let mut st = SerializedType::Object {
+            field_value: 0,
+            members: vec![
+                account, dest, fee, sequence, dest_tag, amount, memos, public_key,
+            ],
+        };
+
+        if let Some(sig) = &self.signature {
+            let sig = Signature::parse_standard_slice(sig)?
+                .serialize_der()
+                .as_ref()
+                .to_vec();
+            let sig = SerializedType::Blob {
+                field_value: 4,
+                buffer: sig,
+            };
+            st.add_field(sig)?;
+        }
+
+        Ok(st)
     }
 
-    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        Ok(RippleTransactionId { txid: vec![] })
+    fn from_st(_st: &SerializedType) -> Result<Self, TransactionError> {
+        Err(TransactionError::Message("to be developed".to_string()))
     }
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 struct RippleTransactionId {
-    txid: Vec<u8>,
+    pub txid: Vec<u8>,
 }
 
 impl TransactionId for RippleTransactionId {}
@@ -121,56 +186,6 @@ impl TransactionId for RippleTransactionId {}
 impl Display for RippleTransactionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{}", hex::encode(&self.txid))
-    }
-}
-
-fn serialize_len(mut len: u32) -> Vec<u8> {
-    if len <= 192 {
-        vec![len as u8]
-    } else if len <= 12480 {
-        len -= 193;
-        let b0 = 193 + (len >> 8) as u8;
-        let b1 = (len & 0xff) as u8;
-        vec![b0, b1]
-    } else if len <= 918744 {
-        len -= 12481;
-        let b0 = 241 + (len >> 16) as u8;
-        let b1 = ((len >> 8) & 0xff) as u8;
-        let b2 = (len & 0xff) as u8;
-        vec![b0, b1, b2]
-    } else {
-        panic!("Maximum length exceeded");
-    }
-}
-
-fn serialize_field_id(typ: SerializedTypeID, name: u32) -> Vec<u8> {
-    let typ = typ as u32;
-
-    if !(..256).contains(&typ) || !(..256).contains(&name) {
-        panic!("Number out of range");
-    }
-
-    if typ < 16 {
-        if name < 16 {
-            // common type, common name
-            vec![((typ << 4) | name) as u8]
-        } else {
-            // common type, uncommon name
-            let b0 = (typ << 4) as u8;
-            let b1 = name as u8;
-            vec![b0, b1]
-        }
-    } else if name < 16 {
-        // uncommon type, common name
-        let b0 = name as u8;
-        let b1 = typ as u8;
-        vec![b0, b1]
-    } else {
-        // uncommon type, uncommon name
-        let b0 = 0;
-        let b1 = typ as u8;
-        let b2 = name as u8;
-        vec![b0, b1, b2]
     }
 }
 
@@ -278,5 +293,70 @@ impl SerializedType {
                 Ok(stream)
             }
         }
+    }
+
+    fn deserialize(_stream: &[u8]) -> Result<Self, TransactionError> {
+        Err(TransactionError::Message("to be developed".to_string()))
+    }
+
+    fn add_field(&mut self, st: SerializedType) -> Result<(), TransactionError> {
+        if let SerializedType::Object { members, .. } = self {
+            members.push(st);
+            Ok(())
+        } else {
+            Err(TransactionError::Message(
+                "Adding fields to non object serialized type".to_string(),
+            ))
+        }
+    }
+}
+
+fn serialize_len(mut len: u32) -> Vec<u8> {
+    if len <= 192 {
+        vec![len as u8]
+    } else if len <= 12480 {
+        len -= 193;
+        let b0 = 193 + (len >> 8) as u8;
+        let b1 = (len & 0xff) as u8;
+        vec![b0, b1]
+    } else if len <= 918744 {
+        len -= 12481;
+        let b0 = 241 + (len >> 16) as u8;
+        let b1 = ((len >> 8) & 0xff) as u8;
+        let b2 = (len & 0xff) as u8;
+        vec![b0, b1, b2]
+    } else {
+        panic!("Maximum length exceeded");
+    }
+}
+
+fn serialize_field_id(typ: SerializedTypeID, name: u32) -> Vec<u8> {
+    let typ = typ as u32;
+
+    if !(..256).contains(&typ) || !(..256).contains(&name) {
+        panic!("Number out of range");
+    }
+
+    if typ < 16 {
+        if name < 16 {
+            // common type, common name
+            vec![((typ << 4) | name) as u8]
+        } else {
+            // common type, uncommon name
+            let b0 = (typ << 4) as u8;
+            let b1 = name as u8;
+            vec![b0, b1]
+        }
+    } else if name < 16 {
+        // uncommon type, common name
+        let b0 = name as u8;
+        let b1 = typ as u8;
+        vec![b0, b1]
+    } else {
+        // uncommon type, uncommon name
+        let b0 = 0;
+        let b1 = typ as u8;
+        let b2 = name as u8;
+        vec![b0, b1, b2]
     }
 }
