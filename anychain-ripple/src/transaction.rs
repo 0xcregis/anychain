@@ -21,8 +21,8 @@ struct RippleTransactionParameters {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 struct RippleTransaction {
-    params: RippleTransactionParameters,
-    signature: Option<Vec<u8>>,
+    pub params: RippleTransactionParameters,
+    pub signature: Option<Vec<u8>>,
 }
 
 impl Transaction for RippleTransaction {
@@ -171,8 +171,171 @@ impl RippleTransaction {
         Ok(st)
     }
 
-    fn from_st(_st: &SerializedType) -> Result<Self, TransactionError> {
-        Err(TransactionError::Message("to be developed".to_string()))
+    fn from_st(st: &SerializedType) -> Result<Self, TransactionError> {
+        if let SerializedType::Object { members, .. } = st {
+            let mut destination = [0u8; 20];
+            let mut fee = 0;
+            let mut sequence = 0;
+            let mut destination_tag = 0;
+            let mut amount = 0;
+            let mut memos = vec![];
+            let mut public_key = [0u8; 33];
+            let mut signature: Option<Vec<u8>> = None;
+
+            for mem in members {
+                match mem {
+                    SerializedType::Account {
+                        field_value,
+                        account_id,
+                        ..
+                    } => {
+                        if *field_value == 3 {
+                            destination = *account_id;
+                        } else if *field_value == 1 {
+                            // we skip the deserialization of account
+                        } else {
+                            return Err(TransactionError::Message(format!(
+                                "Invalid field value {} for field serialized type 'account'",
+                                *field_value,
+                            )));
+                        }
+                    }
+                    SerializedType::Amount {
+                        field_value, value, ..
+                    } => {
+                        if *field_value == 1 {
+                            amount = *value;
+                        } else if *field_value == 8 {
+                            fee = *value as u32;
+                        } else {
+                            return Err(TransactionError::Message(format!(
+                                "Invalid field value {} for serialized type 'amount'",
+                                *field_value,
+                            )));
+                        }
+                    }
+                    SerializedType::Array { field_value, elems } => {
+                        if *field_value == 9 {
+                            for elem in elems {
+                                if let SerializedType::Object {
+                                    field_value,
+                                    members,
+                                } = elem
+                                {
+                                    if *field_value == 10 {
+                                        for mem in members {
+                                            if let SerializedType::Blob {
+                                                field_value,
+                                                buffer,
+                                            } = mem
+                                            {
+                                                if *field_value == 12 {
+                                                    // we skip the deserialization of "payment"
+                                                } else if *field_value == 13 {
+                                                    match String::from_utf8(buffer.clone()) {
+                                                        Ok(s) => memos.push(s),
+                                                        Err(_) => {
+                                                            return Err(TransactionError::Message(
+                                                                "Invalid memo".to_string(),
+                                                            ))
+                                                        }
+                                                    }
+                                                } else {
+                                                    return Err(TransactionError::Message(format!(
+                                                        "Invalid field value {} for serialized type",
+                                                        *field_value,
+                                                    )));
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        return Err(TransactionError::Message(format!(
+                                            "Invalid field value {} for serialized type 'object'",
+                                            *field_value,
+                                        )));
+                                    }
+                                } else {
+                                    return Err(TransactionError::Message(
+                                        "None object array elements not allowed".to_string(),
+                                    ));
+                                }
+                            }
+                        } else {
+                            return Err(TransactionError::Message(format!(
+                                "Invalid field value {} for serialized type 'array'",
+                                *field_value,
+                            )));
+                        }
+                    }
+                    SerializedType::Blob {
+                        field_value,
+                        buffer,
+                    } => {
+                        if *field_value == 3 {
+                            if buffer.len() != 33 {
+                                return Err(TransactionError::Message(format!(
+                                    "Invalid public key length {}",
+                                    buffer.len(),
+                                )));
+                            }
+                            public_key.copy_from_slice(buffer);
+                        } else if *field_value == 4 {
+                            if buffer.len() != 64 {
+                                return Err(TransactionError::Message(format!(
+                                    "Invalid signature length {}",
+                                    buffer.len(),
+                                )));
+                            }
+                            signature = Some(buffer.clone());
+                        } else {
+                            return Err(TransactionError::Message(format!(
+                                "Invalid field value {} for serialized type 'blob'",
+                                *field_value,
+                            )));
+                        }
+                    }
+                    SerializedType::Integer { field_value, value } => {
+                        if *field_value == 4 {
+                            sequence = *value;
+                        } else if *field_value == 14 {
+                            destination_tag = *value;
+                        } else {
+                            return Err(TransactionError::Message(format!(
+                                "Invalid field value {} for serialized type 'integer'",
+                                *field_value,
+                            )));
+                        }
+                    }
+                    SerializedType::Object { .. } => {
+                        return Err(TransactionError::Message(
+                            "Serialized type 'object' not allowd in first layer deserialization"
+                                .to_string(),
+                        ))
+                    }
+                }
+            }
+
+            let mut tx = RippleTransaction::new(&RippleTransactionParameters {
+                destination,
+                fee,
+                sequence,
+                destination_tag,
+                amount,
+                memos,
+                public_key,
+            })?;
+
+            if signature.is_some() {
+                tx.signature = signature;
+            }
+
+            Ok(tx)
+        } else {
+            Err(TransactionError::Message(
+                "Deserialization of none object serialized type not allowed for Ripple transaction"
+                    .to_string(),
+            ))
+        }
     }
 }
 
@@ -296,7 +459,16 @@ impl SerializedType {
     }
 
     fn deserialize(_stream: &[u8]) -> Result<Self, TransactionError> {
-        Err(TransactionError::Message("to be developed".to_string()))
+
+
+
+
+
+
+
+
+
+        todo!()
     }
 
     fn add_field(&mut self, st: SerializedType) -> Result<(), TransactionError> {
