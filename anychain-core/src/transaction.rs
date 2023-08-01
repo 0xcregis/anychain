@@ -142,6 +142,12 @@ pub enum TransactionError {
 
     #[error("unsupported preimage operation on address format of {0}")]
     UnsupportedPreimage(String),
+
+    #[error("Reaching end of Ripple SerializedType 'Object'")]
+    EndOfObject,
+
+    #[error("Reaching end of Ripple SerializedType 'Array'")]
+    EndOfArray,
 }
 
 impl From<crate::no_std::io::Error> for TransactionError {

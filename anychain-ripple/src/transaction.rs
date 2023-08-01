@@ -1,10 +1,12 @@
-use std::fmt::Display;
+use core::fmt;
+use std::{fmt::Display, str::FromStr};
 
 use crate::{RippleAddress, RippleFormat, RipplePublicKey};
 use anychain_core::{
     crypto::{hash160, sha512},
     hex,
     libsecp256k1::Signature,
+    no_std::io::Read,
     Transaction, TransactionError, TransactionId,
 };
 
@@ -51,7 +53,18 @@ impl Transaction for RippleTransaction {
     }
 
     fn from_bytes(stream: &[u8]) -> Result<Self, TransactionError> {
-        Self::from_st(&SerializedType::deserialize(stream)?)
+        // Before we deserialize the stream, we should postfix the
+        // stream with a mark of ending for object type
+        let mut stream = stream.to_vec();
+        stream.extend(serialize_type(SerializedTypeID::Object, 1)?);
+
+        // Deserialize the stream to a SerializedType object, which
+        // is then converted to a Ripple Transaction
+        Self::from_st(&SerializedType::deserialize(
+            &mut stream.as_slice(),
+            SerializedTypeID::Object,
+            0,
+        )?)
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
@@ -79,6 +92,20 @@ impl Transaction for RippleTransaction {
                 Ok(RippleTransactionId { txid: digest })
             }
         }
+    }
+}
+
+impl FromStr for RippleTransaction {
+    type Err = TransactionError;
+
+    fn from_str(tx: &str) -> Result<Self, Self::Err> {
+        Self::from_bytes(&hex::decode(tx)?)
+    }
+}
+
+impl fmt::Display for RippleTransaction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.to_bytes().unwrap()))
     }
 }
 
@@ -165,7 +192,7 @@ impl RippleTransaction {
                 field_value: 4,
                 buffer: sig,
             };
-            st.add_field(sig)?;
+            st.add_member(sig)?;
         }
 
         Ok(st)
@@ -230,10 +257,10 @@ impl RippleTransaction {
                                             } = mem
                                             {
                                                 if *field_value == 12 {
-                                                    // we skip the deserialization of "payment"
+                                                    // we skip the deserialization of memo_type
                                                 } else if *field_value == 13 {
                                                     match String::from_utf8(buffer.clone()) {
-                                                        Ok(s) => memos.push(s),
+                                                        Ok(memo) => memos.push(memo),
                                                         Err(_) => {
                                                             return Err(TransactionError::Message(
                                                                 "Invalid memo".to_string(),
@@ -280,13 +307,14 @@ impl RippleTransaction {
                             }
                             public_key.copy_from_slice(buffer);
                         } else if *field_value == 4 {
-                            if buffer.len() != 64 {
+                            if !(70..=72).contains(&buffer.len()) {
                                 return Err(TransactionError::Message(format!(
                                     "Invalid signature length {}",
                                     buffer.len(),
                                 )));
                             }
-                            signature = Some(buffer.clone());
+                            let sig = Signature::parse_der(buffer)?.serialize().to_vec();
+                            signature = Some(sig);
                         } else {
                             return Err(TransactionError::Message(format!(
                                 "Invalid field value {} for serialized type 'blob'",
@@ -352,6 +380,7 @@ impl Display for RippleTransactionId {
     }
 }
 
+#[derive(PartialEq)]
 enum SerializedTypeID {
     Uint32 = 2,
     Amount = 6,
@@ -362,7 +391,37 @@ enum SerializedTypeID {
     Array = 15,
 }
 
-#[derive(Clone)]
+impl SerializedTypeID {
+    fn from_u8(b: u8) -> Result<Self, TransactionError> {
+        match b {
+            2 => Ok(Self::Uint32),
+            6 => Ok(Self::Amount),
+            7 => Ok(Self::VL),
+            8 => Ok(Self::Account),
+            14 => Ok(Self::Object),
+            15 => Ok(Self::Array),
+            _ => Err(TransactionError::Message(format!(
+                "Unsupported serialized type id {}",
+                b,
+            ))),
+        }
+    }
+}
+
+impl fmt::Display for SerializedTypeID {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Uint32 => write!(f, "Integer"),
+            Self::Amount => write!(f, "Amount"),
+            Self::VL => write!(f, "Blob"),
+            Self::Account => write!(f, "Account"),
+            Self::Object => write!(f, "Object"),
+            Self::Array => write!(f, "Array"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 enum SerializedType {
     Account {
         field_value: u32,
@@ -395,8 +454,114 @@ enum SerializedType {
     },
 }
 
+fn serialize_len(mut len: u32) -> Result<Vec<u8>, TransactionError> {
+    if len <= 192 {
+        Ok(vec![len as u8])
+    } else if len <= 12480 {
+        len -= 193;
+        let b0 = 193 + (len >> 8) as u8;
+        let b1 = (len & 0xff) as u8;
+        Ok(vec![b0, b1])
+    } else if len <= 918744 {
+        len -= 12481;
+        let b0 = 241 + (len >> 16) as u8;
+        let b1 = ((len >> 8) & 0xff) as u8;
+        let b2 = (len & 0xff) as u8;
+        Ok(vec![b0, b1, b2])
+    } else {
+        Err(TransactionError::Message(
+            "Maximum length exceeded".to_string(),
+        ))
+    }
+}
+
+fn deserialize_len(stream: &mut &[u8]) -> Result<u32, TransactionError> {
+    let mut b = [0u8; 1];
+    let _ = stream.read(&mut b)?;
+
+    match b[0] {
+        (..=192) => Ok(b[0] as u32),
+        (193..=240) => {
+            let mut buf = [0u8; 1];
+            let _ = stream.read(&mut buf)?;
+            let mut len = [0u8; 4];
+            len[2] = b[0] - 193;
+            len[3] = buf[0];
+            Ok(u32::from_be_bytes(len))
+        }
+        (241..) => {
+            let mut buf = [0u8; 2];
+            let _ = stream.read(&mut buf)?;
+            let mut len = [0u8; 4];
+            len[1] = b[0] - 241;
+            len[2] = buf[0];
+            len[3] = buf[1];
+            Ok(u32::from_be_bytes(len))
+        }
+    }
+}
+
+fn serialize_type(typ: SerializedTypeID, val: u32) -> Result<Vec<u8>, TransactionError> {
+    let typ = typ as u32;
+
+    if !(..256).contains(&typ) || !(..256).contains(&val) {
+        return Err(TransactionError::Message("Number out of range".to_string()));
+    }
+
+    if typ < 16 {
+        if val < 16 {
+            // common type, common val
+            Ok(vec![((typ << 4) | val) as u8])
+        } else {
+            // common type, uncommon val
+            let b0 = (typ << 4) as u8;
+            let b1 = val as u8;
+            Ok(vec![b0, b1])
+        }
+    } else if val < 16 {
+        // uncommon type, common val
+        let b0 = val as u8;
+        let b1 = typ as u8;
+        Ok(vec![b0, b1])
+    } else {
+        // uncommon type, uncommon val
+        let b0 = 0;
+        let b1 = typ as u8;
+        let b2 = val as u8;
+        Ok(vec![b0, b1, b2])
+    }
+}
+
+fn deserialize_type(stream: &mut &[u8]) -> Result<(u8, u8), TransactionError> {
+    let mut b = [0u8; 1];
+    let _ = stream.read(&mut b)?;
+
+    match (b[0] & 0xf0 == 0, b[0] & 0x0f == 0) {
+        // both higher and lower 4 bits are zero
+        (true, true) => {
+            let mut buf = [0u8; 2];
+            let _ = stream.read(&mut buf)?;
+            Ok((buf[0], buf[1]))
+        }
+        // only higher 4 bits are zero
+        (true, false) => {
+            let mut buf = [0u8; 1];
+            let _ = stream.read(&mut buf)?;
+            Ok((buf[0], b[0]))
+        }
+        // only lower 4 bits are zero
+        (false, true) => {
+            let mut buf = [0u8; 1];
+            let _ = stream.read(&mut buf)?;
+            Ok((b[0] >> 4, buf[0]))
+        }
+        // neither higher 4 bits nor lower 4 bits are zero
+        (false, false) => Ok(((b[0] & 0xf0) >> 4, b[0] & 0x0f)),
+    }
+}
+
 impl SerializedType {
-    fn type_id(&self) -> SerializedTypeID {
+    fn typ(&self) -> SerializedTypeID {
         match self {
             Self::Account { .. } => SerializedTypeID::Account,
             Self::Amount { .. } => SerializedTypeID::Amount,
@@ -407,7 +572,7 @@ impl SerializedType {
         }
     }
 
-    fn field_value(&self) -> u32 {
+    fn val(&self) -> u32 {
         match self {
             Self::Account { field_value, .. } => *field_value,
             Self::Amount { field_value, .. } => *field_value,
@@ -418,37 +583,41 @@ impl SerializedType {
         }
     }
 
-    fn serialize_field_id(&self) -> Result<Vec<u8>, TransactionError> {
-        Ok(serialize_field_id(self.type_id(), self.field_value()))
+    fn serialize_type(&self) -> Result<Vec<u8>, TransactionError> {
+        serialize_type(self.typ(), self.val())
     }
 
     fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         match self {
             Self::Amount { value, .. } => Ok(value.to_be_bytes().to_vec()),
             Self::Integer { value, .. } => Ok(value.to_be_bytes().to_vec()),
-            Self::Blob { buffer, .. } => Ok(buffer.clone()),
             Self::Account { account_id, .. } => {
-                let mut stream = serialize_len(account_id.len() as u32);
+                let mut stream = serialize_len(account_id.len() as u32)?;
                 stream.extend(account_id.to_vec());
+                Ok(stream)
+            }
+            Self::Blob { buffer, .. } => {
+                let mut stream = serialize_len(buffer.len() as u32)?;
+                stream.extend(buffer);
                 Ok(stream)
             }
             Self::Array { elems, .. } => {
                 let mut stream = vec![];
                 for elem in elems {
-                    stream.extend(elem.serialize_field_id()?);
+                    stream.extend(elem.serialize_type()?);
                     stream.extend(elem.serialize()?);
-                    stream.extend(serialize_field_id(SerializedTypeID::Object, 1))
+                    stream.extend(serialize_type(SerializedTypeID::Object, 1)?);
                 }
                 Ok(stream)
             }
             Self::Object { members, .. } => {
                 let mut stream = vec![];
                 for mem in members {
-                    stream.extend(mem.serialize_field_id()?);
+                    stream.extend(mem.serialize_type()?);
                     stream.extend(mem.serialize()?);
-                    match mem.type_id() {
+                    match mem.typ() {
                         SerializedTypeID::Array | SerializedTypeID::Object => {
-                            stream.extend(serialize_field_id(mem.type_id(), 1))
+                            stream.extend(serialize_type(mem.typ(), 1)?)
                         }
                         _ => {}
                     }
@@ -458,77 +627,173 @@ impl SerializedType {
         }
     }
 
-    fn deserialize(_stream: &[u8]) -> Result<Self, TransactionError> {
+    fn deserialize(
+        stream: &mut &[u8],
+        typ: SerializedTypeID,
+        field_value: u32,
+    ) -> Result<Self, TransactionError> {
+        match typ {
+            SerializedTypeID::Account => {
+                // Firstly we extract the length of the account id
+                let len = deserialize_len(stream)?;
+                if len != 20 {
+                    return Err(TransactionError::Message(format!(
+                        "Invalid account length {}",
+                        len,
+                    )));
+                }
 
+                // Then we extract the account id
+                let mut account_id = [0u8; 20];
+                let _ = stream.read(&mut account_id)?;
 
+                // Return the ST
+                Ok(SerializedType::Account {
+                    field_value,
+                    account_id,
+                })
+            }
+            SerializedTypeID::Amount => {
+                let mut value = [0u8; 8];
+                let _ = stream.read(&mut value)?;
+                let value = u64::from_be_bytes(value);
 
+                // Return the ST
+                Ok(SerializedType::Amount { field_value, value })
+            }
+            SerializedTypeID::Uint32 => {
+                let mut value = [0u8; 4];
+                let _ = stream.read(&mut value)?;
+                let value = u32::from_be_bytes(value);
 
+                // Return the ST
+                Ok(SerializedType::Integer { field_value, value })
+            }
+            SerializedTypeID::VL => {
+                // Firstly we extract the length of the blob
+                let len = deserialize_len(stream)?;
 
+                // Then we extract the blob according to its length
+                let mut buffer = vec![0u8; len as usize];
+                let _ = stream.read(&mut buffer)?;
 
+                // Return the ST
+                Ok(SerializedType::Blob {
+                    field_value,
+                    buffer,
+                })
+            }
+            SerializedTypeID::Array => {
+                let mut array = SerializedType::Array {
+                    field_value,
+                    elems: vec![],
+                };
+                loop {
+                    let (typ, fv) = deserialize_type(stream)?;
+                    let typ = SerializedTypeID::from_u8(typ)?;
 
+                    // we have reached the end of the array
+                    if typ == SerializedTypeID::Array && fv == 1 {
+                        break;
+                    }
 
+                    let st = Self::deserialize(stream, typ, fv as u32)?;
+                    array.add_member(st)?;
+                }
+                Ok(array)
+            }
+            SerializedTypeID::Object => {
+                let mut obj = SerializedType::Object {
+                    field_value,
+                    members: vec![],
+                };
+                loop {
+                    let (typ, fv) = deserialize_type(stream)?;
+                    let typ = SerializedTypeID::from_u8(typ)?;
 
-        todo!()
+                    // we have reached the end of the object
+                    if (typ == SerializedTypeID::Object || typ == SerializedTypeID::Array)
+                        && fv == 1
+                    {
+                        break;
+                    }
+
+                    let st = Self::deserialize(stream, typ, fv as u32)?;
+                    obj.add_member(st)?;
+                }
+                Ok(obj)
+            }
+        }
     }
 
-    fn add_field(&mut self, st: SerializedType) -> Result<(), TransactionError> {
-        if let SerializedType::Object { members, .. } = self {
-            members.push(st);
-            Ok(())
-        } else {
-            Err(TransactionError::Message(
-                "Adding fields to non object serialized type".to_string(),
-            ))
+    fn add_member(&mut self, st: SerializedType) -> Result<(), TransactionError> {
+        match self {
+            SerializedType::Object { members, .. } => {
+                members.push(st);
+                Ok(())
+            }
+            SerializedType::Array { elems, .. } => {
+                elems.push(st);
+                Ok(())
+            }
+            _ => Err(TransactionError::Message(
+                "Adding fields to neither an object or an array".to_string(),
+            )),
         }
     }
 }
 
-fn serialize_len(mut len: u32) -> Vec<u8> {
-    if len <= 192 {
-        vec![len as u8]
-    } else if len <= 12480 {
-        len -= 193;
-        let b0 = 193 + (len >> 8) as u8;
-        let b1 = (len & 0xff) as u8;
-        vec![b0, b1]
-    } else if len <= 918744 {
-        len -= 12481;
-        let b0 = 241 + (len >> 16) as u8;
-        let b1 = ((len >> 8) & 0xff) as u8;
-        let b2 = (len & 0xff) as u8;
-        vec![b0, b1, b2]
-    } else {
-        panic!("Maximum length exceeded");
+#[cfg(test)]
+mod tests {
+    use super::{RippleTransaction, RippleTransactionParameters};
+    use anychain_core::{
+        libsecp256k1::{self, Message, PublicKey, SecretKey},
+        Transaction,
+    };
+    use std::str::FromStr;
+
+    #[test]
+    fn tx_gen() {
+        let sk = [
+            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1,
+        ];
+
+        let sk = SecretKey::parse(&sk).unwrap();
+        let pk = PublicKey::from_secret_key(&sk);
+        let pk = pk.serialize_compressed();
+
+        let params = RippleTransactionParameters {
+            destination: [1u8; 20],
+            fee: 5000000,
+            sequence: 88888,
+            destination_tag: 333333,
+            amount: 10000000000,
+            memos: vec!["guai".to_string(), "xia".to_string(), "mao".to_string()],
+            public_key: pk,
+        };
+
+        let mut tx = RippleTransaction::new(&params).unwrap();
+
+        let txid = tx.to_transaction_id().unwrap().txid;
+
+        let msg = Message::parse_slice(&txid).unwrap();
+
+        let sig = libsecp256k1::sign(&msg, &sk).0.serialize().to_vec();
+
+        let tx = tx.sign(sig, 0).unwrap();
+        let tx = RippleTransaction::from_bytes(&tx).unwrap();
+
+        println!("tx = {:?}", tx);
+        println!("tx = {}", tx);
     }
-}
 
-fn serialize_field_id(typ: SerializedTypeID, name: u32) -> Vec<u8> {
-    let typ = typ as u32;
+    #[test]
+    fn tx_from_str() {
+        let tx = "811479b000887626b294a914501a4cd226b58b235983831401010101010101010101010101010101010101016800000000004c4b402400015b382e000516156100000002540be400f9ea7d04677561697c077061796d656e74e1ea7d037869617c077061796d656e74e1ea7d036d616f7c077061796d656e74e1f17321031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f";
+        let tx = RippleTransaction::from_str(tx).unwrap();
 
-    if !(..256).contains(&typ) || !(..256).contains(&name) {
-        panic!("Number out of range");
-    }
-
-    if typ < 16 {
-        if name < 16 {
-            // common type, common name
-            vec![((typ << 4) | name) as u8]
-        } else {
-            // common type, uncommon name
-            let b0 = (typ << 4) as u8;
-            let b1 = name as u8;
-            vec![b0, b1]
-        }
-    } else if name < 16 {
-        // uncommon type, common name
-        let b0 = name as u8;
-        let b1 = typ as u8;
-        vec![b0, b1]
-    } else {
-        // uncommon type, uncommon name
-        let b0 = 0;
-        let b1 = typ as u8;
-        let b2 = name as u8;
-        vec![b0, b1, b2]
+        println!("tx = {:?}", tx.params);
+        println!("tx = {}", tx);
     }
 }
