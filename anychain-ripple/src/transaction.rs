@@ -1,5 +1,4 @@
-use core::fmt;
-use std::{fmt::Display, str::FromStr};
+use std::{fmt, str::FromStr};
 
 use crate::{RippleAddress, RippleFormat, RipplePublicKey};
 use anychain_core::{
@@ -374,8 +373,8 @@ struct RippleTransactionId {
 
 impl TransactionId for RippleTransactionId {}
 
-impl Display for RippleTransactionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for RippleTransactionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{}", hex::encode(&self.txid))
     }
 }
