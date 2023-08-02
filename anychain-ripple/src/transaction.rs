@@ -192,7 +192,7 @@ impl RippleTransaction {
                 field_value: 4,
                 buffer: sig,
             };
-            st.add_member(sig)?;
+            st.add(sig)?;
         }
 
         Ok(st)
@@ -698,7 +698,7 @@ impl SerializedType {
                     }
 
                     let st = Self::deserialize(stream, typ, fv as u32)?;
-                    array.add_member(st)?;
+                    array.add(st)?;
                 }
                 Ok(array)
             }
@@ -712,21 +712,19 @@ impl SerializedType {
                     let typ = SerializedTypeID::from_u8(typ)?;
 
                     // we have reached the end of the object
-                    if (typ == SerializedTypeID::Object || typ == SerializedTypeID::Array)
-                        && fv == 1
-                    {
+                    if typ == SerializedTypeID::Object && fv == 1 {
                         break;
                     }
 
                     let st = Self::deserialize(stream, typ, fv as u32)?;
-                    obj.add_member(st)?;
+                    obj.add(st)?;
                 }
                 Ok(obj)
             }
         }
     }
 
-    fn add_member(&mut self, st: SerializedType) -> Result<(), TransactionError> {
+    fn add(&mut self, st: SerializedType) -> Result<(), TransactionError> {
         match self {
             SerializedType::Object { members, .. } => {
                 members.push(st);
@@ -776,9 +774,7 @@ mod tests {
         let mut tx = RippleTransaction::new(&params).unwrap();
 
         let txid = tx.to_transaction_id().unwrap().txid;
-
         let msg = Message::parse_slice(&txid).unwrap();
-
         let sig = libsecp256k1::sign(&msg, &sk).0.serialize().to_vec();
 
         let tx = tx.sign(sig, 0).unwrap();
@@ -790,10 +786,10 @@ mod tests {
 
     #[test]
     fn tx_from_str() {
-        let tx = "811479b000887626b294a914501a4cd226b58b235983831401010101010101010101010101010101010101016800000000004c4b402400015b382e000516156100000002540be400f9ea7d04677561697c077061796d656e74e1ea7d037869617c077061796d656e74e1ea7d036d616f7c077061796d656e74e1f17321031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f";
+        let tx = "811479b000887626b294a914501a4cd226b58b235983831401010101010101010101010101010101010101016800000000004c4b402400015b382e000516156100000002540be400f9ea7d04677561697c077061796d656e74e1ea7d037869617c077061796d656e74e1ea7d036d616f7c077061796d656e74e1f17321031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f74463044022004970d885118aef48db144f617d28a589a30e5f8db38bd6f839adef899b7fd2e02201f86dc30e6682be035e201d0d2c2eeca1997fbef50f083ef920f11c7faa4e651";
         let tx = RippleTransaction::from_str(tx).unwrap();
 
-        println!("tx = {:?}", tx.params);
+        println!("tx = {:?}", tx);
         println!("tx = {}", tx);
     }
 }

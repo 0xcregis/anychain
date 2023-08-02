@@ -142,6 +142,21 @@ impl Display for RippleAddress {
     }
 }
 
+impl RippleAddress {
+    pub fn to_hash160(&self) -> Result<[u8; 20], AddressError> {
+        let _ = Self::from_str(&self.0)?;
+        let btc_bs58 = to_btc_bs58(&self.0)?;
+        let bytes = btc_bs58.from_base58()?;
+
+        let mut ret = [0u8; 20];
+
+        // strip version bytes and checksum
+        ret.copy_from_slice(&bytes[1..21]);
+
+        Ok(ret)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
