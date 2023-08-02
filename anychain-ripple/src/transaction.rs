@@ -113,6 +113,12 @@ impl RippleTransaction {
         let mut account_id = [0u8; 20];
         account_id.copy_from_slice(&hash160(&self.params.public_key));
 
+        // It is a transaction of type 'payment'
+        let tx_type = SerializedType::Uint16 {
+            field_value: 2,
+            value: 0,
+        };
+
         let account = SerializedType::Account {
             field_value: 1,
             account_id,
@@ -128,12 +134,12 @@ impl RippleTransaction {
             value: self.params.fee as u64,
         };
 
-        let sequence = SerializedType::Integer {
+        let sequence = SerializedType::Uint32 {
             field_value: 4,
             value: self.params.sequence,
         };
 
-        let dest_tag = SerializedType::Integer {
+        let dest_tag = SerializedType::Uint32 {
             field_value: 14,
             value: self.params.destination_tag,
         };
@@ -178,7 +184,7 @@ impl RippleTransaction {
         let mut st = SerializedType::Object {
             field_value: 0,
             members: vec![
-                account, dest, fee, sequence, dest_tag, amount, memos, public_key,
+                tx_type, account, dest, fee, sequence, dest_tag, amount, memos, public_key,
             ],
         };
 
@@ -321,7 +327,7 @@ impl RippleTransaction {
                             )));
                         }
                     }
-                    SerializedType::Integer { field_value, value } => {
+                    SerializedType::Uint32 { field_value, value } => {
                         if *field_value == 4 {
                             sequence = *value;
                         } else if *field_value == 14 {
@@ -333,6 +339,7 @@ impl RippleTransaction {
                             )));
                         }
                     }
+                    SerializedType::Uint16 { .. } => {}
                     SerializedType::Object { .. } => {
                         return Err(TransactionError::Message(
                             "Serialized type 'object' not allowd in first layer deserialization"
@@ -381,6 +388,7 @@ impl fmt::Display for RippleTransactionId {
 
 #[derive(PartialEq)]
 enum SerializedTypeID {
+    Uint16 = 1,
     Uint32 = 2,
     Amount = 6,
     VL = 7,
@@ -393,6 +401,7 @@ enum SerializedTypeID {
 impl SerializedTypeID {
     fn from_u8(b: u8) -> Result<Self, TransactionError> {
         match b {
+            1 => Ok(Self::Uint16),
             2 => Ok(Self::Uint32),
             6 => Ok(Self::Amount),
             7 => Ok(Self::VL),
@@ -410,7 +419,8 @@ impl SerializedTypeID {
 impl fmt::Display for SerializedTypeID {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Uint32 => write!(f, "Integer"),
+            Self::Uint16 => write!(f, "Uint16"),
+            Self::Uint32 => write!(f, "Uint32"),
             Self::Amount => write!(f, "Amount"),
             Self::VL => write!(f, "Blob"),
             Self::Account => write!(f, "Account"),
@@ -432,7 +442,12 @@ enum SerializedType {
         value: u64,
     },
 
-    Integer {
+    Uint16 {
+        field_value: u32,
+        value: u16,
+    },
+
+    Uint32 {
         field_value: u32,
         value: u32,
     },
@@ -564,7 +579,8 @@ impl SerializedType {
         match self {
             Self::Account { .. } => SerializedTypeID::Account,
             Self::Amount { .. } => SerializedTypeID::Amount,
-            Self::Integer { .. } => SerializedTypeID::Uint32,
+            Self::Uint16 { .. } => SerializedTypeID::Uint16,
+            Self::Uint32 { .. } => SerializedTypeID::Uint32,
             Self::Blob { .. } => SerializedTypeID::VL,
             Self::Array { .. } => SerializedTypeID::Array,
             Self::Object { .. } => SerializedTypeID::Object,
@@ -575,7 +591,8 @@ impl SerializedType {
         match self {
             Self::Account { field_value, .. } => *field_value,
             Self::Amount { field_value, .. } => *field_value,
-            Self::Integer { field_value, .. } => *field_value,
+            Self::Uint16 { field_value, .. } => *field_value,
+            Self::Uint32 { field_value, .. } => *field_value,
             Self::Blob { field_value, .. } => *field_value,
             Self::Array { field_value, .. } => *field_value,
             Self::Object { field_value, .. } => *field_value,
@@ -589,7 +606,8 @@ impl SerializedType {
     fn serialize(&self) -> Result<Vec<u8>, TransactionError> {
         match self {
             Self::Amount { value, .. } => Ok(value.to_be_bytes().to_vec()),
-            Self::Integer { value, .. } => Ok(value.to_be_bytes().to_vec()),
+            Self::Uint16 { value, .. } => Ok(value.to_be_bytes().to_vec()),
+            Self::Uint32 { value, .. } => Ok(value.to_be_bytes().to_vec()),
             Self::Account { account_id, .. } => {
                 let mut stream = serialize_len(account_id.len() as u32)?;
                 stream.extend(account_id.to_vec());
@@ -660,13 +678,21 @@ impl SerializedType {
                 // Return the ST
                 Ok(SerializedType::Amount { field_value, value })
             }
+            SerializedTypeID::Uint16 => {
+                let mut value = [0u8; 2];
+                let _ = stream.read(&mut value)?;
+                let value = u16::from_be_bytes(value);
+
+                // Return the ST
+                Ok(SerializedType::Uint16 { field_value, value })
+            }
             SerializedTypeID::Uint32 => {
                 let mut value = [0u8; 4];
                 let _ = stream.read(&mut value)?;
                 let value = u32::from_be_bytes(value);
 
                 // Return the ST
-                Ok(SerializedType::Integer { field_value, value })
+                Ok(SerializedType::Uint32 { field_value, value })
             }
             SerializedTypeID::VL => {
                 // Firstly we extract the length of the blob
@@ -742,39 +768,55 @@ impl SerializedType {
 
 #[cfg(test)]
 mod tests {
+    use crate::{RippleFormat, RipplePublicKey};
+
     use super::{RippleTransaction, RippleTransactionParameters};
     use anychain_core::{
-        libsecp256k1::{self, Message, PublicKey, SecretKey},
-        Transaction,
+        libsecp256k1::{self, Message, SecretKey},
+        PublicKey, Transaction,
     };
     use std::str::FromStr;
 
     #[test]
     fn tx_gen() {
-        let sk = [
-            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1,
+        let sk_from = [
+            1u8, 1, 1, 1, 1, 117, 1, 1, 1, 1, 1, 1, 118, 1, 1, 92, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
         ];
 
-        let sk = SecretKey::parse(&sk).unwrap();
-        let pk = PublicKey::from_secret_key(&sk);
-        let pk = pk.serialize_compressed();
+        let sk_to = [
+            1u8, 1, 8, 1, 33, 17, 1, 1, 1, 99, 1, 1, 18, 1, 1, 2, 1, 1, 1, 1, 1, 37, 1, 1, 101, 7,
+            1, 1, 1, 0, 1, 2,
+        ];
+
+        let sk_from = SecretKey::parse(&sk_from).unwrap();
+        let sk_to = SecretKey::parse(&sk_to).unwrap();
+
+        let pk_from = RipplePublicKey::from_secret_key(&sk_from);
+        let pk_to = RipplePublicKey::from_secret_key(&sk_to);
+
+        let from = pk_from.to_address(&RippleFormat::Standard).unwrap();
+        let to = pk_to.to_address(&RippleFormat::Standard).unwrap();
+
+        println!("from = {}\nto = {}", from, to);
+
+        let pk_from = pk_from.serialize();
 
         let params = RippleTransactionParameters {
-            destination: [1u8; 20],
-            fee: 5000000,
-            sequence: 88888,
-            destination_tag: 333333,
-            amount: 10000000000,
+            destination: to.to_hash160().unwrap(),
+            fee: 50,
+            sequence: 0,
+            destination_tag: 0,
+            amount: 10000000,
             memos: vec!["guai".to_string(), "xia".to_string(), "mao".to_string()],
-            public_key: pk,
+            public_key: pk_from.try_into().unwrap(),
         };
 
         let mut tx = RippleTransaction::new(&params).unwrap();
 
         let txid = tx.to_transaction_id().unwrap().txid;
         let msg = Message::parse_slice(&txid).unwrap();
-        let sig = libsecp256k1::sign(&msg, &sk).0.serialize().to_vec();
+        let sig = libsecp256k1::sign(&msg, &sk_from).0.serialize().to_vec();
 
         let tx = tx.sign(sig, 0).unwrap();
         let tx = RippleTransaction::from_bytes(&tx).unwrap();
@@ -785,7 +827,7 @@ mod tests {
 
     #[test]
     fn tx_from_str() {
-        let tx = "811479b000887626b294a914501a4cd226b58b235983831401010101010101010101010101010101010101016800000000004c4b402400015b382e000516156100000002540be400f9ea7d04677561697c077061796d656e74e1ea7d037869617c077061796d656e74e1ea7d036d616f7c077061796d656e74e1f17321031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f74463044022004970d885118aef48db144f617d28a589a30e5f8db38bd6f839adef899b7fd2e02201f86dc30e6682be035e201d0d2c2eeca1997fbef50f083ef920f11c7faa4e651";
+        let tx = "120000811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998f68000000000000003224000000002e00000000610000000000989680f9ea7d04677561697c077061796d656e74e1ea7d037869617c077061796d656e74e1ea7d036d616f7c077061796d656e74e1f1732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e9974463044022046a546a2d962ebd230fe988091cfc25eeaf6a4196b8d13c486778324dd2087c302200b8c9ec1267c5f2978841b0f5eda07a71abb2a0bc0dc4141af0a7b835b929644";
         let tx = RippleTransaction::from_str(tx).unwrap();
 
         println!("tx = {:?}", tx);
