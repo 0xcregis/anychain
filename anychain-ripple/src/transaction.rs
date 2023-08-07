@@ -132,7 +132,7 @@ impl RippleTransaction {
 
         let fee = SerializedType::Amount {
             field_value: 8,
-            value: self.params.fee as u64,
+            value: self.params.fee as u64 | 0x4000000000000000,
         };
 
         let sequence = SerializedType::Uint32 {
@@ -147,7 +147,7 @@ impl RippleTransaction {
 
         let amount = SerializedType::Amount {
             field_value: 1,
-            value: self.params.amount,
+            value: self.params.amount | 0x4000000000000000,
         };
 
         let public_key = SerializedType::Blob {
@@ -860,9 +860,9 @@ mod tests {
         let params = RippleTransactionParameters {
             destination: to.to_hash160().unwrap(),
             fee: 500000,
-            sequence: 0,
+            sequence: 39998031,
             destination_tag: 50,
-            amount: 8888888,
+            amount: 100000000,
             memos: vec!["guai".to_string()],
             public_key: pk_from.try_into().unwrap(),
         };
@@ -882,7 +882,7 @@ mod tests {
 
     #[test]
     fn test_tx_from_str() {
-        let tx = "12000024000000002e0000003261000000000087a23868000000000007a120732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e9974473045022100c9abca9b820822f73a4a9b811adc10dbd67958a6ff0bc580aa17d84bd264937602202e7765229c0c35820d4734187b7e29cfb5f60aafb174cb1be16992c5ed241358811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998ff9ea7c077061796d656e747d0467756169e1f1";
+        let tx = "120000240262524f2e00000032614000000005f5e10068400000000007a120732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e997446304402200adf9912caaf33ef357031cd46a49c026e5780ca198b1d32dfd252f38fdde572022056b953c08d31b0d68ed6e9ffb810fd8deeefbad21d08f82527bbfa3ec6de0330811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998ff9ea7c077061796d656e747d0467756169e1f1";
         let tx = RippleTransaction::from_str(tx).unwrap();
 
         println!("tx = {:?}", tx);
