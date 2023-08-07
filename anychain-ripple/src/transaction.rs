@@ -1,5 +1,5 @@
-use std::{fmt, str::FromStr};
 use std::cmp::{Ord, Ordering};
+use std::{fmt, str::FromStr};
 
 use crate::{RippleAddress, RippleFormat, RipplePublicKey};
 use anychain_core::{
@@ -435,7 +435,7 @@ impl fmt::Display for SerializedTypeID {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord)]
+#[derive(Clone, Debug, Eq)]
 enum SerializedType {
     Account {
         field_value: u32,
@@ -479,7 +479,7 @@ impl PartialEq for SerializedType {
         let val0 = self.val();
         let typ1 = other.typ() as u32;
         let val1 = other.val();
-        
+
         typ0 == typ1 && val0 == val1
     }
 }
@@ -502,6 +502,12 @@ impl PartialOrd for SerializedType {
         } else {
             Some(Ordering::Equal)
         }
+    }
+}
+
+impl Ord for SerializedType {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
     }
 }
 
@@ -804,11 +810,13 @@ impl SerializedType {
 
     fn sort(&mut self) -> Result<(), TransactionError> {
         match self {
-            SerializedType::Object { members, ..} => {
+            SerializedType::Object { members, .. } => {
                 members.sort();
                 Ok(())
             }
-            _ => Err(TransactionError::Message("Sorting non-object ST".to_string()))
+            _ => Err(TransactionError::Message(
+                "Sorting non-object ST".to_string(),
+            )),
         }
     }
 }
@@ -819,7 +827,6 @@ mod tests {
 
     use super::{RippleTransaction, RippleTransactionParameters};
     use anychain_core::{
-        hex,
         libsecp256k1::{self, Message, SecretKey},
         PublicKey, Transaction,
     };
