@@ -201,7 +201,8 @@ impl RippleTransaction {
             st.add(sig)?;
         }
 
-        // sort the object's members by SerializedTypeID (ascend)
+        // Ascendingly sort the object's members by SerializedTypeID. If SerializedTypeIDs
+        // are equal, ascendingly sort them by field value
         st.sort()?;
 
         Ok(st)
