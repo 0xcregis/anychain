@@ -1,4 +1,5 @@
 use std::{fmt, str::FromStr};
+use std::cmp::{Ord, Ordering};
 
 use crate::{RippleAddress, RippleFormat, RipplePublicKey};
 use anychain_core::{
@@ -149,33 +150,6 @@ impl RippleTransaction {
             value: self.params.amount,
         };
 
-        let memos: Vec<SerializedType> = self
-            .params
-            .memos
-            .iter()
-            .map(|memo| {
-                let memo = SerializedType::Blob {
-                    field_value: 13,
-                    buffer: memo.as_bytes().to_vec(),
-                };
-
-                let memo_type = SerializedType::Blob {
-                    field_value: 12,
-                    buffer: "payment".as_bytes().to_vec(),
-                };
-
-                SerializedType::Object {
-                    field_value: 10,
-                    members: vec![memo, memo_type],
-                }
-            })
-            .collect();
-
-        let memos = SerializedType::Array {
-            field_value: 9,
-            elems: memos,
-        };
-
         let public_key = SerializedType::Blob {
             field_value: 3,
             buffer: self.params.public_key.to_vec(),
@@ -184,9 +158,36 @@ impl RippleTransaction {
         let mut st = SerializedType::Object {
             field_value: 0,
             members: vec![
-                tx_type, account, dest, fee, sequence, dest_tag, amount, memos, public_key,
+                tx_type, account, dest, fee, sequence, dest_tag, amount, public_key,
             ],
         };
+
+        let memos: Vec<SerializedType> = self
+            .params
+            .memos
+            .iter()
+            .map(|memo| {
+                let memo_type = SerializedType::Blob {
+                    field_value: 12,
+                    buffer: "payment".as_bytes().to_vec(),
+                };
+                let memo = SerializedType::Blob {
+                    field_value: 13,
+                    buffer: memo.as_bytes().to_vec(),
+                };
+                SerializedType::Object {
+                    field_value: 10,
+                    members: vec![memo_type, memo],
+                }
+            })
+            .collect();
+
+        if !memos.is_empty() {
+            st.add(SerializedType::Array {
+                field_value: 9,
+                elems: memos,
+            })?
+        }
 
         if let Some(sig) = &self.signature {
             let sig = Signature::parse_standard_slice(sig)?
@@ -199,6 +200,9 @@ impl RippleTransaction {
             };
             st.add(sig)?;
         }
+
+        // sort the object's members by SerializedTypeID (ascend)
+        st.sort()?;
 
         Ok(st)
     }
@@ -430,7 +434,7 @@ impl fmt::Display for SerializedTypeID {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Ord)]
 enum SerializedType {
     Account {
         field_value: u32,
@@ -466,6 +470,38 @@ enum SerializedType {
         field_value: u32,
         members: Vec<SerializedType>,
     },
+}
+
+impl PartialEq for SerializedType {
+    fn eq(&self, other: &Self) -> bool {
+        let typ0 = self.typ() as u32;
+        let val0 = self.val();
+        let typ1 = other.typ() as u32;
+        let val1 = other.val();
+        
+        typ0 == typ1 && val0 == val1
+    }
+}
+
+impl PartialOrd for SerializedType {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let typ0 = self.typ() as u32;
+        let val0 = self.val();
+        let typ1 = other.typ() as u32;
+        let val1 = other.val();
+
+        if typ0 < typ1 {
+            Some(Ordering::Less)
+        } else if typ0 > typ1 {
+            Some(Ordering::Greater)
+        } else if val0 < val1 {
+            Some(Ordering::Less)
+        } else if val0 > val1 {
+            Some(Ordering::Greater)
+        } else {
+            Some(Ordering::Equal)
+        }
+    }
 }
 
 fn serialize_len(mut len: u32) -> Result<Vec<u8>, TransactionError> {
@@ -764,6 +800,16 @@ impl SerializedType {
             )),
         }
     }
+
+    fn sort(&mut self) -> Result<(), TransactionError> {
+        match self {
+            SerializedType::Object { members, ..} => {
+                members.sort();
+                Ok(())
+            }
+            _ => Err(TransactionError::Message("Sorting non-object ST".to_string()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -772,13 +818,14 @@ mod tests {
 
     use super::{RippleTransaction, RippleTransactionParameters};
     use anychain_core::{
+        hex,
         libsecp256k1::{self, Message, SecretKey},
         PublicKey, Transaction,
     };
     use std::str::FromStr;
 
     #[test]
-    fn tx_gen() {
+    fn test_tx_gen() {
         let sk_from = [
             1u8, 1, 1, 1, 1, 117, 1, 1, 1, 1, 1, 1, 118, 1, 1, 92, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1,
@@ -804,11 +851,11 @@ mod tests {
 
         let params = RippleTransactionParameters {
             destination: to.to_hash160().unwrap(),
-            fee: 50,
+            fee: 500000,
             sequence: 0,
-            destination_tag: 0,
-            amount: 10000000,
-            memos: vec!["guai".to_string(), "xia".to_string(), "mao".to_string()],
+            destination_tag: 50,
+            amount: 8888888,
+            memos: vec!["guai".to_string()],
             public_key: pk_from.try_into().unwrap(),
         };
 
@@ -826,8 +873,8 @@ mod tests {
     }
 
     #[test]
-    fn tx_from_str() {
-        let tx = "120000811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998f68000000000000003224000000002e00000000610000000000989680f9ea7d04677561697c077061796d656e74e1ea7d037869617c077061796d656e74e1ea7d036d616f7c077061796d656e74e1f1732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e9974463044022046a546a2d962ebd230fe988091cfc25eeaf6a4196b8d13c486778324dd2087c302200b8c9ec1267c5f2978841b0f5eda07a71abb2a0bc0dc4141af0a7b835b929644";
+    fn test_tx_from_str() {
+        let tx = "12000024000000002e0000003261000000000087a23868000000000007a120732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e9974473045022100c9abca9b820822f73a4a9b811adc10dbd67958a6ff0bc580aa17d84bd264937602202e7765229c0c35820d4734187b7e29cfb5f60aafb174cb1be16992c5ed241358811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998ff9ea7c077061796d656e747d0467756169e1f1";
         let tx = RippleTransaction::from_str(tx).unwrap();
 
         println!("tx = {:?}", tx);
