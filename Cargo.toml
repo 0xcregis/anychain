@@ -56,6 +56,7 @@ clap = "4.3.10"
 primitive-types = { version = "0.11.1", features = ["rlp"] }
 
 [profile.release]
-debug = true
-lto = true
-codegen-units = 1
+strip = true       # Automatically strip symbols from the binary
+opt-level = "s"    # Optimize for size
+lto = true         # Enable link time optimization
+codegen-units = 1  # Maximize size reduction optimizations
