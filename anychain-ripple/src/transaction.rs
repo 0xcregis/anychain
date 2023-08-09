@@ -11,7 +11,7 @@ use anychain_core::{
 };
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
-struct RippleTransactionParameters {
+pub struct RippleTransactionParameters {
     destination: [u8; 20],
     fee: u32,
     sequence: u32,
@@ -22,7 +22,7 @@ struct RippleTransactionParameters {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
-struct RippleTransaction {
+pub struct RippleTransaction {
     pub params: RippleTransactionParameters,
     pub signature: Option<Vec<u8>>,
 }
@@ -379,7 +379,7 @@ impl RippleTransaction {
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
-struct RippleTransactionId {
+pub struct RippleTransactionId {
     pub txid: Vec<u8>,
 }
 
