@@ -146,15 +146,15 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
 impl<N: BitcoinNetwork> BitcoinAddress<N> {
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(BitcoinFormat::P2PKH)?.version();
-        address[1..21].copy_from_slice(&hash160(&public_key.serialize()));
+        let mut data = [0u8; 25];
+        data[0] = N::to_address_prefix(BitcoinFormat::P2PKH)?.version();
+        data[1..21].copy_from_slice(&hash160(&public_key.serialize()));
 
-        let sum = &checksum(&address[..21])[..4];
-        address[21..25].copy_from_slice(sum);
+        let checksum = &checksum(&data[..21])[..4];
+        data[21..].copy_from_slice(checksum);
 
         Ok(Self {
-            address: address.to_base58(),
+            address: data.to_base58(),
             format: BitcoinFormat::P2PKH,
             _network: PhantomData,
         })
@@ -185,15 +185,15 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
 
     /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
     pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
-        let mut address = [0u8; 25];
-        address[0] = N::to_address_prefix(BitcoinFormat::P2SH_P2WPKH)?.version();
-        address[1..21].copy_from_slice(&hash160(&Self::create_redeem_script(public_key)));
+        let mut data = [0u8; 25];
+        data[0] = N::to_address_prefix(BitcoinFormat::P2SH_P2WPKH)?.version();
+        data[1..21].copy_from_slice(&hash160(&Self::create_redeem_script(public_key)));
 
-        let sum = &checksum(&address[0..21])[0..4];
-        address[21..25].copy_from_slice(sum);
+        let checksum = &checksum(&data[..21])[..4];
+        data[21..].copy_from_slice(checksum);
 
         Ok(Self {
-            address: address.to_base58(),
+            address: data.to_base58(),
             format: BitcoinFormat::P2SH_P2WPKH,
             _network: PhantomData,
         })
@@ -346,10 +346,10 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
                         let checksum_provided = &data[21..];
                         if *checksum_gen != *checksum_provided {
                             return Err(AddressError::InvalidChecksum(
-                                address.to_string(),
                                 [data[..21].to_vec(), checksum_gen.to_vec()]
                                     .concat()
                                     .to_base58(),
+                                address.to_string(),
                             ));
                         }
                     }

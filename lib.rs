@@ -5,3 +5,4 @@ pub extern crate anychain_ethereum as ethereum;
 pub extern crate anychain_filecoin as filecoin;
 pub extern crate anychain_polkadot as polkadot;
 pub extern crate anychain_tron as tron;
+pub extern crate anychain_ripple as ripple;

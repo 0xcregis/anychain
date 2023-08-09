@@ -1,6 +1,6 @@
 # anychain-filecoin
 
-anychain-filecoin is a Rust library that provides a simple and unified interface for interacting with the Filecoin blockchain. It is designed to be easy to use, efficient, and extensible. This library is inspired by the anychain-bitcoin project and follows a similar structure and design principles.
+anychain-filecoin is a Rust library that provides a simple and unified interface for interacting with the Filecoin blockchain. It is designed to be easy to use, efficient, and extensible. This library is inspired by the anychain-filecoin project and follows a similar structure and design principles.
 
 ## Features
 

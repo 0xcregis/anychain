@@ -7,6 +7,7 @@ members = [
     "anychain-tron",
     "anychain-filecoin",
     "anychain-polkadot",
+    "anychain-ripple",
 ]
 
 [workspace.package]
