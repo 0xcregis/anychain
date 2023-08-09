@@ -55,15 +55,6 @@ impl Display for EIP155Transaction {
     }
 }
 
-// impl Serialize for EIP155Transaction {
-// 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-// 		where
-// 			S: Serializer {
-
-// 		serializer.serialize_str(&hex)
-// 	}
-// }
-
 fn main() {
     let matches = Command::new("anychain")
         .subcommands(vec![
@@ -345,7 +336,6 @@ fn towei(value: &str) -> Option<U256> {
     } else if value.ends_with("wei") {
         let value = value.trim_end_matches("wei");
         let value = value.parse::<f64>().unwrap();
-        println!("{}", value as u128);
         Some(U256::from(value as u128))
     } else {
         None

@@ -1,4 +1,5 @@
 [workspace]
 members = [
     "anychain-bitcoin-client",
+    "anychain-ethereum-cli",
 ]

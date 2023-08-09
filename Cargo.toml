@@ -4,7 +4,6 @@ members = [
     "anychain-bitcoin",
     "anychain-bitcoin-cli",
     "anychain-ethereum",
-    "anychain-ethereum-cli",
     "anychain-tron",
     "anychain-filecoin",
     "anychain-polkadot",
