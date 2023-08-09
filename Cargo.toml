@@ -29,7 +29,7 @@ bls-signatures = "0.13.0"
 base58 = { version = "0.2" }
 rand = { version = "0.8.5", default-features = false }
 rand_core = { version = "0.6.3", default-features = false }
-rlp = { version = "0.5.1", default-features = false }
+rlp = { version = "0.5.2", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 sha2 = { version = "0.10.2", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
@@ -51,6 +51,8 @@ protobuf = { version = "3.1.0" }
 chrono = "0.4"
 ethabi = "17.2.0"
 regex = { version = "1.3" }
+clap = "4.3.10"
+primitive-types = { version = "0.11.1", features = ["rlp"] }
 
 [profile.release]
 debug = true

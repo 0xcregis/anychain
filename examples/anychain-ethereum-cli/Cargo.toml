@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 anychain-core = { path = "../../anychain-core", version = "0.1.1" }
 anychain-ethereum = { path = "../../anychain-ethereum", version = "0.1.1" }
-clap = "4.3.10"
-rlp = { version = "0.5.2", features = ["derive"] }
-primitive-types = { version = "0.11.1", features = ["rlp"] }
+clap = { workspace = true }
+rlp = { workspace = true }
+primitive-types = { workspace = true }
