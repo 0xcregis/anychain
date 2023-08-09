@@ -1,0 +1,16 @@
+[package]
+name = "anychain-ethereum-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anychain-core = { path = "../anychain-core" }
+anychain-bitcoin = { path = "../anychain-bitcoin" }
+anychain-ethereum = { path = "../anychain-ethereum" }
+clap = "4.3.10"
+serde = { workspace = true }
+serde_json = { workspace = true }
+rlp = { version = "0.5.2", features = ["derive"] }
+primitive-types = { version = "0.11.1", features = ["rlp"] }
