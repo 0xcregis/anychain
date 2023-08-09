@@ -1,9 +1,6 @@
 pub mod address;
 pub use self::address::*;
 
-pub mod amount;
-pub use self::amount::*;
-
 pub mod format;
 pub use self::format::*;
 
