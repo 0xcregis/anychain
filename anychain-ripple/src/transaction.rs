@@ -376,6 +376,11 @@ impl RippleTransaction {
             ))
         }
     }
+
+    pub fn set_public_key(&mut self, pk: Vec<u8>) -> Result<(), TransactionError> {
+        self.params.public_key = pk.try_into().unwrap();
+        Ok(())
+    }
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
