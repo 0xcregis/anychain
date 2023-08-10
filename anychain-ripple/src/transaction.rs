@@ -12,13 +12,13 @@ use anychain_core::{
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct RippleTransactionParameters {
-    destination: [u8; 20],
-    fee: u32,
-    sequence: u32,
-    destination_tag: u32,
-    amount: u64,
-    memos: Vec<String>,
-    public_key: [u8; 33],
+    pub destination: [u8; 20],
+    pub fee: u32,
+    pub sequence: u32,
+    pub destination_tag: u32,
+    pub amount: u64,
+    pub memos: Vec<String>,
+    pub public_key: [u8; 33],
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
