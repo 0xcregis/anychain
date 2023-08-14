@@ -1,0 +1,38 @@
+[package]
+name = "anychain-kms"
+description = "A Rust library providing Key Management Schema for AnyChain. Handles general security and signature algorithms."
+version = "0.1.0"
+keywords = ["cryptography", "security", "signature", "algorithm"]
+
+# Workspace inherited keys
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+rustc-hash = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+bs58 = { workspace = true }
+pbkdf2 = { workspace = true }
+unicode-normalization = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+once_cell = { workspace = true }
+subtle = { workspace = true }
+ripemd = { workspace = true }
+hex = { workspace = true }
+libsecp256k1 = { workspace = true }
+encoding = { workspace = true }
+
+[dev-dependencies]
+hex-literal = "0.3"
+
+[features]
+default = ["std"]
+alloc = ["zeroize/alloc"]
+std = ["alloc"]
