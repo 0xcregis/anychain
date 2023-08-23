@@ -1,10 +1,9 @@
 use std::str::FromStr;
 
 use anychain_bitcoin::{
-    BitcoinAmount, BitcoinPublicKey,
+    BitcoinAddress, BitcoinAmount, BitcoinFormat, BitcoinPublicKey, BitcoinTestnet as Testnet,
     BitcoinTransaction, BitcoinTransactionInput, BitcoinTransactionOutput,
     BitcoinTransactionParameters, SignatureHash,
-    BitcoinAddress, BitcoinFormat, BitcoinTestnet as Testnet,
 };
 
 use anychain_core::{hex, libsecp256k1, Address, PublicKey, Transaction};
@@ -123,7 +122,7 @@ fn transaction_gen() {
         ),
     ];
 
-    for (i, item) in inputs.iter().enumerate() {
+    for (_i, item) in inputs.iter().enumerate() {
         let input = BitcoinTransactionInput::new(
             hex::decode(item.0).unwrap(),
             item.1,
