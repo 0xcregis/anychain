@@ -46,6 +46,16 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 | [`anychain-tron`]     | Tron impl.             | [![Crates.io](https://img.shields.io/crates/v/anychain-tron)][anychain-tron]          | [![Documentation](https://shields.io/docsrs/anychain-tron)][anychain-tron-docs]         |
 | [`anychain-ripple`]   | Ripple impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-ripple)][anychain-ripple]      | [![Documentation](https://shields.io/docsrs/anychain-ripple)][anychain-ripple-docs]     |
 
+## Supported Chains
+- Bitcoin
+- BitcoinCash
+- Dogecoin
+- Litecoin
+- Ethereum
+- Filecoin
+- Tron
+- Ripple
+
 ## License
 
 This project is licensed under the [MIT license][license].
