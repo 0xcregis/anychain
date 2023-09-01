@@ -60,6 +60,10 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 
 This project is licensed under the [MIT license][license].
 
+## Contact
+
+Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discussions on code and research.
+
 [`anychain-core`]: https://github.com/0xcregis/anychain/tree/main/anychain-core
 [`anychain-kms`]: https://github.com/0xcregis/anychain/tree/main/anychain-kms
 [`anychain-bitcoin`]: https://github.com/0xcregis/anychain/tree/main/anychain-bitcoin
