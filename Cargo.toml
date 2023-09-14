@@ -7,6 +7,7 @@ members = [
     "anychain-filecoin",
     "anychain-polkadot",
     "anychain-ripple",
+    "anychain-mina",
     "anychain-kms",
     "examples/*"
 ]

@@ -216,6 +216,12 @@ impl From<serde_json::error::Error> for TransactionError {
     }
 }
 
+impl From<std::string::FromUtf8Error> for TransactionError {
+    fn from(error: std::string::FromUtf8Error) -> Self {
+        TransactionError::Crate("std::string", format!("{:?}", error))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::func_selector;
