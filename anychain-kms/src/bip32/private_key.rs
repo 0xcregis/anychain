@@ -2,9 +2,8 @@
 
 use crate::bip32::{PublicKey, Result, KEY_SIZE};
 
-use crate::bip32::{Error, XPrv};
+use crate::bip32::{Error, XprvSecp256k1};
 
-use libsecp256k1;
 /// Bytes which represent a private key.
 pub type PrivateKeyBytes = [u8; KEY_SIZE];
 
@@ -55,15 +54,34 @@ impl PrivateKey for libsecp256k1::SecretKey {
     }
 }
 
-impl From<XPrv> for libsecp256k1::SecretKey {
-    fn from(xprv: XPrv) -> libsecp256k1::SecretKey {
+impl From<XprvSecp256k1> for libsecp256k1::SecretKey {
+    fn from(xprv: XprvSecp256k1) -> libsecp256k1::SecretKey {
         libsecp256k1::SecretKey::from(&xprv)
     }
 }
 
-impl From<&XPrv> for libsecp256k1::SecretKey {
-    fn from(xprv: &XPrv) -> libsecp256k1::SecretKey {
+impl From<&XprvSecp256k1> for libsecp256k1::SecretKey {
+    fn from(xprv: &XprvSecp256k1) -> libsecp256k1::SecretKey {
         *xprv.private_key()
+    }
+}
+
+impl PrivateKey for anychain_mina::SecretKey {
+    type PublicKey = anychain_mina::MinaPublicKey;
+    fn from_bytes(bytes: &PrivateKeyBytes) -> Result<Self> {
+        todo!()
+    }
+
+    fn to_bytes(&self) -> PrivateKeyBytes {
+        todo!()
+    }
+
+    fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
+        todo!()
+    }
+
+    fn public_key(&self) -> Self::PublicKey {
+        todo!()
     }
 }
 

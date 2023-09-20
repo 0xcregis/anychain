@@ -115,7 +115,7 @@ impl Drop for ExtendedKey {
 #[cfg(test)]
 mod tests {
     use crate::bip32::Prefix;
-    use crate::bip32::{DerivationPath, ExtendedKey, XPrv};
+    use crate::bip32::{DerivationPath, ExtendedKey, XprvSecp256k1};
     use alloc::string::ToString;
     use hex_literal::hex;
 
@@ -190,7 +190,7 @@ mod tests {
         let _seed = hex::decode("4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
         let seed2 = "4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be".as_bytes();
         let path: DerivationPath = "m/44'/60/0'/10001".parse().unwrap();
-        let xprv = XPrv::new_from_path(seed2, &path).unwrap();
+        let xprv = XprvSecp256k1::new_from_path(seed2, &path).unwrap();
         println!("xprv: {}", xprv.to_extended_key(Prefix::XPRV));
 
         let xpub = xprv.public_key();
