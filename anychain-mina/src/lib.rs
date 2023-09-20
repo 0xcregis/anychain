@@ -1,5 +1,11 @@
+mod secret_key;
+pub use secret_key::*;
+
 mod public_key;
 pub use public_key::MinaPublicKey;
+
+mod keypair;
+pub use keypair::{Keypair, KeypairError};
 
 mod address;
 pub use address::*;
@@ -10,21 +16,17 @@ pub use format::*;
 mod transaction;
 pub use transaction::*;
 
-mod curves;
 mod hasher;
+pub use hasher::{DomainParameter, Hashable};
+
+mod curves;
 mod poseidon;
 mod utils;
 
-mod keypair;
 mod schnorr;
-mod secret_key;
 mod signature;
 
-use hasher::{DomainParameter, Hashable};
-use keypair::Keypair;
-use secret_key::SecretKey;
 use signature::Signature;
-
 use ark_ec::AffineCurve;
 
 /// Affine curve point type
@@ -35,28 +37,6 @@ type BaseField = <CurvePoint as AffineCurve>::BaseField;
 
 /// Scalar field element type
 type ScalarField = <CurvePoint as AffineCurve>::ScalarField;
-
-/// Mina network (or blockchain) identifier
-#[derive(Debug, Clone)]
-pub enum NetworkId {
-    /// Id for all testnets
-    Testnet = 0x00,
-
-    /// Id for mainnet
-    Mainnet = 0x01,
-}
-
-impl From<NetworkId> for u8 {
-    fn from(id: NetworkId) -> u8 {
-        id as u8
-    }
-}
-
-impl DomainParameter for NetworkId {
-    fn into_bytes(self) -> Vec<u8> {
-        vec![self as u8]
-    }
-}
 
 /// Interface for signed objects
 ///
