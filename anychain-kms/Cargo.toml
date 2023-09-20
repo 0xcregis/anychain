@@ -12,6 +12,8 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+anychain-core = { path = "../anychain-core", version = "0.1.2" }
+anychain-mina = { path = "../anychain-mina", version = "0.1.0" }
 rustc-hash = { workspace = true }
 rand = { workspace = true }
 sha2 = { workspace = true }

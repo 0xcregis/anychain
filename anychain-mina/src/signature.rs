@@ -19,6 +19,12 @@ impl Signature {
     pub fn new(rx: BaseField, s: ScalarField) -> Self {
         Self { rx, s }
     }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut sig = self.rx.to_bytes();
+        sig.extend(self.s.to_bytes());
+        sig
+    }
 }
 
 impl fmt::Display for Signature {

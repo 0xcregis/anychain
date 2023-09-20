@@ -10,14 +10,26 @@ pub mod crypto;
 pub mod error;
 
 use error::Error;
+use anychain_mina::{Keypair, Signer};
 
-pub fn ecdsa_sign(
+pub fn secp256k1_sign(
     secret_key: &libsecp256k1::SecretKey,
     bytes: &[u8],
 ) -> Result<(Vec<u8>, u8), Error> {
     let message = libsecp256k1::Message::parse_slice(bytes)?;
     let (signature, recid) = libsecp256k1::sign(&message, secret_key);
     Ok((signature.serialize().to_vec(), recid.into()))
+}
+
+pub fn pasta_sign(
+    secret_key: anychain_mina::SecretKey,
+    tx_params: &anychain_mina::MinaTransactionParameters,
+    network: anychain_mina::NetworkId
+) -> Result<Vec<u8>, Error> {
+    let kp = Keypair::from_secret_key(secret_key)?;
+    let mut ctx = anychain_mina::create_legacy(network);
+    let signature = ctx.sign(&kp, tx_params);
+    Ok(signature.to_vec())
 }
 
 #[cfg(test)]
