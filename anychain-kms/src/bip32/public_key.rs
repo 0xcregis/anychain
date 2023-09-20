@@ -4,7 +4,7 @@ use crate::bip32::{KeyFingerprint, PrivateKeyBytes, Result, KEY_SIZE};
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
-use crate::bip32::XPub;
+use crate::bip32::XpubSecp256k1;
 
 use crate::bip32::Error;
 
@@ -54,33 +54,46 @@ impl PublicKey for libsecp256k1::PublicKey {
     }
 }
 
-impl From<XPub> for libsecp256k1::PublicKey {
-    fn from(xpub: XPub) -> libsecp256k1::PublicKey {
+impl From<XpubSecp256k1> for libsecp256k1::PublicKey {
+    fn from(xpub: XpubSecp256k1) -> libsecp256k1::PublicKey {
         libsecp256k1::PublicKey::from(&xpub)
     }
 }
 
-impl From<&XPub> for libsecp256k1::PublicKey {
-    fn from(xpub: &XPub) -> libsecp256k1::PublicKey {
+impl From<&XpubSecp256k1> for libsecp256k1::PublicKey {
+    fn from(xpub: &XpubSecp256k1) -> libsecp256k1::PublicKey {
         *xpub.public_key()
+    }
+}
+
+impl PublicKey for anychain_mina::MinaPublicKey {
+    fn from_bytes(bytes: PublicKeyBytes) -> Result<Self> {
+        todo!()   
+    }
+
+    fn to_bytes(&self) -> PublicKeyBytes {
+        todo!()
+    }
+
+    fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
+        todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
+    use crate::bip32::XprvSecp256k1;
 
     const SEED: [u8; 64] = hex!(
         "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2
          9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
     );
 
-    type XPrv = crate::bip32::ExtendedPrivateKey<libsecp256k1::SecretKey>;
-
     #[test]
     fn secp256k1_xprv_derivation() {
         let path = "m/0/2147483647'/1/2147483646'/2";
-        let xprv = XPrv::new_from_path(SEED, &path.parse().unwrap()).unwrap();
+        let xprv = XprvSecp256k1::new_from_path(SEED, &path.parse().unwrap()).unwrap();
 
         assert_eq!(
             xprv.public_key(),
@@ -91,7 +104,7 @@ mod tests {
     #[test]
     fn secp256k1_ffi_xpub_derivation() {
         let path = "m/0/2147483647'/1/2147483646'";
-        let xprv = XPrv::new_from_path(SEED, &path.parse().unwrap()).unwrap();
+        let xprv = XprvSecp256k1::new_from_path(SEED, &path.parse().unwrap()).unwrap();
         let xpub = xprv.public_key().derive_child(2.into()).unwrap();
 
         assert_eq!(

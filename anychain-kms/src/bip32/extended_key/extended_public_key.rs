@@ -12,7 +12,8 @@ use alloc::string::{String, ToString};
 
 /// Extended public secp256k1 ECDSA verification key.
 
-pub type XPub = ExtendedPublicKey<libsecp256k1::PublicKey>;
+pub type XpubSecp256k1 = ExtendedPublicKey<libsecp256k1::PublicKey>;
+pub type XpubPasta = ExtendedPublicKey<anychain_mina::MinaPublicKey>;
 /// Extended public keys derived using BIP32.
 ///
 /// Generic around a [`PublicKey`] type. When the `secp256k1` feature of this

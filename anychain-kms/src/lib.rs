@@ -34,7 +34,7 @@ pub fn pasta_sign(
 
 #[cfg(test)]
 mod tests {
-    use crate::bip32::{ChildNumber, DerivationPath, Prefix, XPrv, XPub};
+    use crate::bip32::{ChildNumber, DerivationPath, Prefix, XprvSecp256k1, XpubSecp256k1};
     use crate::bip39::{Language, Mnemonic, Seed};
 
     #[test]
@@ -49,7 +49,7 @@ mod tests {
         println!("seed:{:X}", seed);
 
         let path: DerivationPath = "m/44'/196'/300049'/0".parse().unwrap();
-        let xprv = XPrv::new_from_path(seed, &path).unwrap();
+        let xprv = XprvSecp256k1::new_from_path(seed, &path).unwrap();
         let _ek = xprv.to_extended_key(Prefix::XPRV);
         println!("xprv:{:?}", xprv);
         let cp: ChildNumber = 1u32.into();
@@ -69,7 +69,7 @@ mod tests {
         //let phrase = mnemonic.phrase();
         let seed = Seed::new(&mnemonic, "");
         // let path: DerivationPath = "m".parse().unwrap();
-        let xprv = XPrv::new(seed).unwrap();
+        let xprv = XprvSecp256k1::new(seed).unwrap();
         let _secret = xprv.private_key();
         //let ek = xprv.to_extended_key(Prefix::XPRV);
         println!("xprv:{:}", xprv.to_string(Prefix::XPRV).as_str());
@@ -83,8 +83,8 @@ mod tests {
         //let phrase = mnemonic.phrase();
         let seed = Seed::new(&mnemonic, "");
         let path: DerivationPath = "m/44'/60".parse().unwrap();
-        let xprv = XPrv::new_from_path(seed, &path).unwrap();
-        let xpub: XPub = xprv.public_key();
+        let xprv = XprvSecp256k1::new_from_path(seed, &path).unwrap();
+        let xpub: XpubSecp256k1 = xprv.public_key();
 
         println!("{}", xpub.to_string(Prefix::XPUB));
     }

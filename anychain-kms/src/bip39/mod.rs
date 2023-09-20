@@ -19,7 +19,7 @@ pub use seed::Seed;
 #[cfg(test)]
 mod test_mod {
     use super::*;
-    use crate::bip32::{Prefix, XPrv};
+    use crate::bip32::{Prefix, XprvSecp256k1};
     const VECTORS: [[&str;4];24] = [
         [
             "00000000000000000000000000000000",
@@ -176,7 +176,7 @@ mod test_mod {
             assert_eq!(item[0], hex::encode(mnemonic.entropy()));
             assert_eq!(item[1], mnemonic.phrase());
             assert_eq!(item[2], format!("{:x}", seed));
-            let xprv = XPrv::new(seed).unwrap();
+            let xprv = XprvSecp256k1::new(seed).unwrap();
             assert_eq!(item[3], xprv.to_extended_key(Prefix::XPRV).to_string());
         })
     }
