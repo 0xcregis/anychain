@@ -1,6 +1,6 @@
 use anychain_core::{Address, AddressError, PublicKey};
 
-use crate::secret_key::SecretKey;
+use crate::secret_key::MinaSecretKey;
 use crate::{MinaFormat, MinaPublicKey};
 
 use std::{fmt::Display, str::FromStr};
@@ -11,7 +11,7 @@ pub struct MinaAddress(String);
 impl Address for MinaAddress {
     type Format = MinaFormat;
     type PublicKey = MinaPublicKey;
-    type SecretKey = SecretKey;
+    type SecretKey = MinaSecretKey;
 
     fn from_secret_key(
         secret_key: &Self::SecretKey,

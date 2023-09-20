@@ -4,7 +4,7 @@
 
 use crate::{
     public_key::PubKeyError, secret_key::SecKeyError, CurvePoint, MinaPublicKey, ScalarField,
-    SecretKey,
+    MinaSecretKey,
 };
 use core::fmt;
 use rand::{self, CryptoRng, RngCore};
@@ -30,7 +30,7 @@ pub type Result<T> = std::result::Result<T, KeypairError>;
 #[derive(Clone, PartialEq, Eq)]
 pub struct Keypair {
     /// Secret key
-    pub(crate) secret: SecretKey,
+    pub(crate) secret: MinaSecretKey,
     /// Public key
     pub public: MinaPublicKey,
 }
@@ -40,13 +40,13 @@ impl Keypair {
     /// Note: Does not check point `public` is on curve
     pub fn from_parts_unsafe(secret: ScalarField, public: CurvePoint) -> Self {
         Self {
-            secret: SecretKey::new(secret),
+            secret: MinaSecretKey::new(secret),
             public: MinaPublicKey::from_point_unsafe(public),
         }
     }
 
     /// Create keypair from secret key
-    pub fn from_secret_key(secret_key: SecretKey) -> Result<Self> {
+    pub fn from_secret_key(secret_key: MinaSecretKey) -> Result<Self> {
         let public = MinaPublicKey::from_secret_key(secret_key.clone())?;
 
         // Safe now because MinaPublicKey::from_secret_key() checked point is on the curve
@@ -58,7 +58,7 @@ impl Keypair {
 
     /// Generate random keypair
     pub fn rand(rng: &mut (impl RngCore + CryptoRng)) -> Result<Self> {
-        let sec_key: SecretKey = SecretKey::rand(rng);
+        let sec_key: MinaSecretKey = MinaSecretKey::rand(rng);
         Keypair::from_secret_key(sec_key)
     }
 
@@ -68,7 +68,7 @@ impl Keypair {
     ///
     /// Will give error if `bytes` do not match certain requirements.
     pub fn from_bytes(secret_bytes: &[u8]) -> Result<Self> {
-        let secret = SecretKey::from_bytes(secret_bytes)?;
+        let secret = MinaSecretKey::from_bytes(secret_bytes)?;
         Keypair::from_secret_key(secret)
     }
 
@@ -78,7 +78,7 @@ impl Keypair {
     ///
     /// Will give error if `hex` string does not match certain requirements.
     pub fn from_hex(secret_hex: &str) -> Result<Self> {
-        let secret = SecretKey::from_hex(secret_hex)?;
+        let secret = MinaSecretKey::from_hex(secret_hex)?;
         Keypair::from_secret_key(secret)
     }
 
