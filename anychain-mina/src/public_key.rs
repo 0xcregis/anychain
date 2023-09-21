@@ -13,7 +13,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::utils::FieldHelpers;
-use crate::{BaseField, CurvePoint, MinaAddress, MinaFormat, ScalarField, SecretKey};
+use crate::{BaseField, CurvePoint, MinaAddress, MinaFormat, ScalarField, MinaSecretKey};
 
 /// Public key errors
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -84,7 +84,7 @@ pub struct MinaPublicKey(CurvePoint);
 
 impl PublicKey for MinaPublicKey {
     type Address = MinaAddress;
-    type SecretKey = SecretKey;
+    type SecretKey = MinaSecretKey;
     type Format = MinaFormat;
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
@@ -150,7 +150,7 @@ impl MinaPublicKey {
     }
 
     /// Create public key from a secret key
-    pub fn from_secret_key(secret_key: SecretKey) -> Result<Self> {
+    pub fn from_secret_key(secret_key: MinaSecretKey) -> Result<Self> {
         if secret_key.clone().into_scalar() == ScalarField::zero() {
             return Err(PubKeyError::SecretKey);
         }
@@ -330,7 +330,7 @@ impl CompressedPubKey {
     }
 
     /// Create compressed public key from a secret key
-    pub fn from_secret_key(sec_key: SecretKey) -> Self {
+    pub fn from_secret_key(sec_key: MinaSecretKey) -> Self {
         // We do not need to check point is on the curve, since it's derived directly from the generator point
         let public = MinaPublicKey::from_point_unsafe(
             CurvePoint::prime_subgroup_generator()
@@ -379,7 +379,7 @@ impl From<PubKeyError> for PublicKeyError {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MinaPublicKey, SecretKey};
+    use crate::{MinaPublicKey, MinaSecretKey};
 
     #[test]
     fn test() {
@@ -388,7 +388,7 @@ mod tests {
             25, 26, 27, 28, 29, 30, 31, 32,
         ];
 
-        let sk = SecretKey::from_bytes(&sk).unwrap();
+        let sk = MinaSecretKey::from_bytes(&sk).unwrap();
 
         let pk = MinaPublicKey::from_secret_key(sk).unwrap();
         let addr = pk.into_address();

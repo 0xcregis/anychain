@@ -37,9 +37,9 @@ pub const MINA_SEC_KEY_LEN: usize = 52;
 
 /// Secret key
 #[derive(Clone, Debug, PartialEq, Eq)] // No Debug nor Display
-pub struct SecretKey(ScalarField);
+pub struct MinaSecretKey(ScalarField);
 
-impl SecretKey {
+impl MinaSecretKey {
     /// Generate a random secret key
     pub fn rand(rng: &mut (impl RngCore + CryptoRng)) -> Self {
         let secret: ScalarField = ScalarField::rand(rng);
@@ -66,7 +66,7 @@ impl SecretKey {
         sec_bytes.reverse(); // mina scalars hex format is in big-endian order
         let secret =
             ScalarField::from_bytes(&sec_bytes).map_err(|_| SecKeyError::SecretKeyBytes)?;
-        Ok(SecretKey(secret))
+        Ok(MinaSecretKey(secret))
     }
 
     /// Deserialize secret key from hex
@@ -76,7 +76,7 @@ impl SecretKey {
     /// Will give error if `hex` string does not match certain requirements.
     pub fn from_hex(secret_hex: &str) -> Result<Self> {
         let bytes: Vec<u8> = hex::decode(secret_hex).map_err(|_| SecKeyError::SecretKeyHex)?;
-        SecretKey::from_bytes(&bytes)
+        MinaSecretKey::from_bytes(&bytes)
     }
 
     /// Deserialize base58 encoded secret key

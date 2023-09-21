@@ -22,7 +22,7 @@ pub fn secp256k1_sign(
 }
 
 pub fn pasta_sign(
-    secret_key: anychain_mina::SecretKey,
+    secret_key: anychain_mina::MinaSecretKey,
     tx_params: &anychain_mina::MinaTransactionParameters,
     network: anychain_mina::NetworkId
 ) -> Result<Vec<u8>, Error> {

@@ -66,7 +66,7 @@ impl From<&XprvSecp256k1> for libsecp256k1::SecretKey {
     }
 }
 
-impl PrivateKey for anychain_mina::SecretKey {
+impl PrivateKey for anychain_mina::MinaSecretKey {
     type PublicKey = anychain_mina::MinaPublicKey;
     fn from_bytes(bytes: &PrivateKeyBytes) -> Result<Self> {
         todo!()
