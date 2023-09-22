@@ -1,12 +1,15 @@
 //! Trait for deriving child keys on a given type.
 
+use std::ops::Add;
+
 use crate::bip32::{KeyFingerprint, PrivateKeyBytes, Result, KEY_SIZE};
+use anychain_mina::CompressedPubKey;
+use anychain_mina::MinaSecretKey;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
+use super::PrivateKey;
 use crate::bip32::XpubSecp256k1;
-
-use crate::bip32::Error;
 
 /// Bytes which represent a public key.
 ///
@@ -35,10 +38,7 @@ pub trait PublicKey: Sized {
 
 impl PublicKey for libsecp256k1::PublicKey {
     fn from_bytes(bytes: PublicKeyBytes) -> Result<Self> {
-        match libsecp256k1::PublicKey::parse_compressed(&bytes) {
-            Ok(pubkey) => Ok(pubkey),
-            Err(_) => Err(Error::Crypto),
-        }
+        Ok(libsecp256k1::PublicKey::parse_compressed(&bytes)?)
     }
 
     fn to_bytes(&self) -> PublicKeyBytes {
@@ -47,10 +47,8 @@ impl PublicKey for libsecp256k1::PublicKey {
 
     fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
         let mut cpk = *self;
-        match cpk.tweak_add_assign(&libsecp256k1::SecretKey::parse(&other).unwrap()) {
-            Ok(_) => Ok(cpk),
-            Err(_) => Err(Error::Crypto),
-        }
+        cpk.tweak_add_assign(&libsecp256k1::SecretKey::from_bytes(&other)?)?;
+        Ok(cpk)
     }
 }
 
@@ -68,22 +66,29 @@ impl From<&XpubSecp256k1> for libsecp256k1::PublicKey {
 
 impl PublicKey for anychain_mina::MinaPublicKey {
     fn from_bytes(bytes: PublicKeyBytes) -> Result<Self> {
-        todo!()   
+        let compressed_pk = CompressedPubKey::from_bytes(&bytes)?;
+        let address = compressed_pk.to_address();
+        Ok(Self::from_address(&address)?)
     }
 
     fn to_bytes(&self) -> PublicKeyBytes {
-        todo!()
+        let mut bytes = [0u8; 33];
+        bytes.copy_from_slice(&self.into_compressed().to_bytes());
+        bytes
     }
 
     fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
-        todo!()
+        let tweak_sk = MinaSecretKey::from_bytes(&other)?;
+        let tweak_pk = Self::from_secret_key(tweak_sk)?;
+        let point = self.point().add(tweak_pk.into_point());
+        Ok(Self::from_point_unsafe(point))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hex_literal::hex;
     use crate::bip32::XprvSecp256k1;
+    use hex_literal::hex;
 
     const SEED: [u8; 64] = hex!(
         "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2

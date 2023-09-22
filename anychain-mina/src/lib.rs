@@ -2,7 +2,7 @@ mod secret_key;
 pub use secret_key::*;
 
 mod public_key;
-pub use public_key::MinaPublicKey;
+pub use public_key::*;
 
 mod keypair;
 pub use keypair::{Keypair, KeypairError};
@@ -26,8 +26,8 @@ mod utils;
 mod schnorr;
 mod signature;
 
-use signature::Signature;
 use ark_ec::AffineCurve;
+use signature::Signature;
 
 /// Affine curve point type
 use crate::curves::Pallas as CurvePoint;

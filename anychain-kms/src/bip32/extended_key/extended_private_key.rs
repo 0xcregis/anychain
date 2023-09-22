@@ -94,8 +94,7 @@ where
     pub fn derive_child(&self, child_number: ChildNumber) -> Result<Self> {
         let depth = self.attrs.depth.checked_add(1).ok_or(Error::Depth)?;
 
-        let mut hmac =
-            HmacSha512::new_from_slice(&self.attrs.chain_code).map_err(|_| Error::Crypto)?;
+        let mut hmac = HmacSha512::new_from_slice(&self.attrs.chain_code)?;
 
         if child_number.is_hardened() {
             hmac.update(&[0]);
@@ -246,7 +245,7 @@ where
                 attrs: extended_key.attrs.clone(),
             })
         } else {
-            Err(Error::Crypto)
+            Err(Error::Crypto("try from extended key", "".to_string()))
         }
     }
 }

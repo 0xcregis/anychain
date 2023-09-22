@@ -8,7 +8,7 @@ use hmac::digest::InvalidLength;
 pub type Result<T> = core::result::Result<T, Error>;
 
 /// Error type.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Error {
     /// Base58 errors.
@@ -21,7 +21,7 @@ pub enum Error {
     ChildNumber,
 
     /// Cryptographic errors.
-    Crypto,
+    Crypto(&'static str, String),
 
     /// Decoding errors (not related to Base58).
     Decode,
@@ -39,7 +39,7 @@ impl Display for Error {
             Error::Base58 => f.write_str("base58 error"),
             Error::Bip39 => f.write_str("bip39 error"),
             Error::ChildNumber => f.write_str("invalid child number"),
-            Error::Crypto => f.write_str("cryptographic error"),
+            Error::Crypto(_, _) => f.write_str("cryptographic error"),
             Error::Decode => f.write_str("decoding error"),
             Error::Depth => f.write_str("maximum derivation depth exceeded"),
             Error::SeedLength => f.write_str("seed length invalid"),
@@ -67,37 +67,26 @@ impl From<core::array::TryFromSliceError> for Error {
     }
 }
 
-/*
-impl From<digest::InvalidKeyLength> for Error {
-    fn from(_: hmac::crypto_mac::InvalidKeyLength) -> Error {
-        Error::Crypto
-    }
-
-}
- */
-
 impl From<InvalidLength> for Error {
-    fn from(_: InvalidLength) -> Error {
-        Error::Crypto
+    fn from(error: InvalidLength) -> Error {
+        Error::Crypto("", format!("{:?}", error))
     }
 }
-/*
-impl From<k256::elliptic_curve::Error> for Error {
-    fn from(_: k256::elliptic_curve::Error) -> Error {
-        Error::Crypto
-    }
-}
-
-
-impl From<k256::ecdsa::Error> for Error {
-    fn from(_: k256::ecdsa::Error) -> Error {
-        Error::Crypto
-    }
-}
-*/
 
 impl From<libsecp256k1::Error> for Error {
-    fn from(_: libsecp256k1::Error) -> Error {
-        Error::Crypto
+    fn from(error: libsecp256k1::Error) -> Error {
+        Error::Crypto("", format!("{:?}", error))
+    }
+}
+
+impl From<anychain_mina::SecKeyError> for Error {
+    fn from(error: anychain_mina::SecKeyError) -> Self {
+        Error::Crypto("mina secret key error", format!("{:?}", error))
+    }
+}
+
+impl From<anychain_mina::PubKeyError> for Error {
+    fn from(error: anychain_mina::PubKeyError) -> Self {
+        Error::Crypto("mina public key error", format!("{:?}", error))
     }
 }

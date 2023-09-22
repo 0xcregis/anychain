@@ -3,8 +3,8 @@
 //! Definition of secret key, keypairs and related helpers
 
 use crate::{
-    public_key::PubKeyError, secret_key::SecKeyError, CurvePoint, MinaPublicKey, ScalarField,
-    MinaSecretKey,
+    public_key::PubKeyError, secret_key::SecKeyError, CurvePoint, MinaPublicKey, MinaSecretKey,
+    ScalarField,
 };
 use core::fmt;
 use rand::{self, CryptoRng, RngCore};

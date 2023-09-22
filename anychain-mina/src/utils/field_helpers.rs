@@ -65,7 +65,7 @@ impl<F: Field> Two<F> for F {
 }
 
 /// Field element helpers
-///   Unless otherwise stated everything is in little-endian byte order.
+/// Unless otherwise stated everything is in little-endian byte order.
 pub trait FieldHelpers<F> {
     /// Deserialize from bytes
     fn from_bytes(bytes: &[u8]) -> Result<F>;
