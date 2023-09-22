@@ -2,8 +2,6 @@
 
 use std::ops::Add;
 
-use anychain_mina::MinaSecretKey;
-
 use crate::bip32::XprvSecp256k1;
 use crate::bip32::{PublicKey, Result, KEY_SIZE};
 
@@ -81,7 +79,7 @@ impl PrivateKey for anychain_mina::MinaSecretKey {
     fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
         let tweak = Self::from_bytes(&other)?;
         let scalar = self.scalar().add(tweak.scalar());
-        Ok(MinaSecretKey::new(scalar))
+        Ok(Self::new(scalar))
     }
 
     fn public_key(&self) -> Self::PublicKey {
