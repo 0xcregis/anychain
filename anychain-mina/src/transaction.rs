@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use crate::hasher::{roinput::ROInput, DomainParameter, Hashable};
 use crate::public_key::CompressedPubKey;
-use crate::{MinaAddress, MinaFormat, MinaPublicKey};
+use crate::{MinaAddress, MinaFormat, MinaPublicKey, Signature};
 use anychain_core::{Transaction, TransactionError, TransactionId};
 use serde_json::{json, Value};
 
@@ -106,25 +106,9 @@ impl MinaTransactionParameters {
 }
 
 #[derive(Clone)]
-pub struct MinaSignature {
-    rx: Vec<u8>,
-    s: Vec<u8>,
-}
-
-impl MinaSignature {
-    fn field(&self) -> String {
-        hex::encode(&self.rx)
-    }
-
-    fn scalar(&self) -> String {
-        hex::encode(&self.s)
-    }
-}
-
-#[derive(Clone)]
 pub struct MinaTransaction {
     pub params: MinaTransactionParameters,
-    pub signature: Option<MinaSignature>,
+    pub signature: Option<Signature>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -161,10 +145,7 @@ impl Transaction for MinaTransaction {
                 rs.len(),
             )));
         }
-        self.signature = Some(MinaSignature {
-            rx: rs[..32].to_vec(),
-            s: rs[32..].to_vec(),
-        });
+        self.signature = Some(Signature::from_bytes(rs));
         self.to_bytes()
     }
 
@@ -253,9 +234,11 @@ impl Transaction for MinaTransaction {
         let signature = if tx["signature"].is_object() {
             let field = tx["signature"]["field"].as_str().unwrap();
             let scalar = tx["signature"]["scalar"].as_str().unwrap();
-            let rx = hex::decode(field)?;
-            let s = hex::decode(scalar)?;
-            let sig = MinaSignature { rx, s };
+            let mut rx = hex::decode(field)?;
+            let mut s = hex::decode(scalar)?;
+            rx.reverse();
+            s.reverse();
+            let sig = Signature::from_bytes([rx, s].concat());
             Some(sig)
         } else {
             None
@@ -288,21 +271,33 @@ impl FromStr for MinaTransaction {
 
 #[cfg(test)]
 mod tests {
-    use super::Transaction;
     use super::{MEMO_BYTES, TAG_BITS};
+    use crate::signature::Signature;
     use crate::{public_key::CompressedPubKey, MinaTransaction, MinaTransactionParameters};
-    use std::str::FromStr;
+    use crate::{Keypair, create_legacy, NetworkId, MinaSecretKey, Signer};
+
+    fn sign(sk: &MinaSecretKey, tx: &MinaTransactionParameters) -> Signature {
+        let kp = Keypair::from_secret_key(sk.clone()).unwrap();
+        let mut ctx = create_legacy(NetworkId::Testnet);
+        ctx.sign(&kp, tx)
+    }
 
     #[test]
     fn test() {
-        let from = "B62qiy32p8kAKnny8ZFwoMhYpBppM1DWVCqAPBYNcXnsAHhnfAAuXgg";
+        let sk = [
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ];
+        let sk = MinaSecretKey::from_bytes(&sk).unwrap();
+
+        let from = "B62qkmYWRkA6KG96XifLxvYFK7uUqwJoBQv31bCnAhb48muBMXfuJvd";
         let to = "B62qrcFstkpqXww1EkSGrqMCwCNho86kuqBd4FrAAUsPxNKdiPzAUsy";
 
         let from = CompressedPubKey::from_address(from).unwrap();
         let to = CompressedPubKey::from_address(to).unwrap();
 
         let mut params = MinaTransactionParameters {
-            fee: 0,
+            fee: 1000,
             fee_token: 0,
             fee_payer_pk: from.clone(),
             nonce: 0,
@@ -312,19 +307,14 @@ mod tests {
             source_pk: from,
             receiver_pk: to,
             token_id: 0,
-            amount: 0,
+            amount: 1000000,
             token_locked: false,
         };
 
         params.set_memo("guai").unwrap();
+        let signature = Some(sign(&sk, &params));
 
-        let sig = vec![1; 64];
-
-        let mut tx = MinaTransaction::new(&params).unwrap();
-        let tx = tx.sign(sig, 0).unwrap();
-        let tx = String::from_utf8(tx).unwrap();
-
-        let tx = MinaTransaction::from_str(&tx).unwrap();
+        let tx = MinaTransaction { params, signature };
 
         println!("tx = {}", tx);
     }

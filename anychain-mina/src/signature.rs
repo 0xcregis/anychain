@@ -20,10 +20,22 @@ impl Signature {
         Self { rx, s }
     }
 
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut sig = self.rx.to_bytes();
-        sig.extend(self.s.to_bytes());
-        sig
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        let rx = BaseField::from_bytes(&bytes[..32]).unwrap();
+        let s = ScalarField::from_bytes(&bytes[32..]).unwrap();
+        Self::new(rx, s)
+    }
+
+    pub fn field(&self) -> String {
+        let mut rx = self.rx.to_bytes();
+        rx.reverse();
+        hex::encode(rx)
+    }
+
+    pub fn scalar(&self) -> String {
+        let mut s = self.s.to_bytes();
+        s.reverse();
+        hex::encode(s)
     }
 }
 
@@ -34,6 +46,6 @@ impl fmt::Display for Signature {
         rx_bytes.reverse();
         s_bytes.reverse();
 
-        write!(f, "{}{}", hex::encode(rx_bytes), hex::encode(s_bytes))
+        write!(f, "field: {}, scalar: {}", hex::encode(rx_bytes), hex::encode(s_bytes))
     }
 }

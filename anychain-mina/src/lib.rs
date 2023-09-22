@@ -19,15 +19,16 @@ pub use transaction::*;
 mod hasher;
 pub use hasher::{DomainParameter, Hashable};
 
+mod signature;
+pub use signature::*;
+
 mod curves;
 mod poseidon;
 mod utils;
 
 mod schnorr;
-mod signature;
 
 use ark_ec::AffineCurve;
-use signature::Signature;
 
 /// Affine curve point type
 use crate::curves::Pallas as CurvePoint;
