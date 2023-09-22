@@ -1,8 +1,11 @@
 //! Trait for deriving child keys on a given type.
 
-use crate::bip32::{PublicKey, Result, KEY_SIZE};
+use std::ops::Add;
 
-use crate::bip32::{Error, XprvSecp256k1};
+use anychain_mina::MinaSecretKey;
+
+use crate::bip32::XprvSecp256k1;
+use crate::bip32::{PublicKey, Result, KEY_SIZE};
 
 /// Bytes which represent a private key.
 pub type PrivateKeyBytes = [u8; KEY_SIZE];
@@ -31,10 +34,7 @@ impl PrivateKey for libsecp256k1::SecretKey {
     type PublicKey = libsecp256k1::PublicKey;
 
     fn from_bytes(bytes: &PrivateKeyBytes) -> Result<Self> {
-        match libsecp256k1::SecretKey::parse(bytes) {
-            Ok(sk) => Ok(sk),
-            Err(_) => Err(Error::Crypto),
-        }
+        Ok(libsecp256k1::SecretKey::parse(bytes)?)
     }
 
     fn to_bytes(&self) -> PrivateKeyBytes {
@@ -42,11 +42,10 @@ impl PrivateKey for libsecp256k1::SecretKey {
     }
 
     fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
-        let mut cpk = *self;
-        match cpk.tweak_add_assign(&libsecp256k1::SecretKey::parse(&other).unwrap()) {
-            Ok(_) => Ok(cpk),
-            Err(_) => Err(Error::Crypto),
-        }
+        let mut csk = *self;
+        let tweak = Self::from_bytes(&other)?;
+        csk.tweak_add_assign(&tweak)?;
+        Ok(csk)
     }
 
     fn public_key(&self) -> Self::PublicKey {
@@ -68,30 +67,32 @@ impl From<&XprvSecp256k1> for libsecp256k1::SecretKey {
 
 impl PrivateKey for anychain_mina::MinaSecretKey {
     type PublicKey = anychain_mina::MinaPublicKey;
+
     fn from_bytes(bytes: &PrivateKeyBytes) -> Result<Self> {
-        todo!()
+        Ok(Self::from_bytes(bytes)?)
     }
 
     fn to_bytes(&self) -> PrivateKeyBytes {
-        todo!()
+        let mut sk = [0u8; 32];
+        sk.copy_from_slice(&self.to_bytes());
+        sk
     }
 
     fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
-        todo!()
+        let tweak = Self::from_bytes(&other)?;
+        let scalar = self.scalar().add(tweak.scalar());
+        Ok(MinaSecretKey::new(scalar))
     }
 
     fn public_key(&self) -> Self::PublicKey {
-        todo!()
+        Self::PublicKey::from_secret_key(self.clone()).unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::bip32::XprvSecp256k1;
     use hex_literal::hex;
-
-    //type XPrv = crate::bip32::ExtendedPrivateKey<k256::ecdsa::SigningKey>;
-
-    type XPrv = crate::bip32::ExtendedPrivateKey<libsecp256k1::SecretKey>;
 
     #[test]
     fn secp256k1_derivation() {
@@ -101,7 +102,7 @@ mod tests {
         );
 
         let path = "m/0/2147483647'/1/2147483646'/2";
-        let xprv = XPrv::new_from_path(seed, &path.parse().unwrap()).unwrap();
+        let xprv = XprvSecp256k1::new_from_path(seed, &path.parse().unwrap()).unwrap();
 
         assert_eq!(
             xprv,

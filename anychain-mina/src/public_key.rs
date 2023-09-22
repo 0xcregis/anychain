@@ -13,7 +13,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 use crate::utils::FieldHelpers;
-use crate::{BaseField, CurvePoint, MinaAddress, MinaFormat, ScalarField, MinaSecretKey};
+use crate::{BaseField, CurvePoint, MinaAddress, MinaFormat, MinaSecretKey, ScalarField};
 
 /// Public key errors
 #[derive(Error, Debug, Clone, PartialEq, Eq)]

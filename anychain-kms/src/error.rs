@@ -1,6 +1,5 @@
-use libsecp256k1::Error as Secp256k1Error;
 use anychain_mina::KeypairError;
-
+use libsecp256k1::Error as Secp256k1Error;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -9,8 +8,6 @@ pub enum Error {
 
     #[error("pasta error")]
     PastaError(&'static str, String),
-
-
 }
 
 impl From<Secp256k1Error> for Error {

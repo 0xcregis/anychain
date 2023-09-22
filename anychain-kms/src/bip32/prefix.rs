@@ -9,11 +9,11 @@ use core::{
 /// Constant panicking assertion.
 // TODO(tarcieri): use const panic when stable.
 // See: https://github.com/rust-lang/rust/issues/51999
-macro_rules! const_assert {
-    ($bool:expr, $msg:expr) => {
-        [$msg][!$bool as usize]
-    };
-}
+// macro_rules! const_assert {
+//     ($bool:expr, $msg:expr) => {
+//         [$msg][!$bool as usize]
+//     };
+// }
 
 /// BIP32 extended key prefixes a.k.a. "versions" (e.g. `xpub`, `xprv`)
 ///
@@ -70,7 +70,7 @@ impl Prefix {
     /// letters.
     pub const fn from_parts_unchecked(s: &str, version: Version) -> Self {
         // TODO(tarcieri): return `Result` when const panic is stable
-        const_assert!(Self::validate_str(s).is_ok(), "invalid prefix");
+        // const_assert!(Self::validate_str(s).is_ok(), "invalid prefix");
         let bytes = s.as_bytes();
         let chars = [bytes[0], bytes[1], bytes[2], bytes[3]];
         Self { chars, version }

@@ -9,8 +9,8 @@ pub mod bip39;
 pub mod crypto;
 pub mod error;
 
-use error::Error;
 use anychain_mina::{Keypair, Signer};
+use error::Error;
 
 pub fn secp256k1_sign(
     secret_key: &libsecp256k1::SecretKey,
@@ -24,7 +24,7 @@ pub fn secp256k1_sign(
 pub fn pasta_sign(
     secret_key: anychain_mina::MinaSecretKey,
     tx_params: &anychain_mina::MinaTransactionParameters,
-    network: anychain_mina::NetworkId
+    network: anychain_mina::NetworkId,
 ) -> Result<Vec<u8>, Error> {
     let kp = Keypair::from_secret_key(secret_key)?;
     let mut ctx = anychain_mina::create_legacy(network);

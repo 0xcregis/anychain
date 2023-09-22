@@ -12,7 +12,10 @@ pub use extended_key::{
     attrs::ExtendedKeyAttrs, extended_private_key::ExtendedPrivateKey,
     extended_public_key::ExtendedPublicKey, ExtendedKey,
 };
-pub use extended_key::{extended_private_key::XprvSecp256k1, extended_public_key::XpubSecp256k1};
+pub use extended_key::{
+    extended_private_key::{XprvPasta, XprvSecp256k1},
+    extended_public_key::{XpubPasta, XpubSecp256k1},
+};
 pub use prefix::Prefix;
 pub use private_key::{PrivateKey, PrivateKeyBytes};
 pub use public_key::{PublicKey, PublicKeyBytes};
@@ -40,6 +43,11 @@ pub const KEY_SIZE: usize = 32;
 
 #[cfg(test)]
 mod test_mod {
+    use anychain_core::PublicKey;
+    use anychain_mina::MinaFormat;
+
+    use crate::bip39::{Language, Mnemonic, Seed};
+
     use super::*;
 
     pub(crate) struct TestVector {
@@ -98,5 +106,37 @@ mod test_mod {
                 assert_eq!(item.2, xpub.to_string(Prefix::XPUB).as_str());
             })
         })
+    }
+
+    #[test]
+    pub fn test() {
+        let phrase = "impulse media among van guitar slender when swim sorry item account exact banana steel just";
+        let m = Mnemonic::from_phrase(phrase, Language::English).unwrap();
+        let seed = Seed::new(&m, "");
+        let xprv = XprvPasta::new(seed).unwrap();
+
+        println!("xprv = {}", *xprv.to_string(Prefix::XPRV));
+
+        for i in 0..50 {
+            let cn = ChildNumber::new(i, false).unwrap();
+
+            // Skip if key bytes do not meet the Mina requirement for private key
+            if let Ok(child) = xprv.derive_child(cn) {
+                println!("i = {}", i);
+                let xpub = child.public_key();
+                let pk = xpub.public_key();
+
+                let xpub = xprv.public_key();
+                let xpub = xpub.derive_child(cn).unwrap();
+                let pkk = xpub.public_key();
+
+                // Check if child public key derived from parent private
+                // key equals that derived from parent public key
+                assert_eq!(pk, pkk);
+
+                let address = pk.to_address(&MinaFormat::Standard).unwrap();
+                println!("address = {}", address);
+            }
+        }
     }
 }
