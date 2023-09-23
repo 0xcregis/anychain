@@ -84,9 +84,8 @@ where
     }
 
     pub fn derive_from_path(self, path: &DerivationPath) -> Result<Self> {
-        path.iter().fold(Ok(self), |maybe_key, child_num| {
-            maybe_key.and_then(|key| key.derive_child(child_num))
-        })
+        path.iter()
+            .try_fold(self, |key, child_num| key.derive_child(child_num))
     }
 
     /// Derive a child key for a particular [`ChildNumber`].
