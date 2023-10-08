@@ -49,7 +49,7 @@ forest_encoding = "0.2.2"
 cid = "0.8.6"
 base64 = "0.13.0"
 bytes = "1.0"
-protobuf = { version = "3.1.0" }
+protobuf = { version = "3.3.0" }
 chrono = "0.4"
 ethabi = "17.2.0"
 regex = { version = "1.3" }
