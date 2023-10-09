@@ -1,6 +1,6 @@
-use std::{str::FromStr, fmt::Display};
-use anychain_core::{PublicKey, TransactionError};
 use crate::{PolkadotAddress, PolkadotFormat};
+use anychain_core::{PublicKey, TransactionError};
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct PolkadotPublicKey(ed25519_dalek_fiat::PublicKey);
@@ -9,17 +9,16 @@ impl PublicKey for PolkadotPublicKey {
     type SecretKey = ed25519_dalek_fiat::SecretKey;
     type Address = PolkadotAddress;
     type Format = PolkadotFormat;
-    
+
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         Self(ed25519_dalek_fiat::PublicKey::from(secret_key))
     }
 
-    fn to_address(&self, format: &Self::Format) -> Result<Self::Address, anychain_core::AddressError> {
-
+    fn to_address(
+        &self,
+        format: &Self::Format,
+    ) -> Result<Self::Address, anychain_core::AddressError> {
         todo!()
-
-
-
     }
 }
 
