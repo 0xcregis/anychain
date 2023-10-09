@@ -37,7 +37,7 @@ pub(crate) fn gen_random_bytes(byte_length: usize) -> Vec<u8> {
 pub(crate) fn pbkdf2(input: &[u8], salt: &str) -> Vec<u8> {
     let mut seed = vec![0u8; PBKDF2_BYTES];
 
-    pbkdf2::pbkdf2::<Hmac<sha2::Sha512>>(input, salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
+    let _ = pbkdf2::pbkdf2::<Hmac<sha2::Sha512>>(input, salt.as_bytes(), PBKDF2_ROUNDS, &mut seed);
 
     seed
 }

@@ -356,6 +356,7 @@ pub mod parameter_json {
     use super::FilecoinAmount;
     use super::FilecoinTransactionParameters;
     use super::RawBytes;
+    use base64::{engine::general_purpose, Engine as _};
     use cid::Cid;
     use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -420,7 +421,7 @@ pub mod parameter_json {
             gas_fee_cap: params.gas_fee_cap.clone(),
             gas_premium: params.gas_premium.clone(),
             method_num: params.method_num,
-            params: Some(base64::encode(params.params.bytes())),
+            params: Some(general_purpose::STANDARD.encode(params.params.bytes())),
             cid: Some(params.cid().map_err(ser::Error::custom)?),
         }
         .serialize(serializer)
@@ -442,7 +443,9 @@ pub mod parameter_json {
             gas_premium: m.gas_premium,
             method_num: m.method_num,
             params: RawBytes::new(
-                base64::decode(m.params.unwrap_or_default()).map_err(de::Error::custom)?,
+                general_purpose::STANDARD
+                    .decode(m.params.unwrap_or_default())
+                    .map_err(de::Error::custom)?,
             ),
         })
     }
@@ -450,6 +453,7 @@ pub mod parameter_json {
 
 pub mod signature_json {
     use super::{FilecoinSignature, FilecoinSignatureType};
+    use base64::{engine::general_purpose, Engine as _};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
     // Wrapper for serializing and deserializing a Signature from JSON.
@@ -476,7 +480,7 @@ pub mod signature_json {
     {
         JsonHelper {
             sig_type: sig.sig_type,
-            bytes: base64::encode(&sig.bytes),
+            bytes: general_purpose::STANDARD.encode(&sig.bytes),
         }
         .serialize(serializer)
     }
@@ -488,7 +492,9 @@ pub mod signature_json {
         let JsonHelper { sig_type, bytes } = Deserialize::deserialize(deserializer)?;
         Ok(FilecoinSignature {
             sig_type,
-            bytes: base64::decode(bytes).map_err(de::Error::custom)?,
+            bytes: general_purpose::STANDARD
+                .decode(bytes)
+                .map_err(de::Error::custom)?,
         })
     }
 
