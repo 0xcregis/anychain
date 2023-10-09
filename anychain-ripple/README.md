@@ -15,7 +15,7 @@ Features
 Add the following to your Cargo.toml file:
 ```toml
 [dependencies]
-anychain-ripple = "0.1.0"
+anychain-ripple = "0.1.4"
 ```
 
 Then run cargo build to download and compile the anychain-ripple library.

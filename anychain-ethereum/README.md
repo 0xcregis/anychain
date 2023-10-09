@@ -18,7 +18,7 @@ This is the README for the anychain-ethereum crate, a Rust library that provides
 To use the anychain-ethereum crate in your Rust project, add the following to your Cargo.toml file:
 ```toml
 [dependencies]
-anychain-ethereum = "0.1.1"
+anychain-ethereum = "0.1.2"
 ```
 
 ## Usage

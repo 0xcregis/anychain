@@ -14,7 +14,7 @@ anychain-bitcoin is a Rust crate that provides a simple and efficient way to int
 To use anychain-bitcoin in your Rust project, add the following to your Cargo.toml file:
 ```toml
 [dependencies]
-anychain-bitcoin = "0.1.1"
+anychain-bitcoin = "0.1.3"
 ```
 
 Then, import the crate in your code:
