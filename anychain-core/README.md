@@ -14,7 +14,7 @@ anychain-core is a Rust crate that provides core functionality for working with 
 To start using anychain-core, add it as a dependency in your Cargo.toml file:
 ```toml
 [dependencies]
-anychain-core = "0.1.1"
+anychain-core = "0.1.3"
 ```
 
 Then, import the crate in your Rust code:

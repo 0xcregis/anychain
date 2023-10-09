@@ -16,7 +16,7 @@ anychain-tron is a Rust library that provides a simple and unified interface for
 Add the following to your Cargo.toml file:
 ```toml
 [dependencies]
-anychain-tron = "0.1.1"
+anychain-tron = "0.2.1"
 ```
 
 Then, run cargo build to download and compile the library.

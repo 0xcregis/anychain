@@ -17,7 +17,7 @@ anychain-filecoin is a Rust library that provides a simple and unified interface
 Add the following to your Cargo.toml file:
 ```toml
 [dependencies]
-anychain-filecoin = "0.1.1"
+anychain-filecoin = "0.1.2"
 ```
 
 Then run cargo build to download and compile the library.

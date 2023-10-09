@@ -1,7 +1,7 @@
 [package]
 name = "anychain-bitcoin"
 description = "A Rust library for Bitcoin-focused cryptocurrency wallets, enabling seamless transactions on the Bitcoin blockchain"
-version = "0.1.2"
+version = "0.1.3"
 keywords = ["bitcoin", "blockchain", "cryptocurrency", "wallet", "transactions"]
 
 # Workspace inherited keys
