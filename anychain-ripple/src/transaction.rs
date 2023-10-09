@@ -489,30 +489,30 @@ impl PartialEq for SerializedType {
     }
 }
 
-impl PartialOrd for SerializedType {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl Ord for SerializedType {
+    fn cmp(&self, other: &Self) -> Ordering {
         let typ0 = self.typ() as u32;
         let val0 = self.val();
         let typ1 = other.typ() as u32;
         let val1 = other.val();
 
         if typ0 < typ1 {
-            Some(Ordering::Less)
+            Ordering::Less
         } else if typ0 > typ1 {
-            Some(Ordering::Greater)
+            Ordering::Greater
         } else if val0 < val1 {
-            Some(Ordering::Less)
+            Ordering::Less
         } else if val0 > val1 {
-            Some(Ordering::Greater)
+            Ordering::Greater
         } else {
-            Some(Ordering::Equal)
+            Ordering::Equal
         }
     }
 }
 
-impl Ord for SerializedType {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+impl PartialOrd for SerializedType {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
