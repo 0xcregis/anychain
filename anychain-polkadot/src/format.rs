@@ -7,7 +7,7 @@ pub struct PolkadotFormat;
 impl Format for PolkadotFormat {}
 
 impl Display for PolkadotFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }

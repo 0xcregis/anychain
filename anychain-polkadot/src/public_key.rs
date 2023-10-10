@@ -1,36 +1,48 @@
-use crate::{PolkadotAddress, PolkadotFormat};
-use anychain_core::{PublicKey, TransactionError};
-use std::{fmt::Display, str::FromStr};
+use anychain_core::{PublicKey, PublicKeyError, libsecp256k1, Address};
+use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork};
+use std::{fmt::Display, str::FromStr, marker::PhantomData};
 
 #[derive(Debug, Clone)]
-pub struct PolkadotPublicKey(ed25519_dalek_fiat::PublicKey);
+pub struct PolkadotPublicKey<N: PolkadotNetwork> {
+    key: libsecp256k1::PublicKey,
+    _network: PhantomData<N>,
+}
 
-impl PublicKey for PolkadotPublicKey {
-    type SecretKey = ed25519_dalek_fiat::SecretKey;
-    type Address = PolkadotAddress;
+impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
+    type SecretKey = libsecp256k1::SecretKey;
+    type Address = PolkadotAddress<N>;
     type Format = PolkadotFormat;
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
-        Self(ed25519_dalek_fiat::PublicKey::from(secret_key))
+        Self {
+            key: libsecp256k1::PublicKey::from_secret_key(&secret_key),
+            _network: PhantomData::<N>,
+        }
     }
 
     fn to_address(
         &self,
         format: &Self::Format,
     ) -> Result<Self::Address, anychain_core::AddressError> {
+        Ok(Self::Address::from_public_key(self, format)?)
+    }
+}
+
+impl<N: PolkadotNetwork> PolkadotPublicKey<N> {
+    pub fn serialize(&self) -> Vec<u8> {
+        self.key.serialize_compressed().to_vec()
+    }
+}
+
+impl<N: PolkadotNetwork> FromStr for PolkadotPublicKey<N> {
+    type Err = PublicKeyError;
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
         todo!()
     }
 }
 
-impl FromStr for PolkadotPublicKey {
-    type Err = TransactionError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        todo!()
-    }
-}
-
-impl Display for PolkadotPublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<N: PolkadotNetwork> Display for PolkadotPublicKey<N> {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
