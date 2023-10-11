@@ -1,5 +1,8 @@
 mod polkadot;
+pub use polkadot::*;
+
 mod kusama;
+pub use kusama::*;
 
 use anychain_core::Network;
 

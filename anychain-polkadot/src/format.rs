@@ -2,7 +2,9 @@ use anychain_core::Format;
 use std::fmt::Display;
 
 #[derive(Hash, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
-pub struct PolkadotFormat;
+pub enum PolkadotFormat {
+    Standard,
+}
 
 impl Format for PolkadotFormat {}
 
