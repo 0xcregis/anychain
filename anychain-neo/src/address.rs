@@ -1,7 +1,7 @@
 use std::{str::FromStr, fmt::Display};
 use anychain_core::{Address, AddressError, crypto::{hash160, checksum}, PublicKey};
 use crate::{NeoFormat, NeoPublicKey};
-use base58::ToBase58;
+use base58::{ToBase58, FromBase58};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct NeoAddress(pub String);
@@ -22,7 +22,7 @@ impl Address for NeoAddress {
         public_key: &Self::PublicKey,
         _format: &Self::Format,
     ) -> Result<Self, AddressError> {
-        let bytes = p256::CompressedPoint::from(public_key.0).as_slice().to_vec();
+        let bytes = public_key.serialize_compressed();
         let bytes = [
             vec![0x0c /* PushData1 */, 0x21 /* compressed key length */],
             bytes, /* compressed public key bytes */
@@ -38,6 +38,15 @@ impl Address for NeoAddress {
         Ok(Self(res.to_base58()))
     }
 }
+
+impl NeoAddress {
+    pub fn to_script_hash(&self) -> Vec<u8> {
+        let bytes = self.0.as_str().from_base58().unwrap();
+        // strip the version byte and the checksum
+        bytes[1..21].to_vec()
+    }
+}
+
 
 impl FromStr for NeoAddress {
     type Err = AddressError;

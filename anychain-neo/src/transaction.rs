@@ -1,7 +1,7 @@
 use std::fmt::Display;
-
-use anychain_core::{Transaction, TransactionError, TransactionId};
-
+use anychain_core::{
+    Transaction, TransactionError, TransactionId, crypto::sha256,
+};
 use crate::{NeoFormat, NeoAddress, NeoPublicKey};
 
 #[derive(Clone)]
@@ -13,7 +13,7 @@ pub struct TxIn {
 #[derive(Clone)]
 pub struct TxOut {
     asset_id: Vec<u8>,
-    address: Vec<u8>,
+    address: String,
     value: u64,
 }
 
@@ -33,13 +33,12 @@ impl TxOut {
         if self.asset_id.len() != 32 {
             panic!("Invalid prev_hash length");
         }
-        if self.asset_id.len() != 20 {
-            panic!("Invalid prev_hash length");
-        }
         let mut asset_id = self.asset_id.clone();
         asset_id.reverse();
         let value = self.value.to_le_bytes().to_vec();
-        let address = self.address.clone();
+        let address = NeoAddress(self.address.clone());
+        let address = address.to_script_hash();
+
         [asset_id, value, address].concat()
     }
 }
@@ -55,20 +54,46 @@ impl NeoTransactionParameters {
         let mut ret = vec![0u8; 0];
         ret.push(0x80); // contract type byte
         ret.push(0x00); // version byte
+        
+        ret.push(self.txins.len() as u8);
         for txin in &self.txins {
             ret.extend(txin.serialize());
         }
+
+        ret.push(self.txouts.len() as u8);
         for txout in &self.txouts {
             ret.extend(txout.serialize());
         }
+
         ret
+    }
+}
+
+#[derive(Clone)]
+pub struct NeoSignature {
+    rs: Vec<u8>,
+    public_key: Vec<u8>,
+}
+
+impl NeoSignature {
+    fn serialize(&self) -> Vec<u8> {
+        let mut stream = vec![];
+        let rs = self.rs.clone();
+        let pk = self.public_key.clone();
+        let rs_script = [vec![rs.len() as u8], rs].concat();
+        let pk_script = [vec![pk.len() as u8], pk, vec![172 /* Opcode::CheckSig */]].concat();
+        stream.push(rs_script.len() as u8);
+        stream.extend(rs_script);
+        stream.push(pk_script.len() as u8);
+        stream.extend(pk_script);
+        stream
     }
 }
 
 #[derive(Clone)]
 pub struct NeoTransaction {
     params: NeoTransactionParameters,
-    signature: Option<Vec<u8>>,
+    signatures: Option<Vec<NeoSignature>>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -92,29 +117,125 @@ impl Transaction for NeoTransaction {
     type PublicKey = NeoPublicKey;
 
     fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        Ok(Self { params: params.clone(), signature: None })
+        Ok(Self { params: params.clone(), signatures: None })
     }
 
-    fn sign(&mut self, rs: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
-        if rs.len() != 64 {
+    fn sign(&mut self, rs_pk_s: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
+        if rs_pk_s.len() % 97 != 0 {
             return Err(TransactionError::Message(format!(
-                "Invalid signature length {}",
-                rs.len(),
-            )));
+                "Invalid signauture-public-key tuple length {}", rs_pk_s.len()
+            )))
         }
-        self.signature = Some(rs);
+
+        let sigs_cnt = rs_pk_s.len() / 97;
+        let txins_cnt = self.params.txins.len();
+
+        if sigs_cnt != txins_cnt {
+            return Err(TransactionError::Message(format!(
+                "Amount of signatures {} differs with that of tx inputs {}",
+                sigs_cnt, txins_cnt,
+            )))
+        }
+
+        let mut sigs = vec![];
+        for i in 0..sigs_cnt {
+            let start = 97 * i;
+            let divide = start + 64;
+            let end = divide + 33;
+            let sig = NeoSignature {
+                rs: rs_pk_s[start..divide].to_vec(),
+                public_key: rs_pk_s[divide..end].to_vec(),
+            };
+            sigs.push(sig);
+        }
+
+        self.signatures = Some(sigs);
         self.to_bytes()
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
-        todo!()
+        let mut stream = self.params.serialize();
+        if let Some(sigs) = &self.signatures {
+            stream.push(sigs.len() as u8);
+            for sig in sigs {
+                stream.extend(sig.serialize());
+            }
+        }
+        Ok(stream)
     }
 
-    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
+    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
         todo!()
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        todo!()
+        let stream = self.to_bytes()?;
+        Ok(NeoTransactionId { txid: sha256(&stream).to_vec() })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{TxIn, TxOut};
+
+    use super::{
+        NeoAddress, NeoTransaction, NeoFormat, NeoPublicKey, NeoSignature,
+        NeoTransactionId, NeoTransactionParameters,
+    };
+
+    use p256::ecdsa::{SigningKey, signature::Signer, Signature};
+
+    use anychain_core::{Transaction, PublicKey, hex};
+
+    #[test]
+    fn test_tx_gen() {
+        let sk = [
+            1u8, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 79, 1, 1, 1, 1, 1, 121, 1, 1, 1,
+        ];
+        let sk = p256::SecretKey::from_slice(&sk).unwrap();
+        let pk = NeoPublicKey::from_secret_key(&sk);
+        let format = &NeoFormat::Standard;
+        let from = pk.to_address(format).unwrap();
+
+        let sk_to = [
+            2u8, 7, 0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 20, 1, 2, 7,
+            0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 203, 1, 5, 55,
+        ];
+        let sk_to = p256::SecretKey::from_slice(&sk_to).unwrap();
+        let pk_to = NeoPublicKey::from_secret_key(&sk);
+        let to = pk_to.to_address(format).unwrap();
+
+        let prev_hash = "b3ad3320f8230a8358a4c056ead57182d787ec8607870f70d70a844dc4d049a3";
+        let index = 0;
+
+        let asset_id = "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b";
+
+        let mut prev_hash = hex::decode(prev_hash).unwrap();
+        prev_hash.reverse();
+
+        let asset_id = hex::decode(asset_id).unwrap();
+
+        let input = TxIn { prev_hash, index };
+        let output = TxOut { asset_id, address: to.0, value: 1000000000 };
+
+        let params = NeoTransactionParameters {
+            txins: vec![input],
+            txouts: vec![output],
+        };
+
+        let mut tx = NeoTransaction::new(&params).unwrap();
+        let hash = tx.to_transaction_id().unwrap().txid;
+
+        let signing_key = SigningKey::from(sk);
+        let sig: Signature = signing_key.sign(&hash);
+
+        let mut sig = sig.to_bytes().as_slice().to_vec();
+        sig.extend(pk.serialize_compressed());
+
+        let tx = tx.sign(sig, 0).unwrap();
+        let tx = hex::encode(&tx);
+
+        println!("from = {}\ntx = {}", from, tx);
     }
 }

@@ -20,6 +20,12 @@ impl PublicKey for NeoPublicKey {
     }
 }
 
+impl NeoPublicKey {
+    pub fn serialize_compressed(&self) -> Vec<u8> {
+        p256::CompressedPoint::from(self.0).as_slice().to_vec()
+    }
+}
+
 impl FromStr for NeoPublicKey {
     type Err = PublicKeyError;
 
