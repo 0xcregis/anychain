@@ -1,8 +1,6 @@
+use crate::{NeoAddress, NeoFormat, NeoPublicKey};
+use anychain_core::{crypto::sha256, Transaction, TransactionError, TransactionId};
 use std::fmt::Display;
-use anychain_core::{
-    Transaction, TransactionError, TransactionId, crypto::sha256,
-};
-use crate::{NeoFormat, NeoAddress, NeoPublicKey};
 
 #[derive(Clone)]
 pub struct TxIn {
@@ -54,15 +52,15 @@ impl NeoTransactionParameters {
         let mut ret = vec![0u8; 0];
         ret.push(0x80); // contract type byte
         ret.push(0x00); // version byte
-        
+
         ret.push(self.txins.len() as u8);
-        
+
         for txin in &self.txins {
             ret.extend(txin.serialize());
         }
 
         ret.push(self.txouts.len() as u8);
-        
+
         for txout in &self.txouts {
             ret.extend(txout.serialize());
         }
@@ -119,14 +117,18 @@ impl Transaction for NeoTransaction {
     type PublicKey = NeoPublicKey;
 
     fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        Ok(Self { params: params.clone(), signatures: None })
+        Ok(Self {
+            params: params.clone(),
+            signatures: None,
+        })
     }
 
     fn sign(&mut self, rs_pk_s: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
         if rs_pk_s.len() % 97 != 0 {
             return Err(TransactionError::Message(format!(
-                "Invalid signauture-public-key tuple length {}", rs_pk_s.len()
-            )))
+                "Invalid signauture-public-key tuple length {}",
+                rs_pk_s.len()
+            )));
         }
 
         let sigs_cnt = rs_pk_s.len() / 97;
@@ -136,7 +138,7 @@ impl Transaction for NeoTransaction {
             return Err(TransactionError::Message(format!(
                 "Amount of signatures {} differs with that of tx inputs {}",
                 sigs_cnt, txins_cnt,
-            )))
+            )));
         }
 
         let mut sigs = vec![];
@@ -172,7 +174,9 @@ impl Transaction for NeoTransaction {
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         let stream = self.to_bytes()?;
-        Ok(NeoTransactionId { txid: sha256(&stream).to_vec() })
+        Ok(NeoTransactionId {
+            txid: sha256(&stream).to_vec(),
+        })
     }
 }
 
@@ -181,20 +185,20 @@ mod tests {
     use crate::{TxIn, TxOut};
 
     use super::{
-        NeoAddress, NeoTransaction, NeoFormat, NeoPublicKey, NeoSignature,
-        NeoTransactionId, NeoTransactionParameters,
+        NeoAddress, NeoFormat, NeoPublicKey, NeoSignature, NeoTransaction, NeoTransactionId,
+        NeoTransactionParameters,
     };
 
-    use p256::ecdsa::{SigningKey, signature::Signer, Signature};
+    use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
-    use anychain_core::{Transaction, PublicKey, hex};
+    use anychain_core::{hex, PublicKey, Transaction};
     use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 
     #[test]
     fn test_tx_gen() {
         let sk = [
-            1u8, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 79, 1, 1, 1, 1, 1, 121, 1, 1, 1,
+            1u8, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 79, 1, 1, 1, 1, 1,
+            121, 1, 1, 1,
         ];
         println!("sk = {}", hex::encode(sk));
         let sk = p256::SecretKey::from_slice(&sk).unwrap();
@@ -203,8 +207,8 @@ mod tests {
         let from = pk.to_address(format).unwrap();
 
         let sk_to = [
-            2u8, 7, 0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 20, 1, 2, 7,
-            0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 203, 1, 5, 55,
+            2u8, 7, 0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 20, 1, 2, 7, 0, 5, 0, 0, 1, 1, 111, 23,
+            34, 39, 109, 203, 1, 5, 55,
         ];
         let sk_to = p256::SecretKey::from_slice(&sk_to).unwrap();
         let pk_to = NeoPublicKey::from_secret_key(&sk);
@@ -221,7 +225,11 @@ mod tests {
         let asset_id = hex::decode(asset_id).unwrap();
 
         let input = TxIn { prev_hash, index };
-        let output = TxOut { asset_id, address: to.0, value: 1000000000 };
+        let output = TxOut {
+            asset_id,
+            address: to.0,
+            value: 1000000000,
+        };
 
         let params = NeoTransactionParameters {
             txins: vec![input],

@@ -1,6 +1,6 @@
-use std::{str::FromStr, fmt::Display};
-use anychain_core::{PublicKey, PublicKeyError, AddressError, hex, Address};
-use crate::{NeoFormat, NeoAddress};
+use crate::{NeoAddress, NeoFormat};
+use anychain_core::{hex, Address, AddressError, PublicKey, PublicKeyError};
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NeoPublicKey(pub p256::PublicKey);
@@ -9,7 +9,7 @@ impl PublicKey for NeoPublicKey {
     type Format = NeoFormat;
     type SecretKey = p256::SecretKey;
     type Address = NeoAddress;
-    
+
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         let scalar = secret_key.to_nonzero_scalar();
         Self(p256::PublicKey::from_secret_scalar(&scalar))
@@ -29,8 +29,10 @@ impl NeoPublicKey {
 impl FromStr for NeoPublicKey {
     type Err = PublicKeyError;
 
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!()
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bin = hex::decode(&s)?;
+        let public_key = p256::PublicKey::from_sec1_bytes(&bin).unwrap();
+        Ok(NeoPublicKey(public_key))
     }
 }
 
@@ -44,23 +46,25 @@ impl Display for NeoPublicKey {
 
 #[cfg(test)]
 mod test {
+
+    use super::*;
+    use crate::NeoPublicKey;
     use anychain_core::PublicKey;
-    use crate::{NeoPublicKey, NeoFormat};
 
     #[test]
-    fn test() {
-        let mut sk = [
-            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    fn test_public_key_from_str() {
+
+        let sk = [
+            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1,
         ];
 
-        let format = NeoFormat::Standard;
+        let sk = p256::SecretKey::from_slice(&sk).unwrap();
+        let _public_key = NeoPublicKey::from_secret_key(&sk);
 
-        for i in 0..10 {
-            sk[3] = i;
-            let sk = p256::SecretKey::from_slice(&sk).unwrap();
-            let addr = NeoPublicKey::from_secret_key(&sk).to_address(&format).unwrap();
-            println!("{}", addr);
-        }
+        let public_key = "046ff03b949241ce1dadd43519e6960e0a85b41a69a05c328103aa2bce1594ca163c4f753a55bf01dc53f6c0b0c7eee78b40c6ff7d25a96e2282b989cef71c144a";
+
+        let pb = NeoPublicKey::from_str(public_key);
+        assert!(pb.is_ok());
     }
 }
