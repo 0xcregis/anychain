@@ -13,3 +13,4 @@ repository.workspace = true
 anychain-core = { path = "../anychain-core", version = "0.1.2"}
 p256 = "0.13.2"
 base58 = { workspace = true }
+base64 = "0.21.5"

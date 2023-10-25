@@ -56,11 +56,13 @@ impl NeoTransactionParameters {
         ret.push(0x00); // version byte
         
         ret.push(self.txins.len() as u8);
+        
         for txin in &self.txins {
             ret.extend(txin.serialize());
         }
 
         ret.push(self.txouts.len() as u8);
+        
         for txout in &self.txouts {
             ret.extend(txout.serialize());
         }
@@ -186,6 +188,7 @@ mod tests {
     use p256::ecdsa::{SigningKey, signature::Signer, Signature};
 
     use anychain_core::{Transaction, PublicKey, hex};
+    use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 
     #[test]
     fn test_tx_gen() {
@@ -193,6 +196,7 @@ mod tests {
             1u8, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1, 79, 1, 1, 1, 1, 1, 121, 1, 1, 1,
         ];
+        println!("sk = {}", hex::encode(sk));
         let sk = p256::SecretKey::from_slice(&sk).unwrap();
         let pk = NeoPublicKey::from_secret_key(&sk);
         let format = &NeoFormat::Standard;
@@ -234,8 +238,9 @@ mod tests {
         sig.extend(pk.serialize_compressed());
 
         let tx = tx.sign(sig, 0).unwrap();
+        let tx64 = STANDARD_NO_PAD.encode(&tx);
         let tx = hex::encode(&tx);
 
-        println!("from = {}\ntx = {}", from, tx);
+        println!("from = {}\ntx = {}", from, tx64);
     }
 }
