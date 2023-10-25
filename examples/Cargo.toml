@@ -1,7 +1,0 @@
-[workspace]
-members = [
-    "anychain-bitcoin-client",
-    "anychain-bitcoin-cli",
-    "anychain-ethereum-cli",
-    "anychain-neo-cli",
-]
