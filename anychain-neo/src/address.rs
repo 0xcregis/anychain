@@ -51,7 +51,7 @@ impl NeoAddress {
 impl FromStr for NeoAddress {
     type Err = AddressError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
         todo!()
     }
 }
@@ -59,5 +59,43 @@ impl FromStr for NeoAddress {
 impl Display for NeoAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+mod tests {
+    use super::*;
+    use rand::rngs::OsRng;
+
+    #[test]
+    fn test_from_secret_key() {
+        // Create a secret key for testing
+        let mut rng = OsRng;
+        let secret_key = p256::SecretKey::random(&mut rng);
+
+        // Define the desired format
+        let format = NeoFormat::Standard;
+        let result = NeoAddress::from_secret_key(&secret_key, &format);
+
+        assert!(result.is_ok());
+
+        let address = result.unwrap();
+        assert_eq!(address.to_script_hash().len(), 20);
+    }
+
+    #[test]
+    fn test_from_public_key() {
+        // Create a public key for testing
+
+        let mut rng = OsRng;
+        let secret_key = p256::SecretKey::random(&mut rng);
+        let public_key = NeoPublicKey::from_secret_key(&secret_key);
+
+        let format = NeoFormat::Standard;
+        let result = NeoAddress::from_public_key(&public_key, &format);
+
+        assert!(result.is_ok());
+
+        let address = result.unwrap();
+        assert_eq!(address.to_script_hash().len(), 20);
     }
 }
