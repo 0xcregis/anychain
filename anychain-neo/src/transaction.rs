@@ -102,7 +102,7 @@ pub struct NeoTransactionId {
 }
 
 impl Display for NeoTransactionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -168,7 +168,7 @@ impl Transaction for NeoTransaction {
         Ok(stream)
     }
 
-    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
+    fn from_bytes(_tx: &[u8]) -> Result<Self, TransactionError> {
         todo!()
     }
 
@@ -184,10 +184,7 @@ impl Transaction for NeoTransaction {
 mod tests {
     use crate::{TxIn, TxOut};
 
-    use super::{
-        NeoAddress, NeoFormat, NeoPublicKey, NeoSignature, NeoTransaction, NeoTransactionId,
-        NeoTransactionParameters,
-    };
+    use super::{NeoFormat, NeoPublicKey, NeoTransaction, NeoTransactionParameters};
 
     use p256::ecdsa::{signature::Signer, Signature, SigningKey};
 
@@ -200,7 +197,10 @@ mod tests {
             1u8, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 79, 1, 1, 1, 1, 1,
             121, 1, 1, 1,
         ];
-        println!("sk = {}", hex::encode(sk));
+        assert_eq!(
+            "010101020101010101010101010101010101010101014f010101010179010101",
+            hex::encode(sk)
+        );
         let sk = p256::SecretKey::from_slice(&sk).unwrap();
         let pk = NeoPublicKey::from_secret_key(&sk);
         let format = &NeoFormat::Standard;
@@ -210,7 +210,7 @@ mod tests {
             2u8, 7, 0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 20, 1, 2, 7, 0, 5, 0, 0, 1, 1, 111, 23,
             34, 39, 109, 203, 1, 5, 55,
         ];
-        let sk_to = p256::SecretKey::from_slice(&sk_to).unwrap();
+        let _sk_to = p256::SecretKey::from_slice(&sk_to).unwrap();
         let pk_to = NeoPublicKey::from_secret_key(&sk);
         let to = pk_to.to_address(format).unwrap();
 
@@ -247,8 +247,10 @@ mod tests {
 
         let tx = tx.sign(sig, 0).unwrap();
         let tx64 = STANDARD_NO_PAD.encode(&tx);
-        let tx = hex::encode(&tx);
+        let _tx = hex::encode(&tx);
 
-        println!("from = {}\ntx = {}", from, tx64);
+        assert_eq!("NPQHQfUyEGjR3DR2Z6usMuyoamwf8iyMPR", format!("{}", from));
+        assert_eq!("gAABo0nQxE2ECtdwD4cHhuyH14Jx1epWwKRYgwoj+CAzrbMAAAGbfP/apnS+rg+TDr5gha+Qk+X+VrNKXCIMzc9u/DNvxQDKmjsAAAAAJkM8V0VsEsjKSGhpVKhvThDJZS0BQUDWMm0cB5xR9B7l6LsF2Fdixs6gwIDmS5gdgSi16jIVeseuNd5w+EgPi8MquI7z1wl0Ykvy4JcfDRLDCmHyhPwxIyEC4OWDF55ic5WyX7tFHqtvCVmS7fZqcZKgs0uSUA3SsSKs",
+        tx64);
     }
 }

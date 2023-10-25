@@ -30,7 +30,7 @@ impl FromStr for NeoPublicKey {
     type Err = PublicKeyError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bin = hex::decode(&s)?;
+        let bin = hex::decode(s)?;
         let public_key = p256::PublicKey::from_sec1_bytes(&bin).unwrap();
         Ok(NeoPublicKey(public_key))
     }
@@ -39,7 +39,7 @@ impl FromStr for NeoPublicKey {
 impl Display for NeoPublicKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bytes = self.0.to_sec1_bytes().to_vec();
-        let s = hex::encode(&bytes);
+        let s = hex::encode(bytes);
         write!(f, "pk = {}, len = {}", s, s.len())
     }
 }
@@ -53,7 +53,6 @@ mod test {
 
     #[test]
     fn test_public_key_from_str() {
-
         let sk = [
             1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 1,
