@@ -18,6 +18,21 @@ pub use self::polygon::*;
 pub mod mumbai;
 pub use self::mumbai::*;
 
+pub mod avalanche;
+pub use self::avalanche::*;
+
+pub mod avalanche_testnet;
+pub use self::avalanche_testnet::*;
+
+pub mod arbitrum;
+pub use self::arbitrum::*;
+
+pub mod arbitrum_goerli;
+pub use self::arbitrum_goerli::*;
+
+pub mod op_mainnet;
+pub use self::op_mainnet::*;
+
 pub mod huobi_eco;
 pub use self::huobi_eco::*;
 
