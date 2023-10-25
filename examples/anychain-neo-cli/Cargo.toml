@@ -1,0 +1,11 @@
+[package]
+name = "anychain-neo-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anychain-core = { path = "../../anychain-core" }
+anychain-neo = { path = "../../anychain-neo" }
+clap = { workspace = true }

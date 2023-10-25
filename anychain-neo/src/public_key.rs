@@ -6,9 +6,9 @@ use std::{fmt::Display, str::FromStr};
 pub struct NeoPublicKey(pub p256::PublicKey);
 
 impl PublicKey for NeoPublicKey {
-    type Format = NeoFormat;
     type SecretKey = p256::SecretKey;
     type Address = NeoAddress;
+    type Format = NeoFormat;
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         let scalar = secret_key.to_nonzero_scalar();
