@@ -9,12 +9,12 @@ use std::{fmt, str::FromStr};
 pub struct AvalancheTestnet;
 
 impl Network for AvalancheTestnet {
-    const NAME: &'static str = "ethereum";
+    const NAME: &'static str = "avalanche testnet";
 }
 
 impl EthereumNetwork for AvalancheTestnet {
-    const CHAIN_ID: u32 = 1;
-    const NETWORK_ID: u32 = 1;
+    const CHAIN_ID: u32 = 43113;
+    const NETWORK_ID: u32 = 43113;
 }
 
 impl FromStr for AvalancheTestnet {
