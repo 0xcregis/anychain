@@ -36,6 +36,12 @@ pub use self::optimism::*;
 pub mod optimism_goerli;
 pub use self::optimism_goerli::*;
 
+pub mod base;
+pub use self::base::*;
+
+pub mod base_goerli;
+pub use self::base_goerli::*;
+
 pub mod huobi_eco;
 pub use self::huobi_eco::*;
 
