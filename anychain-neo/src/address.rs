@@ -61,6 +61,14 @@ impl FromStr for NeoAddress {
     type Err = AddressError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.from_base58()?;
+        let checksum_provided = bytes[21..].to_vec();
+        let checksum_gen = checksum(&bytes[..21])[..4].to_vec();
+
+        if checksum_gen != checksum_provided {
+            return Err(AddressError::Message(format!("Invalid address {}", s)));
+        }
+
         Ok(Self(s.to_string()))
     }
 }
