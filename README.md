@@ -55,7 +55,9 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 - Filecoin
 - Tron
 - Ripple
-
+- Arbitrum, Optimism, and Avalanche
+- Neo
+ 
 ## License
 
 This project is licensed under the [MIT license][license].
