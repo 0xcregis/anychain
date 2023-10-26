@@ -6,18 +6,18 @@ use std::{fmt, str::FromStr};
 
 /// Represents an ETH mainnet
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Op;
+pub struct Optimism;
 
-impl Network for Op {
-    const NAME: &'static str = "op";
+impl Network for Optimism {
+    const NAME: &'static str = "optimism";
 }
 
-impl EthereumNetwork for Op {
+impl EthereumNetwork for Optimism {
     const CHAIN_ID: u32 = 10;
     const NETWORK_ID: u32 = 10;
 }
 
-impl FromStr for Op {
+impl FromStr for Optimism {
     type Err = NetworkError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -28,7 +28,7 @@ impl FromStr for Op {
     }
 }
 
-impl fmt::Display for Op {
+impl fmt::Display for Optimism {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Self::NAME)
     }

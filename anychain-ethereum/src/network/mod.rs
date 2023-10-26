@@ -30,8 +30,11 @@ pub use self::arbitrum::*;
 pub mod arbitrum_goerli;
 pub use self::arbitrum_goerli::*;
 
-pub mod op_mainnet;
-pub use self::op_mainnet::*;
+pub mod optimism;
+pub use self::optimism::*;
+
+pub mod optimism_goerli;
+pub use self::optimism_goerli::*;
 
 pub mod huobi_eco;
 pub use self::huobi_eco::*;
