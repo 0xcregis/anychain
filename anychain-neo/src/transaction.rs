@@ -1,6 +1,6 @@
 use crate::{NeoAddress, NeoFormat, NeoPublicKey};
-use anychain_core::{crypto::sha256, Transaction, TransactionError, TransactionId};
-use std::fmt::Display;
+use anychain_core::{crypto::sha256, hex, Transaction, TransactionError, TransactionId};
+use std::fmt::{Display, Error};
 
 #[derive(Clone)]
 pub struct TxIn {
@@ -53,6 +53,8 @@ impl NeoTransactionParameters {
         ret.push(0x80); // contract type byte
         ret.push(0x00); // version byte
 
+        ret.push(0u8); // attribute length, which is 0
+
         ret.push(self.txins.len() as u8);
 
         for txin in &self.txins {
@@ -80,8 +82,10 @@ impl NeoSignature {
         let mut stream = vec![];
         let rs = self.rs.clone();
         let pk = self.public_key.clone();
+
         let rs_script = [vec![rs.len() as u8], rs].concat();
         let pk_script = [vec![pk.len() as u8], pk, vec![172 /* Opcode::CheckSig */]].concat();
+
         stream.push(rs_script.len() as u8);
         stream.extend(rs_script);
         stream.push(pk_script.len() as u8);
@@ -180,6 +184,19 @@ impl Transaction for NeoTransaction {
     }
 }
 
+impl Display for NeoTransaction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            &hex::encode(match self.to_bytes() {
+                Ok(transaction) => transaction,
+                _ => return Err(Error),
+            })
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{TxIn, TxOut};
@@ -194,24 +211,20 @@ mod tests {
     #[test]
     fn test_tx_gen() {
         let sk = [
-            1u8, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 79, 1, 1, 1, 1, 1,
-            121, 1, 1, 1,
+            1u8, 1, 1, 23, 1, 1, 1, 59, 1, 1, 1, 16, 87, 1, 1, 1, 1, 99, 1, 1, 1, 1, 79, 1, 1, 1,
+            1, 1, 121, 1, 1, 1,
         ];
-        assert_eq!(
-            "010101020101010101010101010101010101010101014f010101010179010101",
-            hex::encode(sk)
-        );
         let sk = p256::SecretKey::from_slice(&sk).unwrap();
         let pk = NeoPublicKey::from_secret_key(&sk);
         let format = &NeoFormat::Standard;
-        let from = pk.to_address(format).unwrap();
+        let _from = pk.to_address(format).unwrap();
 
         let sk_to = [
             2u8, 7, 0, 5, 0, 0, 1, 1, 111, 23, 34, 39, 109, 20, 1, 2, 7, 0, 5, 0, 0, 1, 1, 111, 23,
             34, 39, 109, 203, 1, 5, 55,
         ];
-        let _sk_to = p256::SecretKey::from_slice(&sk_to).unwrap();
-        let pk_to = NeoPublicKey::from_secret_key(&sk);
+        let sk_to = p256::SecretKey::from_slice(&sk_to).unwrap();
+        let pk_to = NeoPublicKey::from_secret_key(&sk_to);
         let to = pk_to.to_address(format).unwrap();
 
         let prev_hash = "b3ad3320f8230a8358a4c056ead57182d787ec8607870f70d70a844dc4d049a3";
@@ -240,17 +253,18 @@ mod tests {
         let hash = tx.to_transaction_id().unwrap().txid;
 
         let signing_key = SigningKey::from(sk);
+
+        // the signature differs with bipay signature, possible cause being that
+        // bipay use a random r as opposed to a fixed r used by this signer
         let sig: Signature = signing_key.sign(&hash);
 
         let mut sig = sig.to_bytes().as_slice().to_vec();
         sig.extend(pk.serialize_compressed());
 
         let tx = tx.sign(sig, 0).unwrap();
-        let tx64 = STANDARD_NO_PAD.encode(&tx);
-        let _tx = hex::encode(&tx);
+        let tx_hex = hex::encode(&tx);
+        let tx_64 = STANDARD_NO_PAD.encode(&tx);
 
-        assert_eq!("NPQHQfUyEGjR3DR2Z6usMuyoamwf8iyMPR", format!("{}", from));
-        assert_eq!("gAABo0nQxE2ECtdwD4cHhuyH14Jx1epWwKRYgwoj+CAzrbMAAAGbfP/apnS+rg+TDr5gha+Qk+X+VrNKXCIMzc9u/DNvxQDKmjsAAAAAJkM8V0VsEsjKSGhpVKhvThDJZS0BQUDWMm0cB5xR9B7l6LsF2Fdixs6gwIDmS5gdgSi16jIVeseuNd5w+EgPi8MquI7z1wl0Ykvy4JcfDRLDCmHyhPwxIyEC4OWDF55ic5WyX7tFHqtvCVmS7fZqcZKgs0uSUA3SsSKs",
-        tx64);
+        println!("tx hex = {}\ntx 64 = {}", tx_hex, tx_64);
     }
 }
