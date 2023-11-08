@@ -33,7 +33,7 @@ pub type KeyFingerprint = [u8; 4];
 pub type Version = u32;
 
 /// HMAC with SHA-512
-type HmacSha512 = hmac::Hmac<sha2::Sha512>;
+pub type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 
 /// Size of input key material and derived keys.
 pub const KEY_SIZE: usize = 32;
