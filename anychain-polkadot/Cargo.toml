@@ -7,3 +7,4 @@ edition = "2021"
 anychain-core = { path = "../anychain-core", version = "0.1.1" }
 sp-core = "24.0.0"
 base58 = { workspace = true }
+parity-scale-codec = "3.6.5"
