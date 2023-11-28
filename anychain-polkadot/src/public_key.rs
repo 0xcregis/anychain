@@ -1,4 +1,4 @@
-use anychain_core::{PublicKey, PublicKeyError, libsecp256k1, Address};
+use anychain_core::{PublicKey, PublicKeyError, Address, libsecp256k1};
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork};
 use std::{fmt::Display, str::FromStr, marker::PhantomData};
 
@@ -15,7 +15,7 @@ impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         Self {
-            key: libsecp256k1::PublicKey::from_secret_key(&secret_key),
+            key: libsecp256k1::PublicKey::from_secret_key(secret_key),
             _network: PhantomData::<N>,
         }
     }
