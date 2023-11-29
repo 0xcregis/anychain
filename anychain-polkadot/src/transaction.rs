@@ -1,10 +1,10 @@
-use std::fmt::Display;
+use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotPublicKey};
 use anychain_core::{
-    Transaction, TransactionError, TransactionId, hex,
-    crypto::{blake2b_256, sha256, keccak256, sha512}};
-use crate::{PolkadotAddress, PolkadotNetwork, PolkadotFormat, PolkadotPublicKey};
+    crypto::{blake2b_256, keccak256, sha256, sha512},
+    hex, Transaction, TransactionError, TransactionId,
+};
 use parity_scale_codec::Encode;
-
+use std::fmt::Display;
 
 #[derive(Clone)]
 pub struct PolkadotTransactionParameters<N: PolkadotNetwork> {
@@ -54,11 +54,11 @@ impl Display for PolkadotTransactionId {
 
 fn get_era(block_height: u64, mut era_height: u64) -> Vec<u8> {
     if era_height == 0 {
-		era_height = 64
-	}
-	let phase = block_height % era_height;
-	let index = 6u64;
-	let trailing_zero = index - 1;
+        era_height = 64
+    }
+    let phase = block_height % era_height;
+    let index = 6u64;
+    let trailing_zero = index - 1;
 
     let mut encoded = if trailing_zero > 15 {
         15
@@ -67,10 +67,10 @@ fn get_era(block_height: u64, mut era_height: u64) -> Vec<u8> {
     } else {
         trailing_zero
     };
-    
-	encoded += phase / 1 << 4;
-	let first = (encoded >> 8) as u8;
-	let second = (encoded & 0xff) as u8;
+
+    encoded += phase / 1 << 4;
+    let first = (encoded >> 8) as u8;
+    let second = (encoded & 0xff) as u8;
 
     vec![second, first]
 }
@@ -91,7 +91,10 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
     type TransactionParameters = PolkadotTransactionParameters<N>;
 
     fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        Ok(PolkadotTransaction { params: params.clone(), signature: None })
+        Ok(PolkadotTransaction {
+            params: params.clone(),
+            signature: None,
+        })
     }
 
     fn sign(&mut self, rs: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
@@ -115,7 +118,7 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
                 let interim = self.to_interim()?;
                 let version = hex::decode(&self.params.version)?;
                 let from = self.params.from.to_pk_hash()?;
-        
+
                 let stream = [
                     version,
                     vec![0],
@@ -126,11 +129,12 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
                     interim.nonce,
                     interim.tip,
                     interim.method,
-                ].concat();
-        
+                ]
+                .concat();
+
                 let len = stream.len() as u64;
                 let len = encode(len);
-        
+
                 Ok([len, stream].concat())
             }
             None => {
@@ -144,24 +148,27 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
                     interim.tx_version,
                     interim.genesis_hash,
                     interim.block_hash,
-                ].concat())
+                ]
+                .concat())
             }
         }
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        Ok(PolkadotTransactionId { txid: self.digest(1)? })
+        Ok(PolkadotTransactionId {
+            txid: self.digest(1)?,
+        })
     }
 }
 
 impl<N: PolkadotNetwork> PolkadotTransaction<N> {
     pub fn to_interim(&self) -> Result<Interim, TransactionError> {
         let params = &self.params;
-        
+
         let to = params.to.to_pk_hash()?;
         let amount = encode(params.amount);
         let era = get_era(params.block_height, params.era_height);
-        
+
         let nonce = encode(params.nonce);
         let tip = encode(params.tip);
 
@@ -170,7 +177,7 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
 
         let genesis_hash = hex::decode(&params.genesis_hash)?;
         let block_hash = hex::decode(&params.block_hash)?;
-        
+
         let interim = Interim {
             method: [vec![0], to, amount].concat(),
             era,
@@ -184,7 +191,7 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
 
         Ok(interim)
     }
-    
+
     pub fn digest(&self, index: u8) -> Result<Vec<u8>, TransactionError> {
         match index {
             0 => Ok(blake2b_256(&self.to_bytes()?).to_vec()),
@@ -210,10 +217,5 @@ mod tests {
     }
 
     #[test]
-    fn test_tx() {
-
-
-
-
-    }
+    fn test_tx() {}
 }

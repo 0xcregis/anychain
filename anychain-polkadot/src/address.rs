@@ -1,10 +1,10 @@
-use std::{fmt::Display, str::FromStr, marker::PhantomData};
+use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
-use anychain_core::{Address, AddressError, TransactionError, PublicKey, hex, libsecp256k1};
+use anychain_core::{hex, libsecp256k1, Address, AddressError, PublicKey, TransactionError};
 
-use crate::{PolkadotFormat, PolkadotPublicKey, PolkadotNetwork};
+use crate::{PolkadotFormat, PolkadotNetwork, PolkadotPublicKey};
+use base58::{FromBase58, ToBase58};
 use sp_core::hashing::{blake2_256, blake2_512};
-use base58::{ToBase58, FromBase58};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct PolkadotAddress<N: PolkadotNetwork> {
@@ -70,23 +70,21 @@ impl<N: PolkadotNetwork> Display for PolkadotAddress<N> {
 
 #[cfg(test)]
 mod tests {
-    use anychain_core::Address;
     use super::libsecp256k1::SecretKey;
-    use crate::{PolkadotAddress, Polkadot, PolkadotFormat};
+    use crate::{Polkadot, PolkadotAddress, PolkadotFormat};
+    use anychain_core::Address;
 
     #[test]
     fn test_address() {
         let sk = [
-            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1,
         ];
         let sk = SecretKey::parse_slice(&sk).unwrap();
 
-        let address = PolkadotAddress::<Polkadot>::from_secret_key(
-            &sk,
-            &PolkadotFormat::Standard
-        ).unwrap();
-        
+        let address =
+            PolkadotAddress::<Polkadot>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();
+
         println!("address = {}", address);
     }
 

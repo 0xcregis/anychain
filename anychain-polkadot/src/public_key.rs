@@ -1,6 +1,6 @@
-use anychain_core::{PublicKey, PublicKeyError, Address, libsecp256k1};
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork};
-use std::{fmt::Display, str::FromStr, marker::PhantomData};
+use anychain_core::{libsecp256k1, Address, PublicKey, PublicKeyError};
+use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct PolkadotPublicKey<N: PolkadotNetwork> {

@@ -1,7 +1,7 @@
-use std::{str::FromStr, fmt::Display};
+use std::{fmt::Display, str::FromStr};
 
-use anychain_core::{Network, NetworkError};
 use crate::PolkadotNetwork;
+use anychain_core::{Network, NetworkError};
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub struct Polkadot;
