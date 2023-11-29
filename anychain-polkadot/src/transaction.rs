@@ -1,5 +1,7 @@
 use std::fmt::Display;
-use anychain_core::{Transaction, TransactionError, TransactionId, hex};
+use anychain_core::{
+    Transaction, TransactionError, TransactionId, hex,
+    crypto::{blake2b_256, sha256, keccak256, sha512}};
 use crate::{PolkadotAddress, PolkadotNetwork, PolkadotFormat, PolkadotPublicKey};
 use parity_scale_codec::Encode;
 
@@ -20,10 +22,21 @@ pub struct PolkadotTransactionParameters<N: PolkadotNetwork> {
     era_height: u64,
 }
 
+pub struct Interim {
+    method: Vec<u8>,
+    era: Vec<u8>,
+    nonce: Vec<u8>,
+    tip: Vec<u8>,
+    spec_version: Vec<u8>,
+    genesis_hash: Vec<u8>,
+    block_hash: Vec<u8>,
+    tx_version: Vec<u8>,
+}
+
 #[derive(Clone)]
 pub struct PolkadotTransaction<N: PolkadotNetwork> {
     pub params: PolkadotTransactionParameters<N>,
-    pub signature: Vec<u8>
+    pub signature: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -39,9 +52,27 @@ impl Display for PolkadotTransactionId {
     }
 }
 
-fn get_era(block_height: u64, era_height: u64) -> Vec<u8> {
+fn get_era(block_height: u64, mut era_height: u64) -> Vec<u8> {
+    if era_height == 0 {
+		era_height = 64
+	}
+	let phase = block_height % era_height;
+	let index = 6u64;
+	let trailing_zero = index - 1;
 
-    todo!()
+    let mut encoded = if trailing_zero > 15 {
+        15
+    } else if trailing_zero < 1 {
+        1
+    } else {
+        trailing_zero
+    };
+    
+	encoded += phase / 1 << 4;
+	let first = (encoded >> 8) as u8;
+	let second = (encoded & 0xff) as u8;
+
+    vec![second, first]
 }
 
 fn encode(val: u64) -> Vec<u8> {
@@ -60,40 +91,88 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
     type TransactionParameters = PolkadotTransactionParameters<N>;
 
     fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
-        
-        todo!()
+        Ok(PolkadotTransaction { params: params.clone(), signature: None })
     }
 
-    fn sign(&mut self, sig: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
-        
-        todo!()
+    fn sign(&mut self, rs: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
+        if rs.len() != 64 {
+            return Err(TransactionError::Message(format!(
+                "Invalid signature length {}",
+                rs.len(),
+            )));
+        }
+        self.signature = Some(rs);
+        self.to_bytes()
     }
 
-    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-
+    fn from_bytes(_tx: &[u8]) -> Result<Self, TransactionError> {
         todo!()
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
-        let params = &self.params;
+        match &self.signature {
+            Some(sig) => {
+                let interim = self.to_interim()?;
+                let version = hex::decode(&self.params.version)?;
+                let from = self.params.from.to_pk_hash()?;
+        
+                let stream = [
+                    version,
+                    vec![0],
+                    from,
+                    vec![2], // secp256k1 signature scheme = 2
+                    sig.clone(),
+                    interim.era,
+                    interim.nonce,
+                    interim.tip,
+                    interim.method,
+                ].concat();
+        
+                let len = stream.len() as u64;
+                let len = encode(len);
+        
+                Ok([len, stream].concat())
+            }
+            None => {
+                let interim = self.to_interim()?;
+                Ok([
+                    interim.method,
+                    interim.era,
+                    interim.nonce,
+                    interim.tip,
+                    interim.spec_version,
+                    interim.tx_version,
+                    interim.genesis_hash,
+                    interim.block_hash,
+                ].concat())
+            }
+        }
+    }
 
+    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
+        Ok(PolkadotTransactionId { txid: self.digest(1)? })
+    }
+}
+
+impl<N: PolkadotNetwork> PolkadotTransaction<N> {
+    pub fn to_interim(&self) -> Result<Interim, TransactionError> {
+        let params = &self.params;
+        
         let to = params.to.to_pk_hash()?;
         let amount = encode(params.amount);
         let era = get_era(params.block_height, params.era_height);
         
         let nonce = encode(params.nonce);
-        let tip = encode(params.nonce);
+        let tip = encode(params.tip);
 
         let spec_version = params.spec_version.to_le_bytes().to_vec();
         let tx_version = params.tx_version.to_le_bytes().to_vec();
 
         let genesis_hash = hex::decode(&params.genesis_hash)?;
         let block_hash = hex::decode(&params.block_hash)?;
-
-        Ok([
-            vec![0],
-            to,
-            amount,
+        
+        let interim = Interim {
+            method: [vec![0], to, amount].concat(),
             era,
             nonce,
             tip,
@@ -101,24 +180,40 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
             tx_version,
             genesis_hash,
             block_hash,
-        ].concat())
-    }
+        };
 
-    fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        todo!()
+        Ok(interim)
+    }
+    
+    pub fn digest(&self, index: u8) -> Result<Vec<u8>, TransactionError> {
+        match index {
+            0 => Ok(blake2b_256(&self.to_bytes()?).to_vec()),
+            1 => Ok(sha256(&self.to_bytes()?).to_vec()),
+            2 => Ok(keccak256(&self.to_bytes()?).to_vec()),
+            3 => Ok(sha512(&self.to_bytes()?)[..32].to_vec()),
+            _ => Err(TransactionError::Message("invalid digest code".to_string())),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use anychain_core::hex;
-    use parity_scale_codec::{Encode};
+    use parity_scale_codec::Encode;
 
     #[test]
-    fn test() {
+    fn test_encode() {
         let s = 1073741u64;
         let s = s.encode();
         let s = hex::encode(&s);
         println!("s = {}", s);
+    }
+
+    #[test]
+    fn test_tx() {
+
+
+
+
     }
 }
