@@ -9,3 +9,4 @@ sp-core = "24.0.0"
 base58 = { workspace = true }
 parity-scale-codec = { version = "3.6.5", feature = "derive" }
 ed25519-dalek-fiat = "0.1.0"
+serde_json = { workspace = true }

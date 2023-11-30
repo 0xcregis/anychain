@@ -211,9 +211,106 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
     }
 }
 
+impl<N: PolkadotNetwork> Display for PolkadotTransaction<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", hex::encode(self.to_bytes().unwrap()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::{
+        transaction, Kusama, Polkadot, PolkadotAddress, PolkadotFormat, PolkadotNetwork,
+        PolkadotTransaction, PolkadotTransactionParameters,
+    };
+    use anychain_core::Address;
+    use anychain_core::{hex, libsecp256k1, Transaction};
+    use serde_json::Value;
+    use std::str::FromStr;
+
+    fn tx_from_str<N: PolkadotNetwork>(json: &str) -> PolkadotTransaction<N> {
+        let json = serde_json::from_str::<Value>(json).unwrap();
+
+        let module_method = json["module_method"].as_str().unwrap().to_string();
+
+        let version = json["version"].as_str().unwrap().to_string();
+
+        let from = PolkadotAddress::<N>::from_str(json["from"].as_str().unwrap()).unwrap();
+
+        let to = PolkadotAddress::<N>::from_str(json["to"].as_str().unwrap()).unwrap();
+
+        let amount = json["amount"].as_u64().unwrap();
+        let nonce = json["nonce"].as_u64().unwrap();
+        let tip = json["tip"].as_u64().unwrap();
+        let block_height = json["block_height"].as_u64().unwrap();
+        let block_hash = json["block_hash"].as_str().unwrap().to_string();
+        let genesis_hash = json["genesis_hash"].as_str().unwrap().to_string();
+        let spec_version = json["spec_version"].as_u64().unwrap() as u32;
+        let tx_version = json["tx_version"].as_u64().unwrap() as u32;
+        let era_height = json["era_height"].as_u64().unwrap();
+
+        let params = PolkadotTransactionParameters::<N> {
+            module_method,
+            version,
+            from,
+            to,
+            amount,
+            nonce,
+            tip,
+            block_height,
+            block_hash,
+            genesis_hash,
+            spec_version,
+            tx_version,
+            era_height,
+        };
+
+        PolkadotTransaction::<N>::new(&params).unwrap()
+    }
 
     #[test]
-    fn test_tx_gen() {}
+    fn test_address_gen() {
+        let format = &PolkadotFormat::Standard;
+
+        let sk_from = [
+            1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1u8,
+        ];
+
+        let sk_to = [
+            3, 1, 2, 5, 8, 1, 118, 203, 0, 1, 2, 1, 1, 2, 1, 1, 1, 103, 0, 0, 2, 2, 2, 2, 2, 2, 3,
+            5, 8, 13, 17, 29,
+        ];
+
+        let sk_from = libsecp256k1::SecretKey::parse_slice(&sk_from).unwrap();
+        let sk_to = libsecp256k1::SecretKey::parse_slice(&sk_to).unwrap();
+
+        let from = PolkadotAddress::<Polkadot>::from_secret_key(&sk_from, format).unwrap();
+        let to = PolkadotAddress::<Polkadot>::from_secret_key(&sk_to, format).unwrap();
+
+        println!("from = {}\nto = {}", from, to);
+    }
+
+    #[test]
+    fn test_tx_gen() {
+        let tx = r#"{
+            "module_method": "aaff",
+            "version": "1122",
+            "from": "15ckxVUHr2jvdRk43xfHRSqvo7ru6tnBD1FDmNT88dZbmEiR",
+            "to": "12joHcYyhDwJ6c5zuisLmTRS78vFUzCpD3XC4t8aQivUx3K3",
+            "amount": 80000000,
+            "nonce": 32,
+            "tip": 80000,
+            "block_height": 150000,
+            "block_hash": "36d3815b142fc9a93c1fff1ef7994fe6f3919ccc54a51c891e8418ca95a51020",
+            "genesis_hash": "ba2bcfed866d89c59110901ee513ffaba1ab6c8e3b99ab8d386c0f8fc0f8a38b",
+            "spec_version": 2,
+            "tx_version": 3,
+            "era_height": 88888
+        }"#;
+
+        let tx = tx_from_str::<Polkadot>(tx);
+
+        println!("tx = {}", tx);
+    }
 }

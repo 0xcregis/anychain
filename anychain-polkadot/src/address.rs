@@ -57,8 +57,29 @@ impl<N: PolkadotNetwork> PolkadotAddress<N> {
 
 impl<N: PolkadotNetwork> FromStr for PolkadotAddress<N> {
     type Err = TransactionError;
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!()
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.from_base58()?;
+        if N::version() != bytes[0] {
+            return Err(TransactionError::Message(format!(
+                "Invalid version byte {} for polkadot network {}",
+                bytes[0],
+                N::NAME,
+            )));
+        }
+        let checksum_provided = bytes[33..].to_vec();
+        let ss_prefix = vec![0x53u8, 0x53, 0x35, 0x38, 0x50, 0x52, 0x45];
+        let checksum_expected =
+            blake2_512(&[ss_prefix, bytes[..33].to_vec()].concat())[..2].to_vec();
+        if checksum_expected != checksum_provided {
+            return Err(TransactionError::Message(format!(
+                "Invalid {} address",
+                N::NAME
+            )));
+        }
+        Ok(PolkadotAddress {
+            addr: s.to_string(),
+            _network: PhantomData,
+        })
     }
 }
 
