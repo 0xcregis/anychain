@@ -3,26 +3,27 @@ use anychain_core::{
     crypto::{blake2b_256, keccak256, sha256, sha512},
     hex, Transaction, TransactionError, TransactionId,
 };
-use parity_scale_codec::Encode;
+use parity_scale_codec::{Encode, Decode, HasCompact};
 use std::fmt::Display;
 
 #[derive(Clone)]
 pub struct PolkadotTransactionParameters<N: PolkadotNetwork> {
-    version: String,
-    from: PolkadotAddress<N>,
-    to: PolkadotAddress<N>,
-    amount: u64,
-    nonce: u64,
-    tip: u64,
-    block_height: u64,
-    block_hash: String,
-    genesis_hash: String,
-    spec_version: u32,
-    tx_version: u32,
-    era_height: u64,
+    pub module_method: String,
+    pub version: String,
+    pub from: PolkadotAddress<N>,
+    pub to: PolkadotAddress<N>,
+    pub amount: u64,
+    pub nonce: u64,
+    pub tip: u64,
+    pub block_height: u64,
+    pub block_hash: String,
+    pub genesis_hash: String,
+    pub spec_version: u32,
+    pub tx_version: u32,
+    pub era_height: u64,
 }
 
-pub struct Interim {
+struct TxInterim {
     method: Vec<u8>,
     era: Vec<u8>,
     nonce: Vec<u8>,
@@ -52,6 +53,12 @@ impl Display for PolkadotTransactionId {
     }
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct CompactWrapper<T: HasCompact> {
+    #[codec(encoded_as = "<T as HasCompact>::Type")]
+    val: T,
+}
+
 fn get_era(block_height: u64, mut era_height: u64) -> Vec<u8> {
     if era_height == 0 {
         era_height = 64
@@ -79,7 +86,7 @@ fn encode(val: u64) -> Vec<u8> {
     if val == 0 {
         vec![0]
     } else {
-        val.encode()
+        CompactWrapper { val }.encode()
     }
 }
 
@@ -162,9 +169,10 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
 }
 
 impl<N: PolkadotNetwork> PolkadotTransaction<N> {
-    pub fn to_interim(&self) -> Result<Interim, TransactionError> {
+    fn to_interim(&self) -> Result<TxInterim, TransactionError> {
         let params = &self.params;
 
+        let method = hex::decode(&params.module_method)?;
         let to = params.to.to_pk_hash()?;
         let amount = encode(params.amount);
         let era = get_era(params.block_height, params.era_height);
@@ -178,8 +186,8 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
         let genesis_hash = hex::decode(&params.genesis_hash)?;
         let block_hash = hex::decode(&params.block_hash)?;
 
-        let interim = Interim {
-            method: [vec![0], to, amount].concat(),
+        let interim = TxInterim {
+            method: [method, vec![0], to, amount].concat(),
             era,
             nonce,
             tip,
@@ -205,17 +213,9 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
 
 #[cfg(test)]
 mod tests {
-    use anychain_core::hex;
-    use parity_scale_codec::Encode;
 
     #[test]
-    fn test_encode() {
-        let s = 1073741u64;
-        let s = s.encode();
-        let s = hex::encode(&s);
-        println!("s = {}", s);
+    fn test_tx_gen() {
+
     }
-
-    #[test]
-    fn test_tx() {}
 }

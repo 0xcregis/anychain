@@ -7,5 +7,5 @@ edition = "2021"
 anychain-core = { path = "../anychain-core", version = "0.1.1" }
 sp-core = "24.0.0"
 base58 = { workspace = true }
-parity-scale-codec = "3.6.5"
+parity-scale-codec = { version = "3.6.5", feature = "derive" }
 ed25519-dalek-fiat = "0.1.0"
