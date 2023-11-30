@@ -3,7 +3,7 @@ use anychain_core::{
     crypto::{blake2b_256, keccak256, sha256, sha512},
     hex, Transaction, TransactionError, TransactionId,
 };
-use parity_scale_codec::{Encode, Decode, HasCompact};
+use parity_scale_codec::{Decode, Encode, HasCompact};
 use std::fmt::Display;
 
 #[derive(Clone)]
@@ -215,7 +215,5 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
 mod tests {
 
     #[test]
-    fn test_tx_gen() {
-
-    }
+    fn test_tx_gen() {}
 }
