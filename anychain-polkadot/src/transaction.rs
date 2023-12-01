@@ -220,11 +220,11 @@ impl<N: PolkadotNetwork> Display for PolkadotTransaction<N> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        PolkadotAddress, PolkadotFormat, PolkadotNetwork,
-        PolkadotTransaction, PolkadotTransactionParameters, Substrate,
+        PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotTransaction,
+        PolkadotTransactionParameters, Substrate,
     };
     use anychain_core::Address;
-    use anychain_core::{libsecp256k1, Transaction, hex};
+    use anychain_core::{hex, libsecp256k1, Transaction};
     use serde_json::Value;
     use std::str::FromStr;
 
@@ -321,7 +321,7 @@ mod tests {
         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
         let sig = libsecp256k1::sign(&msg, &sk).0;
         let sig = sig.serialize().to_vec();
-        
+
         let signed_tx = tx.sign(sig, 0).unwrap();
         let signed_tx = hex::encode(&signed_tx);
 
