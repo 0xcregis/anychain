@@ -220,11 +220,11 @@ impl<N: PolkadotNetwork> Display for PolkadotTransaction<N> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        transaction, Kusama, Polkadot, PolkadotAddress, PolkadotFormat, PolkadotNetwork,
-        PolkadotTransaction, PolkadotTransactionParameters,
+        PolkadotAddress, PolkadotFormat, PolkadotNetwork,
+        PolkadotTransaction, PolkadotTransactionParameters, Substrate,
     };
     use anychain_core::Address;
-    use anychain_core::{hex, libsecp256k1, Transaction};
+    use anychain_core::{libsecp256k1, Transaction, hex};
     use serde_json::Value;
     use std::str::FromStr;
 
@@ -285,8 +285,8 @@ mod tests {
         let sk_from = libsecp256k1::SecretKey::parse_slice(&sk_from).unwrap();
         let sk_to = libsecp256k1::SecretKey::parse_slice(&sk_to).unwrap();
 
-        let from = PolkadotAddress::<Polkadot>::from_secret_key(&sk_from, format).unwrap();
-        let to = PolkadotAddress::<Polkadot>::from_secret_key(&sk_to, format).unwrap();
+        let from = PolkadotAddress::<Substrate>::from_secret_key(&sk_from, format).unwrap();
+        let to = PolkadotAddress::<Substrate>::from_secret_key(&sk_to, format).unwrap();
 
         println!("from = {}\nto = {}", from, to);
     }
@@ -294,23 +294,37 @@ mod tests {
     #[test]
     fn test_tx_gen() {
         let tx = r#"{
-            "module_method": "aaff",
-            "version": "1122",
-            "from": "15ckxVUHr2jvdRk43xfHRSqvo7ru6tnBD1FDmNT88dZbmEiR",
-            "to": "12joHcYyhDwJ6c5zuisLmTRS78vFUzCpD3XC4t8aQivUx3K3",
-            "amount": 80000000,
-            "nonce": 32,
-            "tip": 80000,
-            "block_height": 150000,
-            "block_hash": "36d3815b142fc9a93c1fff1ef7994fe6f3919ccc54a51c891e8418ca95a51020",
-            "genesis_hash": "ba2bcfed866d89c59110901ee513ffaba1ab6c8e3b99ab8d386c0f8fc0f8a38b",
-            "spec_version": 2,
+            "module_method": "",
+            "version": "84",
+            "from": "5GgTpADDzFUTBtjY6KcHHJ1mwVsFQbE38WWjc5TmaYY5b7zF",
+            "to": "5DoW9HHuqSfpf55Ux5pLdJbHFWvbngeg8Ynhub9DrdtxmZeV",
+            "amount": 50000000000000,
+            "nonce": 0,
+            "tip": 1000000000000,
+            "block_height": 8117556,
+            "block_hash": "d268b9ef1c92dbaf68bd850ef65b3ea2764b9dabc41980c56d440848288f536c",
+            "genesis_hash": "e3777fa922cafbff200cadeaea1a76bd7898ad5b89f7848999058b50e715f636",
+            "spec_version": 104000,
             "tx_version": 3,
             "era_height": 88888
         }"#;
 
-        let tx = tx_from_str::<Polkadot>(tx);
+        let mut tx = tx_from_str::<Substrate>(tx);
+        let hash = tx.to_transaction_id().unwrap().txid;
+        let msg = libsecp256k1::Message::parse_slice(&hash).unwrap();
 
-        println!("tx = {}", tx);
+        let sk = [
+            1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1u8,
+        ];
+
+        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+        let sig = libsecp256k1::sign(&msg, &sk).0;
+        let sig = sig.serialize().to_vec();
+        
+        let signed_tx = tx.sign(sig, 0).unwrap();
+        let signed_tx = hex::encode(&signed_tx);
+
+        println!("signed tx = {}", signed_tx);
     }
 }
