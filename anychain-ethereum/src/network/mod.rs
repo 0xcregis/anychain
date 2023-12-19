@@ -60,6 +60,12 @@ pub use self::okex::*;
 pub mod okex_testnet;
 pub use self::okex_testnet::*;
 
+pub mod opbnb;
+pub use self::opbnb::*;
+
+pub mod opbnb_testnet;
+pub use self::opbnb_testnet::*;
+
 /// The interface for an Ethereum network.
 pub trait EthereumNetwork: Network {
     const CHAIN_ID: u32;
