@@ -124,7 +124,7 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
             Some(sig) => {
                 let interim = self.to_interim()?;
                 let version = hex::decode(&self.params.version)?;
-                let from = self.params.from.to_pk_hash()?;
+                let from = self.params.from.to_payload()?;
 
                 let stream = [
                     version,
@@ -173,7 +173,7 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
         let params = &self.params;
 
         let method = hex::decode(&params.module_method)?;
-        let to = params.to.to_pk_hash()?;
+        let to = params.to.to_payload()?;
         let amount = encode(params.amount);
         let era = get_era(params.block_height, params.era_height);
 
@@ -221,7 +221,7 @@ impl<N: PolkadotNetwork> Display for PolkadotTransaction<N> {
 mod tests {
     use crate::{
         PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotTransaction,
-        PolkadotTransactionParameters, Substrate,
+        PolkadotTransactionParameters, Substrate, PolkadotSecretKey,
     };
     use anychain_core::Address;
     use anychain_core::{hex, libsecp256k1, Transaction};
@@ -284,6 +284,9 @@ mod tests {
 
         let sk_from = libsecp256k1::SecretKey::parse_slice(&sk_from).unwrap();
         let sk_to = libsecp256k1::SecretKey::parse_slice(&sk_to).unwrap();
+
+        let sk_from = PolkadotSecretKey::Secp256k1(sk_from);
+        let sk_to = PolkadotSecretKey::Secp256k1(sk_to);
 
         let from = PolkadotAddress::<Substrate>::from_secret_key(&sk_from, format).unwrap();
         let to = PolkadotAddress::<Substrate>::from_secret_key(&sk_to, format).unwrap();

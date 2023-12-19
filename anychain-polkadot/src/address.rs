@@ -2,7 +2,7 @@ use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
 use anychain_core::{hex, libsecp256k1, Address, AddressError, PublicKey, TransactionError};
 
-use crate::{PolkadotFormat, PolkadotNetwork, PolkadotPublicKey};
+use crate::{PolkadotFormat, PolkadotNetwork, PolkadotPublicKey, PolkadotSecretKey, PublicKeyContent};
 use base58::{FromBase58, ToBase58};
 use sp_core::hashing::{blake2_256, blake2_512};
 
@@ -13,7 +13,7 @@ pub struct PolkadotAddress<N: PolkadotNetwork> {
 }
 
 impl<N: PolkadotNetwork> Address for PolkadotAddress<N> {
-    type SecretKey = libsecp256k1::SecretKey;
+    type SecretKey = PolkadotSecretKey;
     type PublicKey = PolkadotPublicKey<N>;
     type Format = PolkadotFormat;
 
@@ -28,15 +28,14 @@ impl<N: PolkadotNetwork> Address for PolkadotAddress<N> {
         public_key: &Self::PublicKey,
         _format: &Self::Format,
     ) -> Result<Self, anychain_core::AddressError> {
-        let pk_hash = blake2_256(&public_key.serialize()).to_vec();
-        Self::from_pk_hash(&hex::encode(&pk_hash))
+        Self::from_payload(&hex::encode(&public_key.address_payload()))
     }
 }
 
 impl<N: PolkadotNetwork> PolkadotAddress<N> {
-    pub fn from_pk_hash(pk_hash: &str) -> Result<Self, AddressError> {
-        let pk_hash = hex::decode(pk_hash).unwrap();
-        let payload = [vec![N::version()], pk_hash].concat();
+    pub fn from_payload(payload: &str) -> Result<Self, AddressError> {
+        let payload = hex::decode(payload).unwrap();
+        let payload = [vec![N::version()], payload].concat();
 
         let ss_prefix = vec![0x53u8, 0x53, 0x35, 0x38, 0x50, 0x52, 0x45];
 
@@ -49,7 +48,7 @@ impl<N: PolkadotNetwork> PolkadotAddress<N> {
         })
     }
 
-    pub fn to_pk_hash(&self) -> Result<Vec<u8>, AddressError> {
+    pub fn to_payload(&self) -> Result<Vec<u8>, AddressError> {
         let bin = self.addr.as_str().from_base58()?;
         Ok(bin[1..33].to_vec())
     }
@@ -91,20 +90,21 @@ impl<N: PolkadotNetwork> Display for PolkadotAddress<N> {
 
 #[cfg(test)]
 mod tests {
-    use super::libsecp256k1::SecretKey;
-    use crate::{Polkadot, PolkadotAddress, PolkadotFormat};
+    use ed25519_dalek_fiat::SecretKey;
+    use crate::{Polkadot, PolkadotAddress, PolkadotFormat, Substrate, PolkadotSecretKey};
     use anychain_core::Address;
 
     #[test]
     fn test_address() {
         let sk = [
-            1u8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1,
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
         ];
-        let sk = SecretKey::parse_slice(&sk).unwrap();
+        let sk = SecretKey::from_bytes(&sk).unwrap();
+        let sk = PolkadotSecretKey::Ed25519(sk);
 
         let address =
-            PolkadotAddress::<Polkadot>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();
+            PolkadotAddress::<Substrate>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();
 
         println!("address = {}", address);
     }
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_address_2() {
         let hash = "0c2f3c6dabb4a0600eccae87aeaa39242042f9a576aa8dca01e1b419cf17d7a2";
-        let address = PolkadotAddress::<Polkadot>::from_pk_hash(hash).unwrap();
+        let address = PolkadotAddress::<Polkadot>::from_payload(hash).unwrap();
         println!("address = {}", address);
     }
 }

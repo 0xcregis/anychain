@@ -1,22 +1,42 @@
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork};
 use anychain_core::{libsecp256k1, Address, PublicKey, PublicKeyError};
+use sp_core::blake2_256;
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
+
+pub enum PolkadotSecretKey {
+    Secp256k1(libsecp256k1::SecretKey),
+    Ed25519(ed25519_dalek_fiat::SecretKey),
+}
+
+#[derive(Debug, Clone)]
+pub enum PublicKeyContent {
+    Secp256k1(libsecp256k1::PublicKey),
+    Ed25519(ed25519_dalek_fiat::PublicKey),
+}
 
 #[derive(Debug, Clone)]
 pub struct PolkadotPublicKey<N: PolkadotNetwork> {
-    key: libsecp256k1::PublicKey,
+    pub key: PublicKeyContent,
     _network: PhantomData<N>,
 }
 
 impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
-    type SecretKey = libsecp256k1::SecretKey;
+    type SecretKey = PolkadotSecretKey;
     type Address = PolkadotAddress<N>;
     type Format = PolkadotFormat;
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
-        Self {
-            key: libsecp256k1::PublicKey::from_secret_key(secret_key),
-            _network: PhantomData::<N>,
+        match secret_key {
+            Self::SecretKey::Secp256k1(sk) => {
+                let pk = libsecp256k1::PublicKey::from_secret_key(sk);
+                let pk = PublicKeyContent::Secp256k1(pk);
+                Self { key: pk, _network: PhantomData }
+            }
+            Self::SecretKey::Ed25519(sk) => {
+                let pk = ed25519_dalek_fiat::PublicKey::from(sk);
+                let pk = PublicKeyContent::Ed25519(pk);
+                Self { key: pk, _network: PhantomData }
+            }
         }
     }
 
@@ -30,7 +50,17 @@ impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
 
 impl<N: PolkadotNetwork> PolkadotPublicKey<N> {
     pub fn serialize(&self) -> Vec<u8> {
-        self.key.serialize_compressed().to_vec()
+        match self.key {
+            PublicKeyContent::Secp256k1(pk) => pk.serialize_compressed().to_vec(),
+            PublicKeyContent::Ed25519(pk) => pk.to_bytes().to_vec(),
+        }
+    }
+
+    pub fn address_payload(&self) -> Vec<u8> {
+        match self.key {
+            PublicKeyContent::Secp256k1(_) => blake2_256(&self.serialize()).to_vec(),
+            PublicKeyContent::Ed25519(_) => self.serialize(),
+        }
     }
 }
 
