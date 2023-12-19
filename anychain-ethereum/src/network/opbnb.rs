@@ -6,7 +6,7 @@ use std::{fmt, str::FromStr};
 
 /// Represents a OpBNB mainnet
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Okex;
+pub struct OpBnb;
 
 impl Network for OpBnb {
     const NAME: &'static str = "op bnb mainnet";
