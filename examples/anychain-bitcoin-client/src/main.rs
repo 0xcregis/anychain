@@ -122,7 +122,7 @@ fn transaction_gen() {
         ),
     ];
 
-    for (_i, item) in inputs.iter().enumerate() {
+    for item in inputs.iter() {
         let input = BitcoinTransactionInput::new(
             hex::decode(item.0).unwrap(),
             item.1,
