@@ -10,3 +10,4 @@ base58 = { workspace = true }
 parity-scale-codec = { version = "3.6.5" }
 ed25519-dalek-fiat = "0.1.0"
 serde_json = { workspace = true }
+rand.workspace = true

@@ -30,12 +30,18 @@ impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
             Self::SecretKey::Secp256k1(sk) => {
                 let pk = libsecp256k1::PublicKey::from_secret_key(sk);
                 let pk = PublicKeyContent::Secp256k1(pk);
-                Self { key: pk, _network: PhantomData }
+                Self {
+                    key: pk,
+                    _network: PhantomData,
+                }
             }
             Self::SecretKey::Ed25519(sk) => {
                 let pk = ed25519_dalek_fiat::PublicKey::from(sk);
                 let pk = PublicKeyContent::Ed25519(pk);
-                Self { key: pk, _network: PhantomData }
+                Self {
+                    key: pk,
+                    _network: PhantomData,
+                }
             }
         }
     }

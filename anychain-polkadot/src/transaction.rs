@@ -1,26 +1,19 @@
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotPublicKey};
-use anychain_core::{
-    crypto::{blake2b_256, keccak256, sha256, sha512},
-    hex, Transaction, TransactionError, TransactionId,
-};
+use anychain_core::{crypto::blake2b_256, hex, Transaction, TransactionError, TransactionId};
 use parity_scale_codec::{Decode, Encode, HasCompact};
 use std::fmt::Display;
 
 #[derive(Clone)]
 pub struct PolkadotTransactionParameters<N: PolkadotNetwork> {
-    pub module_method: String,
-    pub version: String,
     pub from: PolkadotAddress<N>,
     pub to: PolkadotAddress<N>,
     pub amount: u64,
     pub nonce: u64,
     pub tip: u64,
-    pub block_height: u64,
     pub block_hash: String,
     pub genesis_hash: String,
     pub spec_version: u32,
     pub tx_version: u32,
-    pub era_height: u64,
 }
 
 struct TxInterim {
@@ -59,29 +52,6 @@ struct CompactWrapper<T: HasCompact> {
     val: T,
 }
 
-fn get_era(block_height: u64, mut era_height: u64) -> Vec<u8> {
-    if era_height == 0 {
-        era_height = 64
-    }
-    let phase = block_height % era_height;
-    let index = 6u64;
-    let trailing_zero = index - 1;
-
-    let mut encoded = if trailing_zero > 15 {
-        15
-    } else if trailing_zero < 1 {
-        1
-    } else {
-        trailing_zero
-    };
-
-    encoded += phase / 1 << 4;
-    let first = (encoded >> 8) as u8;
-    let second = (encoded & 0xff) as u8;
-
-    vec![second, first]
-}
-
 fn encode(val: u64) -> Vec<u8> {
     if val == 0 {
         vec![0]
@@ -104,14 +74,15 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
         })
     }
 
-    fn sign(&mut self, rs: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
+    fn sign(&mut self, rs: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
         if rs.len() != 64 {
             return Err(TransactionError::Message(format!(
                 "Invalid signature length {}",
                 rs.len(),
             )));
         }
-        self.signature = Some(rs);
+        // self.signature = Some([vec![recid], rs].concat());
+        self.signature = Some([rs, vec![recid]].concat());
         self.to_bytes()
     }
 
@@ -123,14 +94,13 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
         match &self.signature {
             Some(sig) => {
                 let interim = self.to_interim()?;
-                let version = hex::decode(&self.params.version)?;
                 let from = self.params.from.to_payload()?;
 
                 let stream = [
-                    version,
+                    vec![0x84], // version = 0x84
                     vec![0],
                     from,
-                    vec![2], // secp256k1 signature scheme = 2
+                    vec![2], // ed25519 = 0, sr25519 = 1, secp256k1 = 2
                     sig.clone(),
                     interim.era,
                     interim.nonce,
@@ -163,7 +133,7 @@ impl<N: PolkadotNetwork> Transaction for PolkadotTransaction<N> {
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         Ok(PolkadotTransactionId {
-            txid: self.digest(1)?,
+            txid: self.digest()?,
         })
     }
 }
@@ -172,10 +142,9 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
     fn to_interim(&self) -> Result<TxInterim, TransactionError> {
         let params = &self.params;
 
-        let method = hex::decode(&params.module_method)?;
         let to = params.to.to_payload()?;
         let amount = encode(params.amount);
-        let era = get_era(params.block_height, params.era_height);
+        let era = vec![0];
 
         let nonce = encode(params.nonce);
         let tip = encode(params.tip);
@@ -186,8 +155,11 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
         let genesis_hash = hex::decode(&params.genesis_hash)?;
         let block_hash = hex::decode(&params.block_hash)?;
 
+        let pallet_index = 4;
+        let function_index = 3;
+
         let interim = TxInterim {
-            method: [method, vec![0], to, amount].concat(),
+            method: [vec![pallet_index, function_index], vec![0], to, amount].concat(),
             era,
             nonce,
             tip,
@@ -200,14 +172,8 @@ impl<N: PolkadotNetwork> PolkadotTransaction<N> {
         Ok(interim)
     }
 
-    pub fn digest(&self, index: u8) -> Result<Vec<u8>, TransactionError> {
-        match index {
-            0 => Ok(blake2b_256(&self.to_bytes()?).to_vec()),
-            1 => Ok(sha256(&self.to_bytes()?).to_vec()),
-            2 => Ok(keccak256(&self.to_bytes()?).to_vec()),
-            3 => Ok(sha512(&self.to_bytes()?)[..32].to_vec()),
-            _ => Err(TransactionError::Message("invalid digest code".to_string())),
-        }
+    pub fn digest(&self) -> Result<Vec<u8>, TransactionError> {
+        Ok(blake2b_256(&self.to_bytes()?).to_vec())
     }
 }
 
@@ -220,8 +186,8 @@ impl<N: PolkadotNetwork> Display for PolkadotTransaction<N> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotTransaction,
-        PolkadotTransactionParameters, Substrate, PolkadotSecretKey,
+        PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotSecretKey, PolkadotTransaction,
+        PolkadotTransactionParameters, Substrate,
     };
     use anychain_core::Address;
     use anychain_core::{hex, libsecp256k1, Transaction};
@@ -231,10 +197,6 @@ mod tests {
     fn tx_from_str<N: PolkadotNetwork>(json: &str) -> PolkadotTransaction<N> {
         let json = serde_json::from_str::<Value>(json).unwrap();
 
-        let module_method = json["module_method"].as_str().unwrap().to_string();
-
-        let version = json["version"].as_str().unwrap().to_string();
-
         let from = PolkadotAddress::<N>::from_str(json["from"].as_str().unwrap()).unwrap();
 
         let to = PolkadotAddress::<N>::from_str(json["to"].as_str().unwrap()).unwrap();
@@ -242,27 +204,21 @@ mod tests {
         let amount = json["amount"].as_u64().unwrap();
         let nonce = json["nonce"].as_u64().unwrap();
         let tip = json["tip"].as_u64().unwrap();
-        let block_height = json["block_height"].as_u64().unwrap();
         let block_hash = json["block_hash"].as_str().unwrap().to_string();
         let genesis_hash = json["genesis_hash"].as_str().unwrap().to_string();
         let spec_version = json["spec_version"].as_u64().unwrap() as u32;
         let tx_version = json["tx_version"].as_u64().unwrap() as u32;
-        let era_height = json["era_height"].as_u64().unwrap();
 
         let params = PolkadotTransactionParameters::<N> {
-            module_method,
-            version,
             from,
             to,
             amount,
             nonce,
             tip,
-            block_height,
             block_hash,
             genesis_hash,
             spec_version,
             tx_version,
-            era_height,
         };
 
         PolkadotTransaction::<N>::new(&params).unwrap()
@@ -273,8 +229,8 @@ mod tests {
         let format = &PolkadotFormat::Standard;
 
         let sk_from = [
-            1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1u8,
+            228u8, 121, 108, 167, 244, 6, 57, 61, 104, 68, 229, 88, 23, 16, 212, 157, 110, 171, 36,
+            26, 232, 171, 144, 41, 109, 182, 148, 243, 20, 23, 29, 61,
         ];
 
         let sk_to = [
@@ -297,19 +253,15 @@ mod tests {
     #[test]
     fn test_tx_gen() {
         let tx = r#"{
-            "module_method": "",
-            "version": "84",
-            "from": "5GgTpADDzFUTBtjY6KcHHJ1mwVsFQbE38WWjc5TmaYY5b7zF",
+            "from": "5FnS6tYbCTAtK3QCfNnddwVR61ypLLM7APRrs98paFs7yMSY",
             "to": "5DoW9HHuqSfpf55Ux5pLdJbHFWvbngeg8Ynhub9DrdtxmZeV",
-            "amount": 50000000000000,
+            "amount": 1000000000000,
             "nonce": 0,
-            "tip": 1000000000000,
-            "block_height": 8117556,
-            "block_hash": "d268b9ef1c92dbaf68bd850ef65b3ea2764b9dabc41980c56d440848288f536c",
-            "genesis_hash": "e3777fa922cafbff200cadeaea1a76bd7898ad5b89f7848999058b50e715f636",
-            "spec_version": 104000,
-            "tx_version": 3,
-            "era_height": 88888
+            "tip": 0,
+            "block_hash": "e143f23803ac50e8f6f8e62695d1ce9e4e1d68aa36c1cd2cfd15340213f3423e",
+            "genesis_hash": "e143f23803ac50e8f6f8e62695d1ce9e4e1d68aa36c1cd2cfd15340213f3423e",
+            "spec_version": 1005000,
+            "tx_version": 24
         }"#;
 
         let mut tx = tx_from_str::<Substrate>(tx);
@@ -317,13 +269,53 @@ mod tests {
         let msg = libsecp256k1::Message::parse_slice(&hash).unwrap();
 
         let sk = [
-            1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1u8,
+            228u8, 121, 108, 167, 244, 6, 57, 61, 104, 68, 229, 88, 23, 16, 212, 157, 110, 171, 36,
+            26, 232, 171, 144, 41, 109, 182, 148, 243, 20, 23, 29, 61,
         ];
 
         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
-        let sig = libsecp256k1::sign(&msg, &sk).0;
+        let (sig, rec) = libsecp256k1::sign(&msg, &sk);
         let sig = sig.serialize().to_vec();
+        let rec = rec.serialize();
+
+        let signed_tx = tx.sign(sig, rec).unwrap();
+        let signed_tx = hex::encode(&signed_tx);
+
+        println!("signed tx = {}", signed_tx);
+    }
+
+    #[test]
+    fn test_tx_gen_2() {
+        use ed25519_dalek_fiat::Signer;
+
+        let tx = r#"{
+            "from": "5DPaKszR7KpCbvNNtGCGTfrGdeDTUNRt1UdxwXp9G6iWvdk7",
+            "to": "5D1NKGqfc2Q8hw53icrX74YQryjb3MMySWwFBhM71afKbdad",
+            "amount": 1000000000000,
+            "nonce": 2,
+            "tip": 0,
+            "block_hash": "e143f23803ac50e8f6f8e62695d1ce9e4e1d68aa36c1cd2cfd15340213f3423e",
+            "genesis_hash": "e143f23803ac50e8f6f8e62695d1ce9e4e1d68aa36c1cd2cfd15340213f3423e",
+            "spec_version": 1005000,
+            "tx_version": 24
+        }"#;
+
+        let mut tx = tx_from_str::<Substrate>(tx);
+        let msg = tx.to_bytes().unwrap();
+
+        let sk = [
+            228u8, 121, 108, 167, 244, 6, 57, 61, 104, 68, 229, 88, 23, 16, 212, 157, 110, 171, 36,
+            26, 232, 171, 144, 41, 109, 182, 148, 243, 20, 23, 29, 61,
+        ];
+
+        let sk = ed25519_dalek_fiat::SecretKey::from_bytes(&sk).unwrap();
+        let pk = ed25519_dalek_fiat::PublicKey::from(&sk);
+
+        let kp = ed25519_dalek_fiat::Keypair {
+            secret: sk,
+            public: pk,
+        };
+        let sig = kp.sign(&msg).to_bytes().to_vec();
 
         let signed_tx = tx.sign(sig, 0).unwrap();
         let signed_tx = hex::encode(&signed_tx);
