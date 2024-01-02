@@ -50,7 +50,7 @@ impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
         &self,
         format: &Self::Format,
     ) -> Result<Self::Address, anychain_core::AddressError> {
-        Ok(Self::Address::from_public_key(self, format)?)
+        Self::Address::from_public_key(self, format)
     }
 }
 

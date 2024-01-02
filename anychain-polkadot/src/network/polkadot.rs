@@ -11,9 +11,10 @@ impl Network for Polkadot {
 }
 
 impl PolkadotNetwork for Polkadot {
-    fn version() -> u8 {
-        0x00
-    }
+    const VERSION: u8 = 0x00;
+    const PALLET_ASSET: u8 = 5;
+    const TRANSFER_ALLOW_DEATH: u8 = 0;
+    const TRANSFER_KEEP_ALIVE: u8 = 3;
 }
 
 impl FromStr for Polkadot {

@@ -4,26 +4,27 @@ use crate::PolkadotNetwork;
 use anychain_core::{Network, NetworkError};
 
 #[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
-pub struct Substrate;
+pub struct Westend;
 
-impl Network for Substrate {
-    const NAME: &'static str = "substrate";
+impl Network for Westend {
+    const NAME: &'static str = "westend";
 }
 
-impl PolkadotNetwork for Substrate {
-    fn version() -> u8 {
-        0x2a
-    }
+impl PolkadotNetwork for Westend {
+    const VERSION: u8 = 0x2a;
+    const PALLET_ASSET: u8 = 4;
+    const TRANSFER_ALLOW_DEATH: u8 = 0;
+    const TRANSFER_KEEP_ALIVE: u8 = 3;
 }
 
-impl FromStr for Substrate {
+impl FromStr for Westend {
     type Err = NetworkError;
     fn from_str(_s: &str) -> Result<Self, Self::Err> {
         todo!()
     }
 }
 
-impl Display for Substrate {
+impl Display for Westend {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }

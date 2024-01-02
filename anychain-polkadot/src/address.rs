@@ -28,14 +28,14 @@ impl<N: PolkadotNetwork> Address for PolkadotAddress<N> {
         public_key: &Self::PublicKey,
         _format: &Self::Format,
     ) -> Result<Self, anychain_core::AddressError> {
-        Self::from_payload(&hex::encode(&public_key.address_payload()))
+        Self::from_payload(&hex::encode(public_key.address_payload()))
     }
 }
 
 impl<N: PolkadotNetwork> PolkadotAddress<N> {
     pub fn from_payload(payload: &str) -> Result<Self, AddressError> {
         let payload = hex::decode(payload).unwrap();
-        let payload = [vec![N::version()], payload].concat();
+        let payload = [vec![N::VERSION], payload].concat();
 
         let ss_prefix = vec![0x53u8, 0x53, 0x35, 0x38, 0x50, 0x52, 0x45];
 
@@ -58,7 +58,7 @@ impl<N: PolkadotNetwork> FromStr for PolkadotAddress<N> {
     type Err = TransactionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = s.from_base58()?;
-        if N::version() != bytes[0] {
+        if N::VERSION != bytes[0] {
             return Err(TransactionError::Message(format!(
                 "Invalid version byte {} for polkadot network {}",
                 bytes[0],
@@ -92,7 +92,7 @@ impl<N: PolkadotNetwork> Display for PolkadotAddress<N> {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{Polkadot, PolkadotAddress, PolkadotFormat, PolkadotSecretKey, Substrate};
+    use crate::{PolkadotAddress, PolkadotFormat, PolkadotSecretKey, Westend};
     use anychain_core::{hex, Address};
     use ed25519_dalek_fiat::SecretKey;
 
@@ -102,14 +102,14 @@ mod tests {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
             25, 26, 27, 28, 29, 30, 31, 32,
         ];
-        let h = hex::encode(&sk);
+        let h = hex::encode(sk);
         println!("{}", h);
 
         let sk = SecretKey::from_bytes(&sk).unwrap();
         let sk = PolkadotSecretKey::Ed25519(sk);
 
         let address =
-            PolkadotAddress::<Substrate>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();
+            PolkadotAddress::<Westend>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();
 
         println!("address = {}", address);
     }
@@ -117,22 +117,16 @@ mod tests {
     #[test]
     fn test_address_2() {
         let hash = "8ee504148e75c34e8f051899b3c6e4241ff18dc1c9211260b6a6a434bedb485f";
-        let address = PolkadotAddress::<Substrate>::from_payload(hash).unwrap();
+        let address = PolkadotAddress::<Westend>::from_payload(hash).unwrap();
         println!("address = {}", address);
     }
 
     #[test]
     fn test_address_3() {
         let addr = "5DoW9HHuqSfpf55Ux5pLdJbHFWvbngeg8Ynhub9DrdtxmZeV";
-        let addr = PolkadotAddress::<Substrate>::from_str(addr).unwrap();
+        let addr = PolkadotAddress::<Westend>::from_str(addr).unwrap();
         let payload = addr.to_payload().unwrap();
         let payload = hex::encode(payload);
         println!("{}", payload);
-    }
-
-    #[test]
-    fn f() {
-        let s = "012eaaeadc3e26dcb6ce0479ff94b009fdb8f81d9c6cf43ba2a4595496564b7d10c8498f90139462d5ce300599a85335515ef970bf3645f7ced5e22181231d638c";
-        println!("len = {}", s.len());
     }
 }
