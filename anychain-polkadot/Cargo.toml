@@ -1,7 +1,15 @@
 [package]
 name = "anychain-polkadot"
+description = "A Rust library for Polkadot cryptocurrency wallets, enabling seamless transactions on the Polkadot blockchain"
 version = "0.1.0"
-edition = "2021"
+keywords = ["polkadot", "blockchain", "cryptocurrency", "wallet", "transactions"]
+
+# Workspace inherited keys
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.1" }
