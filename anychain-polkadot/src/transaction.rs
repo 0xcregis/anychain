@@ -245,6 +245,7 @@ mod tests {
     };
     use anychain_core::Address;
     use anychain_core::{hex, libsecp256k1, Transaction};
+    use ed25519_dalek::{SecretKey, Signature, Signer};
     use serde_json::Value;
     use std::str::FromStr;
 
@@ -301,7 +302,14 @@ mod tests {
         let from = PolkadotAddress::<Westend>::from_secret_key(&sk_from, format).unwrap();
         let to = PolkadotAddress::<Westend>::from_secret_key(&sk_to, format).unwrap();
 
-        println!("from = {}\nto = {}", from, to);
+        assert_eq!(
+            "5FnS6tYbCTAtK3QCfNnddwVR61ypLLM7APRrs98paFs7yMSY",
+            from.to_string()
+        );
+        assert_eq!(
+            "5DoW9HHuqSfpf55Ux5pLdJbHFWvbngeg8Ynhub9DrdtxmZeV",
+            to.to_string()
+        );
     }
 
     #[test]
@@ -318,8 +326,12 @@ mod tests {
             5, 8, 13, 17, 29,
         ];
 
-        let sk_from = ed25519_dalek_fiat::SecretKey::from_bytes(&sk_from).unwrap();
-        let sk_to = ed25519_dalek_fiat::SecretKey::from_bytes(&sk_to).unwrap();
+        let sk_from: SecretKey = sk_from[..ed25519_dalek::SECRET_KEY_LENGTH]
+            .try_into()
+            .unwrap();
+        let sk_to: SecretKey = sk_to[..ed25519_dalek::SECRET_KEY_LENGTH]
+            .try_into()
+            .unwrap();
 
         let sk_from = PolkadotSecretKey::Ed25519(sk_from);
         let sk_to = PolkadotSecretKey::Ed25519(sk_to);
@@ -327,7 +339,14 @@ mod tests {
         let from = PolkadotAddress::<Westend>::from_secret_key(&sk_from, format).unwrap();
         let to = PolkadotAddress::<Westend>::from_secret_key(&sk_to, format).unwrap();
 
-        println!("from = {}\nto = {}", from, to);
+        assert_eq!(
+            "5DPaKszR7KpCbvNNtGCGTfrGdeDTUNRt1UdxwXp9G6iWvdk7",
+            from.to_string()
+        );
+        assert_eq!(
+            "5D1NKGqfc2Q8hw53icrX74YQryjb3MMySWwFBhM71afKbdad",
+            to.to_string()
+        );
     }
 
     #[test]
@@ -361,13 +380,14 @@ mod tests {
         let signed_tx = tx.sign(sig, rec).unwrap();
         let signed_tx = hex::encode(signed_tx);
 
-        println!("signed tx = {}", signed_tx);
+        assert_eq!(
+            "41028400a487f8cf0c11fd48eae13f819dbb06e5cb97b7103d2434897bd7cb3ea80963e502ba136449919abc037e45cb36fbeae2b1d5dde212f7cd6f9eef604833811a6ac07eba271bdbb4bfb940f6f0ab810e0afea3d0bcdce0b2a51270a2235d42d3816300000c000400004ce05abd387b560855a3d486eba6237b9a08c6e9dfe351302a5ceda90be801fe070010a5d4e8",
+            signed_tx
+        );
     }
 
     #[test]
     fn test_tx_gen_2() {
-        use ed25519_dalek_fiat::Signer;
-
         let tx = r#"{
             "from": "5DPaKszR7KpCbvNNtGCGTfrGdeDTUNRt1UdxwXp9G6iWvdk7",
             "to": "5D1NKGqfc2Q8hw53icrX74YQryjb3MMySWwFBhM71afKbdad",
@@ -388,18 +408,16 @@ mod tests {
             26, 232, 171, 144, 41, 109, 182, 148, 243, 20, 23, 29, 61,
         ];
 
-        let sk = ed25519_dalek_fiat::SecretKey::from_bytes(&sk).unwrap();
-        let pk = ed25519_dalek_fiat::PublicKey::from(&sk);
-        let kp = ed25519_dalek_fiat::Keypair {
-            secret: sk,
-            public: pk,
-        };
+        let signing_key: &SecretKey = &sk[..ed25519_dalek::SECRET_KEY_LENGTH].try_into().unwrap();
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(signing_key);
+        let sig: Signature = signing_key.sign(&msg);
 
-        let sig = kp.sign(&msg).to_bytes().to_vec();
-
-        let signed_tx = tx.sign_ed25519(sig).unwrap();
+        let signed_tx = tx.sign_ed25519(sig.to_vec()).unwrap();
         let signed_tx = hex::encode(signed_tx);
 
-        println!("signed tx = {}", signed_tx);
+        assert_eq!(
+            "3d0284003aa08b895131d34e7c1364ca80067f282fc6b2417b4eefcf7e2ecf7c19d7f81900aff4f335398d8584150fae80adc6dcaea686b2a5a2c9cb28a82a5a59314b7fd3ceaac142b91c949e482aec06f16202c9ea8dcd1c82a4b250cc72dfae03a6360400140004000029b0b723f2e8b89f1bcdc0cf2b3d0e624454a0cb898a46b5b59368964c5544f5070010a5d4e8",
+            signed_tx
+        );
     }
 }
