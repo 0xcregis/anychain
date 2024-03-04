@@ -94,7 +94,7 @@ mod tests {
 
     use crate::{PolkadotAddress, PolkadotFormat, PolkadotSecretKey, Westend};
     use anychain_core::{hex, Address};
-    use ed25519_dalek_fiat::SecretKey;
+    use ed25519_dalek::SecretKey;
 
     #[test]
     fn test_address() {
@@ -105,20 +105,26 @@ mod tests {
         let h = hex::encode(sk);
         println!("{}", h);
 
-        let sk = SecretKey::from_bytes(&sk).unwrap();
+        let sk: SecretKey = sk[..ed25519_dalek::SECRET_KEY_LENGTH].try_into().unwrap();
         let sk = PolkadotSecretKey::Ed25519(sk);
 
         let address =
             PolkadotAddress::<Westend>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();
 
-        println!("address = {}", address);
+        assert_eq!(
+            "5EpHX5foDtnhZngj4GsKq5eKGpUvuMqbpUG48ZfCCCs7EzKR",
+            address.addr
+        );
     }
 
     #[test]
     fn test_address_2() {
         let hash = "8ee504148e75c34e8f051899b3c6e4241ff18dc1c9211260b6a6a434bedb485f";
         let address = PolkadotAddress::<Westend>::from_payload(hash).unwrap();
-        println!("address = {}", address);
+        assert_eq!(
+            "5FJ4gu9eVX6DG4qYi1hxkUgu1yaTm1CnQ4MiiZPjPVaXiATo",
+            address.addr
+        );
     }
 
     #[test]
@@ -127,6 +133,9 @@ mod tests {
         let addr = PolkadotAddress::<Westend>::from_str(addr).unwrap();
         let payload = addr.to_payload().unwrap();
         let payload = hex::encode(payload);
-        println!("{}", payload);
+        assert_eq!(
+            "4ce05abd387b560855a3d486eba6237b9a08c6e9dfe351302a5ceda90be801fe",
+            payload
+        );
     }
 }

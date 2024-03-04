@@ -5,13 +5,13 @@ use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
 pub enum PolkadotSecretKey {
     Secp256k1(libsecp256k1::SecretKey),
-    Ed25519(ed25519_dalek_fiat::SecretKey),
+    Ed25519(ed25519_dalek::SecretKey),
 }
 
 #[derive(Debug, Clone)]
 pub enum PublicKeyContent {
     Secp256k1(libsecp256k1::PublicKey),
-    Ed25519(ed25519_dalek_fiat::PublicKey),
+    Ed25519(ed25519_dalek::VerifyingKey),
 }
 
 #[derive(Debug, Clone)]
@@ -36,8 +36,9 @@ impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
                 }
             }
             Self::SecretKey::Ed25519(sk) => {
-                let pk = ed25519_dalek_fiat::PublicKey::from(sk);
-                let pk = PublicKeyContent::Ed25519(pk);
+                let signing_key = ed25519_dalek::SigningKey::from_bytes(sk);
+                let verifying_key = signing_key.verifying_key();
+                let pk = PublicKeyContent::Ed25519(verifying_key);
                 Self {
                     key: pk,
                     _network: PhantomData,
