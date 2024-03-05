@@ -45,6 +45,7 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 | [`anychain-filecoin`] | Filecoin impl.         | [![Crates.io](https://img.shields.io/crates/v/anychain-filecoin)][anychain-filecoin]  | [![Documentation](https://shields.io/docsrs/anychain-filecoin)][anychain-filecoin-docs] |
 | [`anychain-tron`]     | Tron impl.             | [![Crates.io](https://img.shields.io/crates/v/anychain-tron)][anychain-tron]          | [![Documentation](https://shields.io/docsrs/anychain-tron)][anychain-tron-docs]         |
 | [`anychain-ripple`]   | Ripple impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-ripple)][anychain-ripple]      | [![Documentation](https://shields.io/docsrs/anychain-ripple)][anychain-ripple-docs]     |
+| [`anychain-polkadot`] | Polkadot impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-polkadot)][anychain-polkadot]      | [![Documentation](https://shields.io/docsrs/anychain-polkadot)][anychain-polkadot-docs]     |
 
 ## Supported Chains
 - Bitcoin
@@ -56,6 +57,7 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 - Tron
 - Ripple
 - Arbitrum, Optimism, and Avalanche
+- Polkadot
 - Neo
  
 ## License
@@ -73,6 +75,7 @@ Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discuss
 [`anychain-filecoin`]: https://github.com/0xcregis/anychain/tree/main/anychain-filecoin
 [`anychain-tron`]: https://github.com/0xcregis/anychain/tree/main/anychain-tron
 [`anychain-ripple`]: https://github.com/0xcregis/anychain/tree/main/anychain-ripple
+[`anychain-polkadot`]: https://github.com/0xcregis/anychain/tree/main/anychain-polkadot
 [anychain-core]: https://crates.io/crates/anychain-core
 [anychain-kms]: https://crates.io/crates/anychain-kms
 [anychain-bitcoin]: https://crates.io/crates/anychain-bitcoin
@@ -80,6 +83,7 @@ Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discuss
 [anychain-filecoin]: https://crates.io/crates/anychain-filecoin
 [anychain-tron]: https://crates.io/crates/anychain-tron
 [anychain-ripple]: https://crates.io/crates/anychain-ripple
+[anychain-polkadot]: https://crates.io/crates/anychain-polkadot
 [anychain-core-docs]: https://docs.rs/anychain-core
 [anychain-kms-docs]: https://docs.rs/anychain-kms
 [anychain-bitcoin-docs]: https://docs.rs/anychain-bitcoin
@@ -87,4 +91,5 @@ Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discuss
 [anychain-filecoin-docs]: https://docs.rs/anychain-filecoin
 [anychain-tron-docs]: https://docs.rs/anychain-tron
 [anychain-ripple-docs]: https://docs.rs/anychain-ripple
+[anychain-polkadot-docs]: https://docs.rs/anychain-polkadot
 [license]: https://github.com/0xcregis/anychain/blob/main/LICENSE
