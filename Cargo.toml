@@ -65,7 +65,6 @@ unicode-normalization = "0.1.22"
 zeroize = { version = "1.5.5", default-features = false }
 once_cell = { version = "1.18.0" }
 subtle = { version = "2", default-features = false }
-encoding = "0.2.33"
 p256 = "0.13.2"
 
 [profile.release]
