@@ -27,7 +27,7 @@ subtle = { workspace = true }
 ripemd = { workspace = true }
 hex = { workspace = true }
 libsecp256k1 = { workspace = true }
-encoding = { workspace = true }
+encoding_rs = { version = "0.8.33" }
 
 [dev-dependencies]
 hex-literal = "0.3"

@@ -5,7 +5,7 @@ all: build
 check: fmt test clippy
 
 test:
-	cargo test --all-features
+	(command -v cargo-nextest && cargo nextest run --all-features --workspace) || cargo test --all-features --workspace
 
 fmt:
 	cargo fmt --all -- --check
