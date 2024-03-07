@@ -164,7 +164,6 @@ where
 
     /// Serialize this key as a self-[`Zeroizing`] `String`.
     #[cfg(feature = "alloc")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     pub fn to_string(&self, prefix: Prefix) -> Zeroizing<String> {
         Zeroizing::new(self.to_extended_key(prefix).to_string())
     }
