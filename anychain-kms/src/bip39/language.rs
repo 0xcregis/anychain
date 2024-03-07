@@ -186,10 +186,10 @@ impl Language {
         }
     }
 
-    /// Get a [`WordMap`][WordMap] that allows word -> index lookups in the word list
+    /// Get a WordMap that allows word -> index lookups in the word list
     ///
     /// The index of an individual word in the word list is used as the binary value of that word
-    /// when the phrase is turned into a [`Seed`][Seed].
+    /// when the phrase is turned into a Seed
     pub fn wordmap(&self) -> &'static WordMap {
         match *self {
             Language::English => &lazy::WORDMAP_ENGLISH,

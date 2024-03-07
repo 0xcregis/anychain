@@ -19,7 +19,7 @@ use serde::Serialize;
 pub use sha2::{Digest, Sha256};
 
 /// Returns the variable length integer of the given value.
-/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+/// `<https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`
 pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> {
     match value {
         // bounded by u8::max_value()
@@ -34,7 +34,7 @@ pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> 
 }
 
 /// Decode the value of a variable length integer.
-/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+/// `<https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`
 pub fn read_variable_length_integer<R: Read>(mut reader: R) -> Result<usize, TransactionError> {
     let mut flag = [0u8; 1];
     let _ = reader.read(&mut flag)?;
@@ -201,7 +201,7 @@ pub fn create_script_op_return(property_id: u32, amount: i64) -> Result<Vec<u8>,
 }
 
 /// Represents a Bitcoin signature hash
-/// https://en.bitcoin.it/wiki/OP_CHECKSIG
+/// `<https://en.bitcoin.it/wiki/OP_CHECKSIG>`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum SignatureHash {
@@ -706,7 +706,7 @@ impl BitcoinTransactionOutput {
 }
 
 /// Represents an Bitcoin transaction id and witness transaction id
-/// https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#transaction-id
+/// `<https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#transaction-id>`
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinTransactionId {
     txid: Vec<u8>,
@@ -933,7 +933,7 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     }
 
     /// Return the SegWit hash preimage of the raw transaction
-    /// https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
+    /// `<https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification>`
     pub fn segwit_hash_preimage(
         &self,
         vin: usize,

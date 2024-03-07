@@ -37,7 +37,7 @@ impl Address for EthereumAddress {
 
 impl EthereumAddress {
     /// Returns the checksum address given a public key.
-    /// Adheres to EIP-55 (https://eips.ethereum.org/EIPS/eip-55).
+    /// Adheres to EIP-55 <https://eips.ethereum.org/EIPS/eip-55>.
     pub fn checksum_address(public_key: &EthereumPublicKey) -> Self {
         let hash = keccak256(&public_key.to_secp256k1_public_key().serialize()[1..]);
         let address = to_hex_string(&hash[12..]).to_lowercase();
