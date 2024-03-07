@@ -27,7 +27,7 @@ use zeroize::Zeroizing;
 /// but beware that the entropy value is **not the same thing** as an HD wallet seed, and should
 /// *never* be used that way.
 ///
-/// [`Mnemonic`][Mnemonic] implements [`Zeroize`][Zeroize], so it's bytes will be zeroed when it's dropped.
+/// [`Mnemonic`][Mnemonic] implements Zeroize, so it's bytes will be zeroed when it's dropped.
 ///
 /// [Mnemonic]: ./mnemonic/struct.Mnemonic.html
 /// [Mnemonic::new()]: ./mnemonic/struct.Mnemonic.html#method.new

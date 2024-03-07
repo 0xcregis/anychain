@@ -158,7 +158,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 
     /// Returns a transaction given the transaction bytes.
-    /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
+    /// <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md>
     fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
         let list: Vec<Vec<u8>> = decode_list(transaction);
         if list.len() != 9 {
@@ -239,7 +239,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 
     /// Returns the transaction in bytes.
-    /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
+    /// <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md>
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
         // Returns an encoded transaction in Recursive Length Prefix (RLP) format.
         // https://github.com/ethereum/wiki/wiki/RLP
