@@ -140,7 +140,7 @@ mod tests {
         let public_key = EthereumPublicKey::from_secp256k1_public_key(public_key);
         let address = public_key.to_address(&EthereumFormat::Standard).unwrap();
 
-        println!("adress = {}", address);
+        println!("address = {}", address);
     }
 
     mod checksum_address {
