@@ -29,7 +29,7 @@ e.g.
 
 (the private key being a 64-byte hex string)
 
-* we can alse generate addresses by providing a corresponding public key:
+* we can also generate addresses by providing a corresponding public key:
 
 ```
 ./anychain-neo-cli address-gen --pub [public_key]
