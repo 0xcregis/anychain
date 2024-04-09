@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        rust-version: [1.77.0]
+        rust-version: [1.77.1]
 
     steps:
     - name: Checkout code
