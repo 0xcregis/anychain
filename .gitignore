@@ -20,3 +20,5 @@ target/
 # MaxOS files
 .DS_Store
 *.swp
+
+bak/*

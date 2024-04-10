@@ -11,7 +11,7 @@ members = [
     "anychain-neo",
     "anychain-kms",
     "examples/*"
-]
+, "anychain-solana"]
 
 [workspace.package]
 authors = ["Shawndslee", "cregis.com"]
@@ -35,7 +35,7 @@ rand = { version = "0.8.5" }
 rand_core = { version = "0.6.3", default-features = false }
 rlp = { version = "0.5.2", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-sha2 = { version = "0.10.2", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 fvm_shared = "3.3.1"
 data-encoding = "2.3.2"
@@ -59,13 +59,13 @@ clap = { version = "4.4.7", features = ["derive"] }
 primitive-types = { version = "0.11.1", features = ["rlp"] }
 rustc-hash = "1.1.0"
 hmac = "0.12.1"
-bs58 = { version = "0.4", default-features = false, features = ["check"] }
 pbkdf2 = { version = "0.12.1", default-features = false }
 unicode-normalization = "0.1.22"
 zeroize = { version = "1.5.5", default-features = false }
 once_cell = { version = "1.18.0" }
 subtle = { version = "2", default-features = false }
 p256 = "0.13.2"
+bs58 = { version = "0.4", default-features = false, features = ["check", "alloc"] }
 
 [profile.release]
 strip = true       # Automatically strip symbols from the binary
