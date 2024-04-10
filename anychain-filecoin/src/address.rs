@@ -11,7 +11,7 @@ use anychain_core::bls_signatures::Serialize as BlsSerialize;
 use anychain_core::PublicKey;
 use anychain_core::{
     utilities::crypto::{blake2b_160, blake2b_checksum},
-    Address, AddressError,
+    Address, AddressError, libsecp256k1,
 };
 
 use data_encoding::DecodeError;
@@ -96,6 +96,13 @@ impl FilecoinAddress {
         Ok(Self {
             network: NETWORK_DEFAULT,
             payload: Payload::Secp256k1(blake2b_160(pubkey)),
+        })
+    }
+
+    pub fn new_secp256k1_v2(network: Network, pubkey: libsecp256k1::PublicKey) -> Result<Self, Error> {
+        Ok(Self {
+            network,
+            payload: Payload::Secp256k1(blake2b_160(&pubkey.serialize())),
         })
     }
 
