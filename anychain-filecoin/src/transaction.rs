@@ -261,6 +261,12 @@ impl Transaction for FilecoinTransaction {
     }
 }
 
+impl FilecoinTransaction {
+    pub fn digest(&self) -> Result<Vec<u8>, TransactionError> {
+        Ok(blake2b_256(&self.params.to_bytes()).to_vec())
+    }
+}
+
 impl FromStr for FilecoinTransaction {
     type Err = TransactionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
