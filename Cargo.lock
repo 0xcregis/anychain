@@ -215,7 +215,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-filecoin"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anychain-core",
  "anyhow",
