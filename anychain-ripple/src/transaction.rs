@@ -347,7 +347,7 @@ impl RippleTransaction {
                     SerializedType::Uint16 { .. } => {}
                     SerializedType::Object { .. } => {
                         return Err(TransactionError::Message(
-                            "Serialized type 'object' not allowd in first layer deserialization"
+                            "Serialized type 'object' not allowed in first layer deserialization"
                                 .to_string(),
                         ))
                     }
