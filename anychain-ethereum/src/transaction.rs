@@ -84,7 +84,7 @@ pub struct EthereumTransactionParameters {
 
 /// Represents an Ethereum transaction signature
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct EthereumTransactionSignature {
+pub struct EthereumTransactionSignature {
     /// The V field of the signature protected with a chain_id
     v: Vec<u8>,
     /// The R field of the signature
@@ -111,11 +111,11 @@ impl fmt::Display for EthereumTransactionId {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransaction<N: EthereumNetwork> {
     /// The address of the sender
-    sender: Option<EthereumAddress>,
+    pub sender: Option<EthereumAddress>,
     /// The transaction parameters (gas, gas_price, nonce, data)
-    parameters: EthereumTransactionParameters,
+    pub parameters: EthereumTransactionParameters,
     /// The transaction signature
-    signature: Option<EthereumTransactionSignature>,
+    pub signature: Option<EthereumTransactionSignature>,
     _network: PhantomData<N>,
 }
 
@@ -305,54 +305,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         Ok(Self::TransactionId {
             txid: Vec::<u8>::from(&keccak256(&self.to_bytes()?)[..]),
         })
-    }
-}
-
-impl<N: EthereumNetwork> EthereumTransaction<N> {
-    pub fn get_from(&self) -> EthereumAddress {
-        self.sender.clone().unwrap()
-    }
-
-    pub fn get_to(&self) -> EthereumAddress {
-        self.parameters.receiver.clone()
-    }
-
-    pub fn get_amount(&self) -> EthereumAmount {
-        self.parameters.amount
-    }
-
-    pub fn get_gas_price(&self) -> EthereumAmount {
-        self.parameters.gas_price
-    }
-
-    pub fn get_gas_limit(&self) -> U256 {
-        self.parameters.gas
-    }
-
-    pub fn get_nonce(&self) -> U256 {
-        self.parameters.nonce
-    }
-
-    pub fn get_data(&self) -> Vec<u8> {
-        self.parameters.data.clone()
-    }
-
-    pub fn get_r(&self) -> String {
-        hex::encode(self.signature.clone().unwrap().r)
-    }
-
-    pub fn get_s(&self) -> String {
-        hex::encode(self.signature.clone().unwrap().s)
-    }
-
-    pub fn get_v(&self) -> u32 {
-        let v = self.signature.clone().unwrap().v;
-        let v: [u8; 4] = v.try_into().unwrap();
-        u32::from_be_bytes(v)
-    }
-
-    pub fn get_chain_id(&self) -> u32 {
-        N::CHAIN_ID
     }
 }
 
