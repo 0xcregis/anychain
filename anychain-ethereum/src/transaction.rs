@@ -86,11 +86,11 @@ pub struct EthereumTransactionParameters {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransactionSignature {
     /// The V field of the signature protected with a chain_id
-    v: Vec<u8>,
+    pub v: Vec<u8>,
     /// The R field of the signature
-    r: Vec<u8>,
+    pub r: Vec<u8>,
     /// The S field of the signature
-    s: Vec<u8>,
+    pub s: Vec<u8>,
 }
 
 /// Represents an Ethereum transaction id
