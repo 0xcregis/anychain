@@ -1,10 +1,9 @@
 use crate::address::FilecoinAddress;
 use crate::format::FilecoinFormat;
 use anychain_core::{
-    bls_signatures::{self, Serialize},
     hex, Address, AddressError, PublicKey, PublicKeyError,
 };
-
+use bls_signatures::{self, Serialize};
 use core::panic;
 use core::{fmt, fmt::Display, str::FromStr};
 

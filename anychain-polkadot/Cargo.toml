@@ -20,3 +20,4 @@ ed25519-dalek = "2.1.1"
 serde_json = { workspace = true }
 rand = { workspace = true }
 libsecp256k1 = { workspace = true }
+blake2b_simd = { workspace = true }

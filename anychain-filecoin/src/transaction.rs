@@ -3,7 +3,8 @@ use crate::address::{FilecoinAddress, Protocol};
 use crate::amount::FilecoinAmount;
 use crate::format::FilecoinFormat;
 use crate::public_key::FilecoinPublicKey;
-use anychain_core::{crypto::blake2b_256, Transaction, TransactionError, TransactionId};
+use anychain_core::{Transaction, TransactionError, TransactionId};
+use crate::utilities::crypto::blake2b_256;
 
 use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};

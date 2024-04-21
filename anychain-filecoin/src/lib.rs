@@ -11,4 +11,6 @@ pub mod public_key;
 pub use self::public_key::*;
 
 pub mod transaction;
+mod utilities;
+
 pub use self::transaction::*;

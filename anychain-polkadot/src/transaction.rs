@@ -1,5 +1,6 @@
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotPublicKey};
-use anychain_core::{crypto::blake2b_256, hex, Transaction, TransactionError, TransactionId};
+use crate::utilities::crypto::blake2b_256;
+use anychain_core::{hex, Transaction, TransactionError, TransactionId};
 use parity_scale_codec::{Decode, Encode, HasCompact};
 use std::fmt::Display;
 
