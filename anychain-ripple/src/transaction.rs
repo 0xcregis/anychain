@@ -5,10 +5,10 @@ use crate::{RippleAddress, RippleFormat, RipplePublicKey};
 use anychain_core::{
     crypto::{hash160, sha512},
     hex,
-    libsecp256k1::Signature,
     no_std::io::Read,
     Transaction, TransactionError, TransactionId,
 };
+use libsecp256k1::Signature;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct RippleTransactionParameters {
@@ -190,7 +190,8 @@ impl RippleTransaction {
         }
 
         if let Some(sig) = &self.signature {
-            let sig = Signature::parse_standard_slice(sig)?
+            let sig = Signature::parse_standard_slice(sig)
+                .map_err(|error| TransactionError::Crate("libsecp256k1", format!("{:?}", error)))?
                 .serialize_der()
                 .as_ref()
                 .to_vec();
@@ -323,7 +324,12 @@ impl RippleTransaction {
                                     buffer.len(),
                                 )));
                             }
-                            let sig = Signature::parse_der(buffer)?.serialize().to_vec();
+                            let sig = Signature::parse_der(buffer)
+                                .map_err(|error| {
+                                    TransactionError::Crate("libsecp256k1", format!("{:?}", error))
+                                })?
+                                .serialize()
+                                .to_vec();
                             signature = Some(sig);
                         } else {
                             return Err(TransactionError::Message(format!(
@@ -831,10 +837,8 @@ mod tests {
     use crate::{RippleFormat, RipplePublicKey};
 
     use super::{RippleTransaction, RippleTransactionParameters};
-    use anychain_core::{
-        libsecp256k1::{self, Message, SecretKey},
-        PublicKey, Transaction,
-    };
+    use anychain_core::{PublicKey, Transaction};
+    use libsecp256k1::{self, Message, SecretKey};
     use std::str::FromStr;
 
     #[test]

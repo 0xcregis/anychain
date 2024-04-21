@@ -35,7 +35,4 @@ pub enum Error {
 
     #[error("parsing error: {0:}")]
     ParseInt(#[from] ::std::num::ParseIntError),
-
-    #[error("secp265k1 error: {0:}")]
-    Secp256k1Error(#[from] ::libsecp256k1::Error),
 }

@@ -1,5 +1,5 @@
 use crate::{TronAddress, TronFormat};
-use anychain_core::{libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
+use anychain_core::{Address, AddressError, PublicKey, PublicKeyError};
 use core::{fmt, fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,10 +35,10 @@ impl FromStr for TronPublicKey {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(libsecp256k1::PublicKey::parse_slice(
-            hex::decode(public_key)?.as_slice(),
-            None,
-        )?))
+        Ok(Self(
+            libsecp256k1::PublicKey::parse_slice(hex::decode(public_key)?.as_slice(), None)
+                .map_err(|error| PublicKeyError::Crate("libsecp256k1", format!("{:?}", error)))?,
+        ))
     }
 }
 

@@ -10,7 +10,7 @@ use std::str::FromStr;
 
 use anychain_ethereum::{encode_transfer, EthereumAddress, EthereumFormat, EthereumPublicKey};
 
-use anychain_core::{hex, libsecp256k1, Address, PublicKey};
+use anychain_core::{hex, Address, PublicKey};
 
 fn trim0x(s: &str) -> String {
     // str to lower case

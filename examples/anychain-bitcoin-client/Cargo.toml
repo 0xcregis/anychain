@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 anychain-core = { path = "../../anychain-core" }
 anychain-bitcoin = { path = "../../anychain-bitcoin" }
+libsecp256k1 = { workspace = true }

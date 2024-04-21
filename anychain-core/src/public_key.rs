@@ -64,8 +64,8 @@ impl From<hex::FromHexError> for PublicKeyError {
     }
 }
 
-impl From<libsecp256k1::Error> for PublicKeyError {
-    fn from(error: libsecp256k1::Error) -> Self {
-        PublicKeyError::Crate("libsecp256k1", format!("{:?}", error))
-    }
-}
+// impl From<libsecp256k1::Error> for PublicKeyError {
+//     fn from(error: libsecp256k1::Error) -> Self {
+//         PublicKeyError::Crate("libsecp256k1", format!("{:?}", error))
+//     }
+// }

@@ -1,5 +1,5 @@
 use crate::{TronFormat, TronPublicKey};
-use anychain_core::{libsecp256k1, Address, AddressError, PublicKey};
+use anychain_core::{Address, AddressError, PublicKey};
 use base58::{FromBase58, ToBase58};
 use ethabi::Token;
 use hex::FromHex;

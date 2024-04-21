@@ -1,10 +1,7 @@
 use crate::address::FilecoinAddress;
 use crate::format::FilecoinFormat;
-use anychain_core::{
-    bls_signatures::{self, Serialize},
-    hex, libsecp256k1, Address, AddressError, PublicKey, PublicKeyError,
-};
-
+use anychain_core::{hex, Address, AddressError, PublicKey, PublicKeyError};
+use bls_signatures::{self, Serialize};
 use core::panic;
 use core::{fmt, fmt::Display, str::FromStr};
 
@@ -93,7 +90,9 @@ impl FromStr for FilecoinPublicKey {
                 Ok(Self::Bls(key))
             }
             false => {
-                let key = libsecp256k1::PublicKey::parse_slice(&stream, None)?;
+                let key = libsecp256k1::PublicKey::parse_slice(&stream, None).map_err(|error| {
+                    PublicKeyError::Crate("libsecp256k1", format!("{:?}", error))
+                })?;
                 Ok(Self::Secp256k1(key))
             }
         }

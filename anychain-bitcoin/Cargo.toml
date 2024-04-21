@@ -21,6 +21,7 @@ sha2 = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
+libsecp256k1 = { workspace = true }
 
 [features]
 default = ["std"]

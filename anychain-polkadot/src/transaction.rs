@@ -1,5 +1,6 @@
+use crate::utilities::crypto::blake2b_256;
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork, PolkadotPublicKey};
-use anychain_core::{crypto::blake2b_256, hex, Transaction, TransactionError, TransactionId};
+use anychain_core::{hex, Transaction, TransactionError, TransactionId};
 use parity_scale_codec::{Decode, Encode, HasCompact};
 use std::fmt::Display;
 
@@ -244,7 +245,7 @@ mod tests {
         PolkadotTransactionParameters, Westend,
     };
     use anychain_core::Address;
-    use anychain_core::{hex, libsecp256k1, Transaction};
+    use anychain_core::{hex, Transaction};
     use ed25519_dalek::{SecretKey, Signature, Signer};
     use serde_json::Value;
     use std::str::FromStr;

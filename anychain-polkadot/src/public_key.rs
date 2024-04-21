@@ -1,5 +1,5 @@
 use crate::{PolkadotAddress, PolkadotFormat, PolkadotNetwork};
-use anychain_core::{libsecp256k1, Address, PublicKey, PublicKeyError};
+use anychain_core::{Address, PublicKey, PublicKeyError};
 use sp_core::blake2_256;
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
 

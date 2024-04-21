@@ -3,14 +3,14 @@ use crate::{
     BASE32_DECODE_TABLE,
 };
 use anychain_core::{
-    crypto::checksum as double_sha2, libsecp256k1::Signature, Transaction, TransactionError,
-    TransactionId,
+    crypto::checksum as double_sha2, Transaction, TransactionError, TransactionId,
 };
 use anychain_core::{
     hex,
     no_std::{io::Read, *},
     PublicKey,
 };
+use libsecp256k1::Signature;
 
 use base58::FromBase58;
 use bech32::{u5, FromBase32};
@@ -596,7 +596,8 @@ impl<N: BitcoinNetwork> BitcoinTransactionInput<N> {
         signature: Vec<u8>,
         public_key: Vec<u8>,
     ) -> Result<(), TransactionError> {
-        let mut signature = Signature::parse_standard_slice(&signature)?
+        let mut signature = Signature::parse_standard_slice(&signature)
+            .map_err(|error| TransactionError::Crate("libsecp256k1", format!("{:?}", error)))?
             .serialize_der()
             .as_ref()
             .to_vec();

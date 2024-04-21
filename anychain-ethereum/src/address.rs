@@ -1,10 +1,11 @@
 use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
-use anychain_core::{libsecp256k1, to_hex_string, Address, AddressError, Error, PublicKey};
+use anychain_core::{to_hex_string, Address, AddressError, Error, PublicKey};
 
 use anychain_core::hex;
 use anychain_core::utilities::crypto::keccak256;
 use core::{convert::TryFrom, fmt, str::FromStr};
+use libsecp256k1::SecretKey;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 pub struct EthereumAddress(String);
 
 impl Address for EthereumAddress {
-    type SecretKey = libsecp256k1::SecretKey;
+    type SecretKey = SecretKey;
     type Format = EthereumFormat;
     type PublicKey = EthereumPublicKey;
 

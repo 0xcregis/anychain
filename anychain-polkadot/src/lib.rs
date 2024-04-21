@@ -12,3 +12,5 @@ pub use transaction::*;
 
 mod network;
 pub use network::*;
+
+mod utilities;

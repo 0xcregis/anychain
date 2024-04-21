@@ -42,9 +42,7 @@ pub mod error;
 pub use error::*;
 
 // export common crate
-pub use bls_signatures;
-pub use libsecp256k1;
-
 pub use hex;
 
-pub use ethereum_types;
+// pub use bls_signatures;
+// pub use ethereum_types;
