@@ -9,9 +9,10 @@ members = [
     "anychain-polkadot",
     "anychain-ripple",
     "anychain-neo",
+    "anychain-solana",
     "anychain-kms",
-    "examples/*"
-, "anychain-solana"]
+    "examples/*",
+]
 
 [workspace.package]
 authors = ["Shawndslee", "cregis.com"]
