@@ -2,7 +2,7 @@
 name = "anychain-ripple"
 description = "A Rust library for interacting with the Ripple blockchain. It provides core functionalities such as transaction signing and serialization, address generation, and network communication."
 version = "0.1.6"
-keywords = ["ripple", "blockchain", "cryptocurrency", "wallet", "transactions"]
+keywords = ["ripple", "blockchain", "cryptography::cryptocurrencies", "wallet", "transactions"]
 
 # Workspace inherited keys
 authors = { workspace = true }

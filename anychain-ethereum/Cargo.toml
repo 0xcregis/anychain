@@ -2,7 +2,7 @@
 name = "anychain-ethereum"
 description = "A Rust library for Ethereum-focused cryptocurrency wallets, enabling seamless transactions on the Ethereum blockchain"
 version = "0.1.11"
-keywords = ["blockchain", "crypto", "cryptocurrency", "ethereum", "wallet"]
+keywords = ["blockchain", "crypto", "cryptography::cryptocurrencies", "ethereum", "wallet"]
 
 # Workspace inherited keys
 authors = { workspace = true }
