@@ -1,8 +1,8 @@
 [package]
 name = "anychain-core"
-version = "0.1.3"
+version = "0.1.4"
 description = "A core support for cryptocurrency wallets"
-categories = ["command-line-utilities", "cryptocurrency"]
+categories = ["command-line-utilities", "crypto-currency"]
 keywords = ["bitcoin", "blockchain", "ethereum", "no_std"]
 readme = "README.md"
 
