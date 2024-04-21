@@ -2,7 +2,7 @@
 name = "anychain-filecoin"
 description = "A Rust library for Filecoin-focused cryptocurrency wallets, enabling seamless transactions on the Filecoin blockchain"
 version = "0.1.6"
-keywords = ["filecoin", "blockchain", "cryptography::cryptocurrencies", "wallet", "transactions"]
+keywords = ["filecoin", "blockchain", "cryptocurrencies", "wallet", "transactions"]
 
 # Workspace inherited keys
 authors = { workspace = true }
@@ -14,7 +14,7 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.1.4" }
+anychain-core = { path = "../anychain-core", version = "0.1.5" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 fvm_shared = { workspace = true }
