@@ -1,6 +1,6 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
-use anychain_core::{hex, libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
+use anychain_core::{hex, Address, AddressError, PublicKey, PublicKeyError};
 use core::{fmt, fmt::Display, str::FromStr};
 
 /// Represents an Ethereum public key
@@ -43,10 +43,12 @@ impl FromStr for EthereumPublicKey {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(libsecp256k1::PublicKey::parse_slice(
-            hex::decode(public_key)?.as_slice(),
-            None,
-        )?))
+        let p = hex::decode(public_key)
+            .map_err(|error| PublicKeyError::Crate("hex", format!("{:?}", error)))?;
+        let public_key = libsecp256k1::PublicKey::parse_slice(p.as_slice(), None)
+            .map_err(|error| PublicKeyError::Crate("libsecp256k1", format!("{:?}", error)))?;
+
+        Ok(Self(public_key))
     }
 }
 
@@ -62,7 +64,7 @@ impl Display for EthereumPublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::public_key::libsecp256k1::SecretKey;
+    use libsecp256k1::SecretKey;
 
     fn test_from_secret_key(expected_public_key: &EthereumPublicKey, secret_key: &SecretKey) {
         let public_key = EthereumPublicKey::from_secret_key(secret_key);

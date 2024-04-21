@@ -18,6 +18,7 @@ regex = { workspace = true }
 rlp = { workspace = true }
 serde = { workspace = true }
 ethabi = { workspace = true }
+libsecp256k1 = { workspace = true }
 
 [features]
 default = ["std"]

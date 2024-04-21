@@ -244,7 +244,7 @@ mod tests {
         PolkadotTransactionParameters, Westend,
     };
     use anychain_core::Address;
-    use anychain_core::{hex, libsecp256k1, Transaction};
+    use anychain_core::{hex, Transaction};
     use ed25519_dalek::{SecretKey, Signature, Signer};
     use serde_json::Value;
     use std::str::FromStr;

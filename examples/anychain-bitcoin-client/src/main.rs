@@ -6,7 +6,7 @@ use anychain_bitcoin::{
     BitcoinTransactionParameters, SignatureHash,
 };
 
-use anychain_core::{hex, libsecp256k1, Address, PublicKey, Transaction};
+use anychain_core::{hex, Address, PublicKey, Transaction};
 
 fn address_from_secret_key() {
     // Generates Bitcoin addresses from a secret key.

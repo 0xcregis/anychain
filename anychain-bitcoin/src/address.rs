@@ -1,5 +1,4 @@
 use crate::{BitcoinFormat, BitcoinNetwork, BitcoinPublicKey, Opcode, Prefix, WitnessProgram};
-use anychain_core::libsecp256k1;
 use anychain_core::{
     crypto::{checksum, hash160},
     Address, AddressError,

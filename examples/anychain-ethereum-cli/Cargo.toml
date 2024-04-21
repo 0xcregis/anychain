@@ -11,3 +11,4 @@ anychain-ethereum = { path = "../../anychain-ethereum" }
 clap = { workspace = true }
 rlp = { workspace = true }
 primitive-types = { workspace = true }
+libsecp256k1 = { workspace = true }

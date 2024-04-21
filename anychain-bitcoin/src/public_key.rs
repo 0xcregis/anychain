@@ -1,5 +1,5 @@
 use crate::{BitcoinAddress, BitcoinFormat, BitcoinNetwork};
-use anychain_core::{hex, libsecp256k1, Address, AddressError, PublicKey, PublicKeyError};
+use anychain_core::{hex, Address, AddressError, PublicKey, PublicKeyError};
 use core::{fmt, marker::PhantomData, str::FromStr};
 
 /// Represents a Bitcoin public key
@@ -69,9 +69,14 @@ impl<N: BitcoinNetwork> FromStr for BitcoinPublicKey<N> {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
+        let compressed = public_key.len() == 66;
+        let p = hex::decode(public_key)
+            .map_err(|error| PublicKeyError::Crate("hex", format!("{:?}", error)))?;
+        let public_key = libsecp256k1::PublicKey::parse_slice(&p, None)
+            .map_err(|error| PublicKeyError::Crate("libsecp256k1", format!("{:?}", error)))?;
         Ok(Self {
-            public_key: libsecp256k1::PublicKey::parse_slice(&hex::decode(public_key)?, None)?,
-            compressed: public_key.len() == 66,
+            public_key,
+            compressed,
             _network: PhantomData,
         })
     }

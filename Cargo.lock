@@ -143,6 +143,7 @@ dependencies = [
  "base58",
  "bech32",
  "hex",
+ "libsecp256k1",
  "rand",
  "serde",
  "serde_json",
@@ -157,6 +158,7 @@ dependencies = [
  "anychain-bitcoin",
  "anychain-core",
  "clap",
+ "libsecp256k1",
  "serde",
  "serde_json",
 ]
@@ -167,6 +169,7 @@ version = "0.1.0"
 dependencies = [
  "anychain-bitcoin",
  "anychain-core",
+ "libsecp256k1",
 ]
 
 [[package]]
@@ -179,7 +182,6 @@ dependencies = [
  "bls-signatures",
  "ethereum-types",
  "hex",
- "libsecp256k1",
  "rand",
  "rand_core 0.6.4",
  "ripemd",
@@ -196,6 +198,7 @@ version = "0.1.10"
 dependencies = [
  "anychain-core",
  "ethabi",
+ "libsecp256k1",
  "rand",
  "regex",
  "rlp",
@@ -209,6 +212,7 @@ dependencies = [
  "anychain-core",
  "anychain-ethereum",
  "clap",
+ "libsecp256k1",
  "primitive-types 0.11.1",
  "rlp",
 ]
@@ -228,6 +232,7 @@ dependencies = [
  "fvm_ipld_encoding 0.2.3",
  "fvm_shared",
  "lazy_static",
+ "libsecp256k1",
  "num-bigint",
  "num-derive 0.3.3",
  "num-traits",
@@ -288,6 +293,7 @@ dependencies = [
  "anychain-core",
  "base58",
  "ed25519-dalek",
+ "libsecp256k1",
  "parity-scale-codec",
  "rand",
  "serde_json",
@@ -300,6 +306,7 @@ version = "0.1.5"
 dependencies = [
  "anychain-core",
  "base58",
+ "libsecp256k1",
  "sha2 0.10.8",
 ]
 
@@ -323,6 +330,7 @@ dependencies = [
  "chrono",
  "ethabi",
  "hex",
+ "libsecp256k1",
  "protobuf",
  "rand",
  "serde",

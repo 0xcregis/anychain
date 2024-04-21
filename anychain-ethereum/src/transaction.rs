@@ -5,7 +5,7 @@ use crate::network::EthereumNetwork;
 use crate::public_key::EthereumPublicKey;
 use anychain_core::ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
-use anychain_core::{hex, libsecp256k1, PublicKey, Transaction, TransactionError, TransactionId};
+use anychain_core::{hex, PublicKey, Transaction, TransactionError, TransactionId};
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
@@ -138,14 +138,21 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
     /// Returns a signed transaction given the {r,s,recid}.
     fn sign(&mut self, rs: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
-        let message = libsecp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)?;
-        let recovery_id = libsecp256k1::RecoveryId::parse(recid)?;
+        let message = libsecp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)
+            .map_err(|error| TransactionError::Crate("libsecp256k1", format!("{:?}", error)))?;
+        let recovery_id = libsecp256k1::RecoveryId::parse(recid)
+            .map_err(|error| TransactionError::Crate("libsecp256k1", format!("{:?}", error)))?;
 
-        let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
-            &message,
-            &libsecp256k1::Signature::parse_standard_slice(rs.as_slice())?,
-            &recovery_id,
-        )?);
+        let public_key = EthereumPublicKey::from_secp256k1_public_key(
+            libsecp256k1::recover(
+                &message,
+                &libsecp256k1::Signature::parse_standard_slice(rs.as_slice()).map_err(|error| {
+                    TransactionError::Crate("libsecp256k1", format!("{:?}", error))
+                })?,
+                &recovery_id,
+            )
+            .map_err(|error| TransactionError::Crate("libsecp256k1", format!("{:?}", error)))?,
+        );
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         self.signature = Some(EthereumTransactionSignature {
             v: (u32::from(recid) + N::CHAIN_ID * 2 + 35)
@@ -202,8 +209,10 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 pad_zeros(&mut v, 4);
                 let v: [u8; 4] = v.try_into().unwrap();
                 let v = u32::from_be_bytes(v);
-                let recovery_id =
-                    libsecp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)?;
+                let recovery_id = libsecp256k1::RecoveryId::parse((v - N::CHAIN_ID * 2 - 35) as u8)
+                    .map_err(|error| {
+                        TransactionError::Crate("libsecp256k1", format!("{:?}", error))
+                    })?;
                 let mut r = list[7].clone();
                 pad_zeros(&mut r, 32);
                 let mut s = list[8].clone();
@@ -216,13 +225,23 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     _network: PhantomData,
                 };
                 let message =
-                    libsecp256k1::Message::parse_slice(&raw_transaction.to_transaction_id()?.txid)?;
-                let public_key =
-                    EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
+                    libsecp256k1::Message::parse_slice(&raw_transaction.to_transaction_id()?.txid)
+                        .map_err(|error| {
+                            TransactionError::Crate("libsecp256k1", format!("{:?}", error))
+                        })?;
+                let public_key = EthereumPublicKey::from_secp256k1_public_key(
+                    libsecp256k1::recover(
                         &message,
-                        &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
+                        &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())
+                            .map_err(|error| {
+                                TransactionError::Crate("libsecp256k1", format!("{:?}", error))
+                            })?,
                         &recovery_id,
-                    )?);
+                    )
+                    .map_err(|error| {
+                        TransactionError::Crate("libsecp256k1", format!("{:?}", error))
+                    })?,
+                );
 
                 Ok(Self {
                     sender: Some(public_key.to_address(&EthereumFormat::Standard)?),

@@ -10,7 +10,6 @@ use std::{fmt, u64};
 use anychain_core::bls_signatures::Serialize as BlsSerialize;
 use anychain_core::PublicKey;
 use anychain_core::{
-    libsecp256k1,
     utilities::crypto::{blake2b_160, blake2b_checksum},
     Address, AddressError,
 };

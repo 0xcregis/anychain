@@ -21,7 +21,7 @@ ripemd = { workspace = true }
 blake2b_simd = { workspace = true }
 bech32 = { workspace = true }
 hex = { workspace = true }
-libsecp256k1 = { workspace = true }
+#libsecp256k1 = { workspace = true }
 bls-signatures = { workspace = true }
 base58 = { workspace = true , optional = true }
 rand = { workspace = true }

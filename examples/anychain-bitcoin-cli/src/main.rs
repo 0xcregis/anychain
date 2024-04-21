@@ -9,7 +9,7 @@ use anychain_bitcoin::{
     LitecoinTestnet, SignatureHash,
 };
 
-use anychain_core::{hex, libsecp256k1, Address, PublicKey, Transaction};
+use anychain_core::{hex, Address, PublicKey, Transaction};
 
 fn address_from_public_key<N: BitcoinNetwork>(
     public_key: libsecp256k1::PublicKey,

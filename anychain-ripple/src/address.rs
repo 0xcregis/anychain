@@ -4,7 +4,7 @@ use std::{fmt::Display, str::FromStr};
 use crate::{RippleFormat, RipplePublicKey};
 use anychain_core::{
     crypto::{checksum, hash160},
-    libsecp256k1, Address, AddressError, PublicKey,
+    Address, AddressError, PublicKey,
 };
 
 // fn map_gen(from: &str, to: &str) {
@@ -161,7 +161,7 @@ impl RippleAddress {
 mod tests {
     use std::str::FromStr;
 
-    use super::{libsecp256k1, Address, RippleAddress, RippleFormat};
+    use super::{Address, RippleAddress, RippleFormat};
 
     #[test]
     fn test_from_secret_key() {
