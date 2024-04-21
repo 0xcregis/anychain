@@ -837,11 +837,9 @@ mod tests {
     use crate::{RippleFormat, RipplePublicKey};
 
     use super::{RippleTransaction, RippleTransactionParameters};
-    use anychain_core::{
-        PublicKey, Transaction,
-    };
-    use std::str::FromStr;
+    use anychain_core::{PublicKey, Transaction};
     use libsecp256k1::{self, Message, SecretKey};
+    use std::str::FromStr;
 
     #[test]
     fn test_tx_gen() {

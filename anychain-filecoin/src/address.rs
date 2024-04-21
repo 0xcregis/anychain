@@ -7,12 +7,10 @@ use std::hash::Hash;
 use std::str::FromStr;
 use std::{fmt, u64};
 
-use bls_signatures::Serialize as BlsSerialize;
-use anychain_core::PublicKey;
-use anychain_core::{
-    Address, AddressError,
-};
 use crate::utilities::crypto::{blake2b_160, blake2b_checksum};
+use anychain_core::PublicKey;
+use anychain_core::{Address, AddressError};
+use bls_signatures::Serialize as BlsSerialize;
 
 use data_encoding::DecodeError;
 use data_encoding::Encoding;

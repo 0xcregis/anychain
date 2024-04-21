@@ -1,7 +1,7 @@
 use anychain_core::{to_basic_unit as to_wei, Amount, AmountError};
 
-use ethereum_types::U256;
 use core::fmt;
+use ethereum_types::U256;
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
 

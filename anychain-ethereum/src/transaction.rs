@@ -3,12 +3,12 @@ use crate::amount::EthereumAmount;
 use crate::format::EthereumFormat;
 use crate::network::EthereumNetwork;
 use crate::public_key::EthereumPublicKey;
-use ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
 use anychain_core::{hex, PublicKey, Transaction, TransactionError, TransactionId};
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
+use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
 use std::convert::TryInto;
 
