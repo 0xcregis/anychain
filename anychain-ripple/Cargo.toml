@@ -16,5 +16,4 @@ repository = { workspace = true }
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.3"}
 base58 = { workspace = true }
-sha2 = { workspace = true }
 libsecp256k1 = { workspace = true }

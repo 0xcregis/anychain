@@ -144,9 +144,7 @@ dependencies = [
  "bech32",
  "hex",
  "libsecp256k1",
- "rand",
  "serde",
- "serde_json",
  "sha2 0.10.8",
  "thiserror",
 ]
@@ -159,7 +157,6 @@ dependencies = [
  "anychain-core",
  "clap",
  "libsecp256k1",
- "serde",
  "serde_json",
 ]
 
@@ -179,7 +176,6 @@ dependencies = [
  "base58",
  "bech32",
  "hex",
- "rand",
  "rand_core 0.6.4",
  "ripemd",
  "serde_json",
@@ -196,7 +192,6 @@ dependencies = [
  "ethabi",
  "ethereum-types",
  "libsecp256k1",
- "rand",
  "regex",
  "rlp",
  "serde",
@@ -234,7 +229,6 @@ dependencies = [
  "num-bigint",
  "num-derive 0.3.3",
  "num-traits",
- "rand",
  "serde",
  "serde_json",
  "thiserror",
@@ -294,7 +288,6 @@ dependencies = [
  "ed25519-dalek",
  "libsecp256k1",
  "parity-scale-codec",
- "rand",
  "serde_json",
  "sp-core",
 ]
@@ -306,7 +299,6 @@ dependencies = [
  "anychain-core",
  "base58",
  "libsecp256k1",
- "sha2 0.10.8",
 ]
 
 [[package]]
@@ -325,18 +317,15 @@ version = "0.2.2"
 dependencies = [
  "anychain-core",
  "base58",
- "bytes",
  "chrono",
  "ethabi",
  "ethereum-types",
  "hex",
  "libsecp256k1",
  "protobuf",
- "rand",
  "serde",
  "sha2 0.10.8",
  "sha3",
- "thiserror",
 ]
 
 [[package]]

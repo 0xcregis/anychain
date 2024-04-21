@@ -19,11 +19,8 @@ serde = { workspace = true }
 sha3 = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
-rand = { workspace = true }
 base58 = { workspace = true }
-bytes = { workspace = true }
 protobuf = { workspace = true }
-thiserror = { workspace = true }
 chrono = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
