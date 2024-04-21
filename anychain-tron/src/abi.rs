@@ -1,5 +1,6 @@
 use crate::TronAddress;
-use anychain_core::{ethereum_types::U256, utilities::crypto::keccak256};
+use anychain_core::{utilities::crypto::keccak256};
+use ethereum_types::U256;
 use ethabi::{encode, Token};
 use std::str::FromStr;
 

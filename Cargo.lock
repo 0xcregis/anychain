@@ -180,7 +180,6 @@ dependencies = [
  "bech32",
  "blake2b_simd 1.0.2",
  "bls-signatures",
- "ethereum-types",
  "hex",
  "rand",
  "rand_core 0.6.4",
@@ -198,6 +197,7 @@ version = "0.1.10"
 dependencies = [
  "anychain-core",
  "ethabi",
+ "ethereum-types",
  "libsecp256k1",
  "rand",
  "regex",
@@ -329,6 +329,7 @@ dependencies = [
  "bytes",
  "chrono",
  "ethabi",
+ "ethereum-types",
  "hex",
  "libsecp256k1",
  "protobuf",

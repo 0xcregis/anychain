@@ -27,3 +27,4 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
+ethereum-types = { workspace = true }

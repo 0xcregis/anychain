@@ -16,7 +16,7 @@ repository = { workspace = true }
 [dependencies]
 sha3 = { workspace = true }
 thiserror = { workspace = true }
-ethereum-types = { workspace = true }
+# ethereum-types = { workspace = true }
 ripemd = { workspace = true }
 blake2b_simd = { workspace = true }
 bech32 = { workspace = true }

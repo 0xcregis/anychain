@@ -3,7 +3,7 @@ use crate::amount::EthereumAmount;
 use crate::format::EthereumFormat;
 use crate::network::EthereumNetwork;
 use crate::public_key::EthereumPublicKey;
-use anychain_core::ethereum_types::U256;
+use ethereum_types::U256;
 use anychain_core::utilities::crypto::keccak256;
 use anychain_core::{hex, PublicKey, Transaction, TransactionError, TransactionId};
 use core::{fmt, marker::PhantomData, str::FromStr};
