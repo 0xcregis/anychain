@@ -9,7 +9,7 @@ use {
 pub const MAX_BASE58_LEN: usize = 44;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SolanaPublicKey(pub ed25519_dalek::VerifyingKey);
+pub struct SolanaPublicKey(pub ed25519_dalek::PublicKey);
 
 impl PublicKey for SolanaPublicKey {
     type SecretKey = ed25519_dalek::SecretKey;
@@ -17,8 +17,8 @@ impl PublicKey for SolanaPublicKey {
     type Format = SolanaFormat;
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(secret_key);
-        let verifying_key = signing_key.verifying_key();
+        let signing_key = ed25519_dalek::SecretKey::from_bytes(secret_key.as_bytes()).unwrap();
+        let verifying_key: ed25519_dalek::PublicKey = (&signing_key).into();
         SolanaPublicKey(verifying_key)
     }
 
@@ -41,7 +41,7 @@ impl FromStr for SolanaPublicKey {
             return Err(PublicKeyError::InvalidByteLength(pubkey_vec.len()));
         }
         let buffer: [u8; PUBLIC_KEY_LENGTH] = pubkey_vec.as_slice().try_into().unwrap();
-        let verifying_key = ed25519_dalek::VerifyingKey::from_bytes(&buffer)
+        let verifying_key = ed25519_dalek::PublicKey::from_bytes(&buffer)
             .map_err(|error| PublicKeyError::Crate("base58", format!("{:?}", error)))?;
         Ok(SolanaPublicKey(verifying_key))
     }
@@ -57,7 +57,6 @@ impl fmt::Display for SolanaPublicKey {
 mod tests {
     use super::*;
     use anychain_core::PublicKey;
-    use core::convert::From;
     use ed25519_dalek::{SecretKey, KEYPAIR_LENGTH, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 
     #[test]
@@ -83,7 +82,7 @@ mod tests {
         ];
         secret_bytes.copy_from_slice(&keypair_bytes[0..SECRET_KEY_LENGTH]);
 
-        let secret_key: SecretKey = SecretKey::from(secret_bytes);
+        let secret_key: SecretKey = SecretKey::from_bytes(&secret_bytes).unwrap();
         let public_key = SolanaPublicKey::from_secret_key(&secret_key);
         assert_eq!(public_key.to_string(), pubkey_str);
     }
