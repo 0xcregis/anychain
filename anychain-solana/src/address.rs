@@ -52,7 +52,7 @@ impl FromStr for SolanaAddress {
             return Err(AddressError::InvalidAddress(addr.to_string()));
         }
         let buffer: [u8; PUBLIC_KEY_LENGTH] = pubkey_vec.as_slice().try_into().unwrap();
-        let _ = ed25519_dalek::VerifyingKey::from_bytes(&buffer)
+        let _ = ed25519_dalek::PublicKey::from_bytes(&buffer)
             .map_err(|error| AddressError::Message(error.to_string()))?;
 
         Ok(Self(addr.to_string()))
@@ -81,7 +81,7 @@ mod tests {
 
         let mut secret_bytes: [u8; PUBLIC_KEY_LENGTH] = [0u8; SECRET_KEY_LENGTH];
         secret_bytes.copy_from_slice(&keypair_bytes[0..SECRET_KEY_LENGTH]);
-        let secret_key: SecretKey = SecretKey::from(secret_bytes);
+        let secret_key: SecretKey = SecretKey::from_bytes(&secret_bytes).unwrap();
 
         let address =
             SolanaAddress::from_secret_key(&secret_key, &SolanaFormat::default()).unwrap();
@@ -102,7 +102,7 @@ mod tests {
 
         let mut secret_bytes: [u8; PUBLIC_KEY_LENGTH] = [0u8; SECRET_KEY_LENGTH];
         secret_bytes.copy_from_slice(&keypair_bytes[0..SECRET_KEY_LENGTH]);
-        let secret_key: SecretKey = SecretKey::from(secret_bytes);
+        let secret_key: SecretKey = SecretKey::from_bytes(&secret_bytes).unwrap();
 
         let address =
             SolanaAddress::from_secret_key(&secret_key, &SolanaFormat::default()).unwrap();
