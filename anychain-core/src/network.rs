@@ -2,7 +2,7 @@ use {
     crate::no_std::{
         fmt::{Debug, Display},
         hash::Hash,
-        String, FromStr,
+        FromStr, String,
     },
     thiserror::Error,
 };

@@ -7,16 +7,15 @@ pub use alloc::{
 #[cfg(not(feature = "std"))]
 #[doc(hidden)]
 pub use core::{
-    hash,
+    hash, num,
     {fmt, str::FromStr},
-    num
 };
 
 #[cfg(feature = "std")]
 #[doc(hidden)]
 pub use std::{
-    borrow::ToOwned, fmt, format, hash, str::FromStr, string::FromUtf8Error, string::String,
-    string::ToString, vec, vec::Vec, num,
+    borrow::ToOwned, fmt, format, hash, num, str::FromStr, string::FromUtf8Error, string::String,
+    string::ToString, vec, vec::Vec,
 };
 
 #[cfg(not(feature = "std"))]

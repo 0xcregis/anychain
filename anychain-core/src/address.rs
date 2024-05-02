@@ -1,13 +1,11 @@
-use {
-    crate::{
-        format::Format,
-        public_key::{PublicKey, PublicKeyError},
-        no_std::{
-            fmt::{Debug, Display},
-            hash::Hash,
-            FromStr, String,
-        },
+use crate::{
+    format::Format,
+    no_std::{
+        fmt::{Debug, Display},
+        hash::Hash,
+        FromStr, String,
     },
+    public_key::{PublicKey, PublicKeyError},
 };
 
 /// The interface for a generic address.

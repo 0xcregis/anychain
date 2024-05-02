@@ -1,12 +1,9 @@
-use {
-    crate::{
-        AddressError,
-        AmountError,
-        FormatError,
-        PublicKeyError,
-        TransactionError,
-        no_std::{String, io::Error as IoError, fmt::Error as FmtError, num::ParseIntError as NumParseIntError},
+use crate::{
+    no_std::{
+        fmt::Error as FmtError, io::Error as IoError, num::ParseIntError as NumParseIntError,
+        String,
     },
+    AddressError, AmountError, FormatError, PublicKeyError, TransactionError,
 };
 
 #[derive(Debug, Error)]
