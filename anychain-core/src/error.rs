@@ -1,8 +1,13 @@
-use crate::AddressError;
-use crate::AmountError;
-use crate::FormatError;
-use crate::PublicKeyError;
-use crate::TransactionError;
+use {
+    crate::{
+        AddressError,
+        AmountError,
+        FormatError,
+        PublicKeyError,
+        TransactionError,
+        no_std::{String, io::Error as IoError, fmt::Error as FmtError, num::ParseIntError as NumParseIntError},
+    },
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -25,14 +30,14 @@ pub enum Error {
     InvalidFormat(#[from] FormatError),
 
     #[error("io error: {0:}")]
-    Io(#[from] ::std::io::Error),
+    Io(#[from] IoError),
 
     #[error("fmt error: {0:}")]
-    Fmt(#[from] ::std::fmt::Error),
+    Fmt(#[from] FmtError),
 
     #[error("fromHex error: {0:}")]
     FromHex(#[from] ::hex::FromHexError),
 
     #[error("parsing error: {0:}")]
-    ParseInt(#[from] ::std::num::ParseIntError),
+    ParseInt(#[from] NumParseIntError),
 }

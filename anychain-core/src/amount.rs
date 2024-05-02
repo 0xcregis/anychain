@@ -1,7 +1,10 @@
-use crate::no_std::*;
-use core::{
-    fmt::{Debug, Display},
-    hash::Hash,
+use {
+    crate::no_std::{
+        fmt::{Debug, Display},
+        hash::Hash,
+        String,
+    },
+    thiserror::Error,
 };
 
 /// The interface for a generic amount.
