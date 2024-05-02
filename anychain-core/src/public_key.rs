@@ -1,9 +1,13 @@
-use crate::address::{Address, AddressError};
-use crate::format::Format;
-use crate::no_std::*;
-use core::{
-    fmt::{Debug, Display},
-    str::FromStr,
+use {
+    crate::{
+        address::{Address, AddressError},
+        format::Format,
+        no_std::{
+            fmt::{Debug, Display},
+            FromStr, String,
+        },
+    },
+    thiserror::Error,
 };
 
 /// Generic public key.

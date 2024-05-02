@@ -1,12 +1,17 @@
-use crate::address::{Address, AddressError};
-use crate::amount::AmountError;
-use crate::format::Format;
-use crate::no_std::*;
-use crate::public_key::PublicKey;
-use crate::utilities::crypto::keccak256;
-use core::{
-    fmt::{Debug, Display},
-    hash::Hash,
+use {
+    crate::{
+        address::{Address, AddressError},
+        amount::AmountError,
+        format::Format,
+        no_std::{
+            fmt::{Debug, Display},
+            hash::Hash,
+            String, Vec,
+        },
+        public_key::PublicKey,
+        utilities::crypto::keccak256,
+    },
+    thiserror::Error,
 };
 
 /**
@@ -48,7 +53,7 @@ pub trait Transaction: Clone + Send + Sync + 'static {
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError>;
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum TransactionError {
     #[error("{0}")]
     AddressError(#[from] AddressError),

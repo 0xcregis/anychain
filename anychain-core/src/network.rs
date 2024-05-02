@@ -1,8 +1,10 @@
-use crate::no_std::*;
-use core::{
-    fmt::{Debug, Display},
-    hash::Hash,
-    str::FromStr,
+use {
+    crate::no_std::{
+        fmt::{Debug, Display},
+        hash::Hash,
+        FromStr, String,
+    },
+    thiserror::Error,
 };
 
 /// The interface for a generic network.
@@ -12,7 +14,7 @@ pub trait Network:
     const NAME: &'static str;
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum NetworkError {
     #[error("invalid extended private key prefix: {0}")]
     InvalidExtendedPrivateKeyPrefix(String),

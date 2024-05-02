@@ -23,12 +23,6 @@ base58 = { workspace = true , optional = true }
 rand_core = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-# rand = { workspace = true }
-# ethereum-types = { workspace = true }
-# blake2b_simd = { workspace = true }
-# libsecp256k1 = { workspace = true }
-# bls-signatures = { workspace = true }
-# rlp = { workspace = true }
 
 [features]
 default = ["std"]

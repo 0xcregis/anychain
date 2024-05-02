@@ -1,10 +1,11 @@
-use crate::format::Format;
-use crate::no_std::*;
-use crate::public_key::{PublicKey, PublicKeyError};
-use core::{
-    fmt::{Debug, Display},
-    hash::Hash,
-    str::FromStr,
+use crate::{
+    format::Format,
+    no_std::{
+        fmt::{Debug, Display},
+        hash::Hash,
+        FromStr, String,
+    },
+    public_key::{PublicKey, PublicKeyError},
 };
 
 /// The interface for a generic address.
