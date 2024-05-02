@@ -25,7 +25,7 @@ pub struct TronTransactionParameters {
 impl TronTransactionParameters {
     pub fn set_ref_block(&mut self, number: i64, hash: &str) {
         self.ref_block_bytes = vec![((number & 0xff00) >> 8) as u8, (number & 0xff) as u8];
-        self.ref_block_hash = hex::decode(hash).unwrap()[8..16].to_owned();
+        hex::decode(hash).unwrap()[8..16].clone_into(&mut self.ref_block_hash)
     }
 
     pub fn set_contract(&mut self, ct: Contract) {
@@ -53,7 +53,7 @@ impl TronTransactionParameters {
         }
         raw.contract = vec![self.contract.clone()];
         if !self.memo.is_empty() {
-            raw.data = self.memo.as_bytes().to_owned();
+            self.memo.as_bytes().clone_into(&mut raw.data)
         }
 
         if self.fee_limit != 0 {
@@ -62,8 +62,8 @@ impl TronTransactionParameters {
 
         raw.timestamp = timestamp;
         raw.expiration = timestamp + self.expiration;
-        raw.ref_block_bytes = self.ref_block_bytes.clone();
-        raw.ref_block_hash = self.ref_block_hash.clone();
+        raw.ref_block_bytes.clone_from(&self.ref_block_bytes);
+        raw.ref_block_hash.clone_from(&self.ref_block_hash);
 
         Ok(raw)
     }

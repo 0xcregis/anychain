@@ -116,8 +116,12 @@ pub fn build_transfer_contract(
 
     let mut transfer_contract = TransferContract::new();
 
-    transfer_contract.owner_address = sender.as_bytes().to_owned();
-    transfer_contract.to_address = recipient.as_bytes().to_owned();
+    sender
+        .as_bytes()
+        .clone_into(&mut transfer_contract.owner_address);
+    recipient
+        .as_bytes()
+        .clone_into(&mut transfer_contract.to_address);
     transfer_contract.amount = amount.parse::<i64>()?;
 
     build_contract(&transfer_contract)
