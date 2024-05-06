@@ -16,6 +16,7 @@ anychain-core = { path = "../anychain-core", version = "0.1.5"}
 regex = { workspace = true }
 rlp = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
 ethereum-types = { workspace = true }

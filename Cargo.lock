@@ -195,6 +195,7 @@ dependencies = [
  "regex",
  "rlp",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

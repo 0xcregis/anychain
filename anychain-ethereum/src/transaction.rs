@@ -10,6 +10,7 @@ use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
+use serde_json::{json, Value};
 use std::convert::TryInto;
 
 /// Trim the leading zeros of a byte stream and return it
@@ -36,13 +37,13 @@ fn pad_zeros(v: &mut Vec<u8>, to_len: usize) {
     }
 }
 
-pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8> {
+pub fn encode_transfer(func_name: &str, to: &EthereumAddress, amount: U256) -> Vec<u8> {
     #[allow(deprecated)]
     let func = Function {
         name: func_name.to_string(),
         inputs: vec![
             Param {
-                name: "address".to_string(),
+                name: "to".to_string(),
                 kind: ParamType::Address,
                 internal_type: None,
             },
@@ -58,7 +59,7 @@ pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256)
     };
 
     let tokens = vec![
-        Token::Address(H160::from_slice(&address.to_bytes().unwrap())),
+        Token::Address(H160::from_slice(&to.to_bytes().unwrap())),
         Token::Uint(amount),
     ];
 
@@ -80,6 +81,58 @@ pub struct EthereumTransactionParameters {
     pub nonce: U256,
     /// The transaction data
     pub data: Vec<u8>,
+}
+
+impl EthereumTransactionParameters {
+    pub fn decode_data(&self) -> Result<Value, TransactionError> {
+        if self.data.len() < 4 {
+            return Err(TransactionError::Message("Illegal data".to_string()));
+        }
+
+        let selector = &self.data[..4];
+
+        match selector {
+            // function selector for 'transfer(address,uint256)'
+            [169, 5, 156, 187] => {
+                #[allow(deprecated)]
+                let func = Function {
+                    name: "transfer".to_string(),
+                    inputs: vec![
+                        Param {
+                            name: "to".to_string(),
+                            kind: ParamType::Address,
+                            internal_type: None,
+                        },
+                        Param {
+                            name: "amount".to_string(),
+                            kind: ParamType::Uint(256),
+                            internal_type: None,
+                        },
+                    ],
+                    outputs: vec![],
+                    constant: None,
+                    state_mutability: StateMutability::Payable,
+                };
+                match func.decode_input(&self.data[4..]) {
+                    Ok(tokens) => {
+                        let to = hex::encode(tokens[0].clone().into_address().unwrap().as_bytes());
+                        let amount = tokens[1].clone().into_uint().unwrap().as_u128();
+                        Ok(json!({
+                            "function": "transfer",
+                            "params": {
+                                "to": to,
+                                "amount": amount
+                            }
+                        }))
+                    }
+                    Err(e) => Err(TransactionError::Message(e.to_string())),
+                }
+            }
+            _ => Err(TransactionError::Message(
+                "Unsupported contract function".to_string(),
+            )),
+        }
+    }
 }
 
 /// Represents an Ethereum transaction signature
@@ -350,4 +403,18 @@ impl<N: EthereumNetwork> fmt::Display for EthereumTransaction<N> {
             })
         )
     }
+}
+
+#[test]
+fn test() {
+    let params = EthereumTransactionParameters {
+        receiver: EthereumAddress::from_str("0xda5eb076422c159a800ab0cbdd154ace1e2b228a").unwrap(),
+        amount: EthereumAmount::from_eth("1").unwrap(),
+        gas: U256::from_dec_str("10000").unwrap(),
+        gas_price: EthereumAmount::from_gwei("50").unwrap(),
+        nonce: U256::from_dec_str("0").unwrap(),
+        data: hex::decode("a9059cbb000000000000000000000000da5eb076422c159a800ab0cbdd154ace1e2b228a0000000000000000000000000000000000000000000000000000000000f42400").unwrap(),
+    };
+    let res = params.decode_data().unwrap().to_string();
+    assert_eq!(res, "{\"function\":\"transfer\",\"params\":{\"amount\":16000000,\"to\":\"da5eb076422c159a800ab0cbdd154ace1e2b228a\"}}");
 }
