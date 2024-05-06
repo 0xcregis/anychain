@@ -10,6 +10,7 @@ use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
+use serde_json::{json, Value};
 use std::convert::TryInto;
 
 /// Trim the leading zeros of a byte stream and return it
@@ -80,6 +81,58 @@ pub struct EthereumTransactionParameters {
     pub nonce: U256,
     /// The transaction data
     pub data: Vec<u8>,
+}
+
+impl EthereumTransactionParameters {
+    pub fn decode_data(&self) -> Result<Value, TransactionError> {
+        if self.data.len() < 4 {
+            return Err(TransactionError::Message("Illegal data".to_string()));
+        }
+
+        let selector = &self.data[..4];
+
+        match selector {
+            // function selector for 'transfer(address,uint256)'
+            [169, 5, 156, 187] => {
+                #[allow(deprecated)]
+                let func = Function {
+                    name: "transfer".to_string(),
+                    inputs: vec![
+                        Param {
+                            name: "to".to_string(),
+                            kind: ParamType::Address,
+                            internal_type: None,
+                        },
+                        Param {
+                            name: "amount".to_string(),
+                            kind: ParamType::Uint(256),
+                            internal_type: None,
+                        },
+                    ],
+                    outputs: vec![],
+                    constant: None,
+                    state_mutability: StateMutability::Payable,
+                };
+                match func.decode_input(&self.data[4..]) {
+                    Ok(tokens) => {
+                        let to = hex::encode(tokens[0].clone().into_address().unwrap().as_bytes());
+                        let amount = tokens[1].clone().into_uint().unwrap().as_u128();
+                        Ok(json!({
+                            "function": "transfer",
+                            "params": {
+                                "to": to,
+                                "amount": amount
+                            }
+                        }))
+                    }
+                    Err(e) => Err(TransactionError::Message(e.to_string())),
+                }
+            }
+            _ => Err(TransactionError::Message(
+                "Unsupported contract function".to_string(),
+            )),
+        }
+    }
 }
 
 /// Represents an Ethereum transaction signature
