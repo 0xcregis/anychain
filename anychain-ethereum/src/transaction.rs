@@ -10,8 +10,8 @@ use ethabi::ethereum_types::H160;
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
+use serde_json::{json, Value};
 use std::convert::TryInto;
-use serde_json::{Value, json};
 
 /// Trim the leading zeros of a byte stream and return it
 fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
