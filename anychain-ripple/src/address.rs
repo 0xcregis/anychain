@@ -92,13 +92,8 @@ impl Address for RippleAddress {
         public_key: &Self::PublicKey,
         _: &Self::Format,
     ) -> Result<Self, anychain_core::AddressError> {
-        let mut data = [0u8; 25];
         let hash = hash160(&public_key.serialize());
-        data[1..21].copy_from_slice(&hash);
-        let checksum = &checksum(&data[..21])[..4];
-        data[21..].copy_from_slice(checksum);
-
-        Ok(RippleAddress(to_xrp_bs58(&data.to_base58())?))
+        Self::from_hash160(&hash)
     }
 }
 
@@ -154,6 +149,18 @@ impl RippleAddress {
         ret.copy_from_slice(&bytes[1..21]);
 
         Ok(ret)
+    }
+
+    pub fn from_hash160(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 20 {
+            return Err(AddressError::Message("Illegal hash160 length".to_string()));
+        }
+        let mut data = [0u8; 25];
+        data[1..21].copy_from_slice(hash);
+        let checksum = &checksum(&data[..21])[..4];
+        data[21..].copy_from_slice(checksum);
+
+        Ok(RippleAddress(to_xrp_bs58(&data.to_base58())?))
     }
 }
 
