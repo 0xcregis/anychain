@@ -115,14 +115,6 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             script.push(Opcode::OP_CHECKSIG as u8);
             Ok(script)
         }
-        BitcoinFormat::P2WSH => {
-            let (_, data, _) = bech32::decode(&address.to_string())?;
-            let (v, script) = data.split_at(1);
-            let script = Vec::from_base32(script)?;
-            let mut script_bytes = vec![v[0].to_u8(), script.len() as u8];
-            script_bytes.extend(script);
-            Ok(script_bytes)
-        }
         BitcoinFormat::P2SH_P2WPKH => {
             let script_bytes = &address.to_string().from_base58()?;
             let script_hash = script_bytes[1..(script_bytes.len() - 4)].to_vec();
@@ -134,13 +126,20 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             script.push(Opcode::OP_EQUAL as u8);
             Ok(script)
         }
+        BitcoinFormat::P2WSH => {
+            let (_, data, _) = bech32::decode(&address.to_string())?;
+            let (v, script) = data.split_at(1);
+            let script = Vec::from_base32(script)?;
+            let mut script_bytes = vec![v[0].to_u8(), script.len() as u8];
+            script_bytes.extend(script);
+            Ok(script_bytes)
+        }
         BitcoinFormat::Bech32 => {
             let (_, data, _) = bech32::decode(&address.to_string())?;
             let (v, program) = data.split_at(1);
             let program = Vec::from_base32(program)?;
             let mut program_bytes = vec![v[0].to_u8(), program.len() as u8];
             program_bytes.extend(program);
-
             Ok(WitnessProgram::new(&program_bytes)?.to_scriptpubkey())
         }
         BitcoinFormat::CashAddr => {
