@@ -143,11 +143,15 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
 }
 
 impl<N: BitcoinNetwork> BitcoinAddress<N> {
-    /// Returns a P2PKH address from a given Bitcoin public key.
-    pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+    /// Generate a P2PKH address from a hash160.
+    pub fn p2pkh_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 20 {
+            return Err(AddressError::Message("Illegal hash160 length".to_string()));
+        }
+
         let mut data = [0u8; 25];
         data[0] = N::to_address_prefix(BitcoinFormat::P2PKH)?.version();
-        data[1..21].copy_from_slice(&hash160(&public_key.serialize()));
+        data[1..21].copy_from_slice(hash);
 
         let checksum = &checksum(&data[..21])[..4];
         data[21..].copy_from_slice(checksum);
@@ -159,34 +163,15 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
-    // Returns a P2WSH address in Bech32 format from a given Bitcoin script
-    pub fn p2wsh(original_script: &[u8]) -> Result<Self, AddressError> {
-        let script = Sha256::digest(original_script).to_vec();
+    /// Generate a P2SH_P2WPKH address from a hash160
+    pub fn p2sh_p2wpkh_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 20 {
+            return Err(AddressError::Message("Illegal hash160 length".to_string()));
+        }
 
-        // Organize as a hash
-        let v = N::to_address_prefix(BitcoinFormat::P2WSH)?.version();
-        let version = u5::try_from_u8(v)?;
-
-        let mut data = vec![version];
-
-        // Get the SHA256 hash of the script
-        data.extend_from_slice(&script.to_vec().to_base32());
-
-        let prefix = N::to_address_prefix(BitcoinFormat::Bech32)?.prefix();
-        let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
-
-        Ok(Self {
-            address: bech32,
-            format: BitcoinFormat::P2WSH,
-            _network: PhantomData,
-        })
-    }
-
-    /// Returns a P2SH_P2WPKH address from a given Bitcoin public key.
-    pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let mut data = [0u8; 25];
         data[0] = N::to_address_prefix(BitcoinFormat::P2SH_P2WPKH)?.version();
-        data[1..21].copy_from_slice(&hash160(&Self::create_redeem_script(public_key)));
+        data[1..21].copy_from_slice(hash);
 
         let checksum = &checksum(&data[..21])[..4];
         data[21..].copy_from_slice(checksum);
@@ -198,11 +183,38 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
-    /// Returns a Bech32 address from a given Bitcoin public key.
-    pub fn bech32(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+    // Generate a P2WSH address in Bech32 format from a sha256 script hash
+    pub fn p2wsh_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 32 {
+            return Err(AddressError::Message("Illegal sha256 length".to_string()));
+        }
+
+        let v = N::to_address_prefix(BitcoinFormat::P2WSH)?.version();
+        let version = u5::try_from_u8(v)?;
+
+        let mut data = vec![version];
+
+        data.extend_from_slice(&hash.to_vec().to_base32());
+
+        let prefix = N::to_address_prefix(BitcoinFormat::Bech32)?.prefix();
+        let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
+
+        Ok(Self {
+            address: bech32,
+            format: BitcoinFormat::P2WSH,
+            _network: PhantomData,
+        })
+    }
+
+    /// Generate a Bech32 address from a hash160
+    pub fn bech32_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 20 {
+            return Err(AddressError::Message("Illegal hash160 length".to_string()));
+        }
+
         let data = [
             vec![u5::try_from_u8(0)?], // version byte: 0
-            hash160(&public_key.serialize()).to_base32(),
+            hash.to_base32(),
         ]
         .concat();
 
@@ -216,9 +228,14 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
-    pub fn cash_addr(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+    /// Generate a CashAddr address from a hash160
+    pub fn cash_addr_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 20 {
+            return Err(AddressError::Message("Illegal hash160 length".to_string()));
+        }
+
         let mut payload = vec![0u8]; // payload starts with version byte: 0
-        payload.extend(&hash160(&public_key.serialize()));
+        payload.extend(hash);
 
         let payload: Vec<u8> = payload
             .to_base32()
@@ -237,17 +254,82 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
-    /// Returns the format of the Bitcoin address.
+    /// Generate a P2PKH address from a given Bitcoin public key.
+    pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+        let hash = hash160(&public_key.serialize());
+        Self::p2pkh_from_hash(&hash)
+    }
+
+    // Generate a P2WSH address in Bech32 format from a given Bitcoin script
+    pub fn p2wsh(original_script: &[u8]) -> Result<Self, AddressError> {
+        let hash = Sha256::digest(original_script).to_vec();
+        Self::p2wsh_from_hash(&hash)
+    }
+
+    /// Generate a P2SH_P2WPKH address from a given Bitcoin public key.
+    pub fn p2sh_p2wpkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+        let hash = hash160(&Self::create_redeem_script(public_key));
+        Self::p2sh_p2wpkh_from_hash(&hash)
+    }
+
+    /// Generate a Bech32 address from a given Bitcoin public key.
+    pub fn bech32(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+        let hash = hash160(&public_key.serialize());
+        Self::bech32_from_hash(&hash)
+    }
+
+    /// Generate a CashAddr address from a given Bitcoin public key.
+    pub fn cash_addr(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
+        let hash = hash160(&public_key.serialize());
+        Self::cash_addr_from_hash(&hash)
+    }
+
+    /// Return the format of the Bitcoin address.
     pub fn format(&self) -> BitcoinFormat {
         self.format.clone()
     }
 
-    /// Returns a redeem script for a given Bitcoin public key.
+    /// Generate a redeem script from a given Bitcoin public key.
     pub fn create_redeem_script(public_key: &<Self as Address>::PublicKey) -> [u8; 22] {
         let mut redeem = [0u8; 22];
         redeem[1] = Opcode::OP_PUSHBYTES_20 as u8;
         redeem[2..].copy_from_slice(&hash160(&public_key.serialize()));
         redeem
+    }
+
+    /// Decode the 'script_pub_key' to a bitcoin address
+    pub fn from_script_pub_key(script_pub_key: &[u8]) -> Result<Self, AddressError> {
+        if script_pub_key.len() == 25
+            && script_pub_key[0] == Opcode::OP_DUP as u8
+            && script_pub_key[1] == Opcode::OP_HASH160 as u8
+            && script_pub_key[2] == 20
+            && script_pub_key[23] == Opcode::OP_EQUALVERIFY as u8
+            && script_pub_key[24] == Opcode::OP_CHECKSIG as u8
+        {
+            // we are handling a p2pkh script
+            if N::NAME.starts_with("bitcoin cash") {
+                BitcoinAddress::<N>::cash_addr_from_hash(&script_pub_key[3..23])
+            } else {
+                BitcoinAddress::<N>::p2pkh_from_hash(&script_pub_key[3..23])
+            }
+        } else if script_pub_key.len() == 23
+            && script_pub_key[0] == Opcode::OP_HASH160 as u8
+            && script_pub_key[1] == 20
+            && script_pub_key[22] == Opcode::OP_EQUAL as u8
+        {
+            // we are handling a p2sh_p2wpkh script
+            BitcoinAddress::<N>::p2sh_p2wpkh_from_hash(&script_pub_key[2..22])
+        } else if script_pub_key.len() == 34 && script_pub_key[0] == 0 && script_pub_key[1] == 32 {
+            // we are handling a p2wsh script
+            BitcoinAddress::<N>::p2wsh_from_hash(&script_pub_key[2..])
+        } else if script_pub_key.len() == 22 && script_pub_key[0] == 0 && script_pub_key[1] == 20 {
+            // we are handling a bech32 script
+            BitcoinAddress::<N>::bech32_from_hash(&script_pub_key[2..])
+        } else {
+            return Err(AddressError::Message(
+                "Illegal utxo script public key".to_string(),
+            ));
+        }
     }
 }
 
@@ -404,8 +486,9 @@ impl<N: BitcoinNetwork> fmt::Display for BitcoinAddress<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::network::*;
+    use crate::{create_script_pub_key, network::*};
     use anychain_core::{hex, Network};
+    use rand::thread_rng;
 
     fn test_from_str<N: BitcoinNetwork>(expected_address: &str, expected_format: &BitcoinFormat) {
         let address = BitcoinAddress::<N>::from_str(expected_address).unwrap();
@@ -937,5 +1020,48 @@ mod tests {
             "address1 = {}\naddress2 = {}\naddress3 = {}\naddress4 = {}\naddress5 = {}",
             addr1, addr2, addr3, addr4, addr5,
         );
+    }
+
+    #[test]
+    fn test_decode_script() {
+        let mut rng = thread_rng();
+
+        let sk = libsecp256k1::SecretKey::random(&mut rng);
+        let addr = BitcoinAddress::<Bitcoin>::from_secret_key(&sk, &BitcoinFormat::P2PKH).unwrap();
+        println!("{}", addr);
+        let script = create_script_pub_key(&addr).unwrap();
+        let addr = BitcoinAddress::<Bitcoin>::from_script_pub_key(&script).unwrap();
+        println!("{}", addr);
+
+        let sk = libsecp256k1::SecretKey::random(&mut rng);
+        let addr =
+            BitcoinAddress::<Bitcoin>::from_secret_key(&sk, &BitcoinFormat::P2SH_P2WPKH).unwrap();
+        println!("{}", addr);
+        let script = create_script_pub_key(&addr).unwrap();
+        let addr = BitcoinAddress::<Bitcoin>::from_script_pub_key(&script).unwrap();
+        println!("{}", addr);
+
+        let sk = libsecp256k1::SecretKey::random(&mut rng);
+        let addr = BitcoinAddress::<Bitcoin>::from_secret_key(&sk, &BitcoinFormat::Bech32).unwrap();
+        println!("{}", addr);
+        let script = create_script_pub_key(&addr).unwrap();
+        let addr = BitcoinAddress::<Bitcoin>::from_script_pub_key(&script).unwrap();
+        println!("{}", addr);
+
+        let sk = libsecp256k1::SecretKey::random(&mut rng);
+        let addr =
+            BitcoinAddress::<Bitcoin>::p2wsh_from_hash(&Sha256::digest(sk.serialize())).unwrap();
+        println!("{}", addr);
+        let script = create_script_pub_key(&addr).unwrap();
+        let addr = BitcoinAddress::<Bitcoin>::from_script_pub_key(&script).unwrap();
+        println!("{}", addr);
+
+        let sk = libsecp256k1::SecretKey::random(&mut rng);
+        let addr =
+            BitcoinAddress::<BitcoinCash>::from_secret_key(&sk, &BitcoinFormat::CashAddr).unwrap();
+        println!("{}", addr);
+        let script = create_script_pub_key(&addr).unwrap();
+        let addr = BitcoinAddress::<BitcoinCash>::from_script_pub_key(&script).unwrap();
+        println!("{}", addr);
     }
 }

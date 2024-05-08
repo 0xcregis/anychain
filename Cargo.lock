@@ -138,13 +138,14 @@ dependencies = [
 
 [[package]]
 name = "anychain-bitcoin"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anychain-core",
  "base58",
  "bech32",
  "hex",
  "libsecp256k1",
+ "rand 0.8.5",
  "serde",
  "sha2 0.10.8",
  "thiserror",
