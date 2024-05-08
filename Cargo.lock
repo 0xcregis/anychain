@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-ripple"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "anychain-core",
  "base58",
