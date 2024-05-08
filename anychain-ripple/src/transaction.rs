@@ -242,7 +242,7 @@ impl RippleTransaction {
                         field_value, value, ..
                     } => {
                         if *field_value == 1 {
-                            amount = *value;
+                            amount = *value & !0x4000000000000000;
                         } else if *field_value == 8 {
                             fee = *value as u32;
                         } else {
