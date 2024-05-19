@@ -89,7 +89,7 @@ which outputs:
 tx = 0xed04847735940082520894717648d7d50ff001cc1088e8dc416dfa26c32cb9870411802159054d8083aa36a78080
 ```
 
-##### Make an signed ether transaction
+##### Make a signed ether transaction
 
 ```bash
 ./anychain-ethereum-cli maketx --mode main --network sepolia --nonce 4 --gasprice 2gwei --gaslimit 21000 --to 0x717648D7d50fF001cc1088E8dc416Dfa26c32CB9 --value 1145141919810893 -r 371efe039d17f0bf74b732c94a5d7c4a04f4bf747bde94a779dd8fd7b180d106 -s 0eacd1b265ddfea09f4c20400429dba2224af8eed462a732358f7da8f1848e18 -v 0
@@ -111,7 +111,7 @@ which outputs
 tx = 0xf86b05847735940082c73894779877a7b0d9e8603169ddbd7836e478b462478980b844a9059cbb000000000000000000000000717648d7d50ff001cc1088e8dc416dfa26c32cb9000000000000000000000000000000000000000000000000000411802159054d83aa36a78080
 ```
 
-##### make an signed erc-20 transaction
+##### make a signed erc-20 transaction
 
 ```bash
 ./anychain-ethereum-cli maketx --mode erc20 --network sepolia --nonce 5 --gasprice 2gwei --gaslimit 51000 --to 0x717648D7d50fF001cc1088E8dc416Dfa26c32CB9 --token 0x779877A7B0D9E8603169DdbD7836e478b4624789 --value 1145141919810893 -r 2fe49c0b946b77bb2c95a60a57c2ec9e5cb25504d0e549eb3a3cbfed8bc9cc54 -s 0x0e050e046dec65c1505653fe6147eb1fa20c63f6b8c7b78c7138b74f48a260a1 -v 0
