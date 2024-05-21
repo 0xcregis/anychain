@@ -9,7 +9,6 @@ members = [
     "anychain-polkadot",
     "anychain-ripple",
     "anychain-neo",
-    "anychain-solana",
     "anychain-kms",
     "examples/*",
 ]
