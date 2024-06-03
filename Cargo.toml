@@ -10,6 +10,7 @@ members = [
     "anychain-ripple",
     "anychain-neo",
     "anychain-kms",
+    "anychain-sui",
     "examples/*",
 ]
 
@@ -66,6 +67,10 @@ once_cell = { version = "1.18.0" }
 subtle = { version = "2", default-features = false }
 p256 = "0.13.2"
 bs58 = { version = "0.4", default-features = false, features = ["check", "alloc"] }
+schemars = { version = "0.8.10", features = ["either"] }
+serde_with = { version = "2.1.0", features = ["hex"] }
+derive_more = "0.99.17"
+fastcrypto = { version = "0.1.8", features = ["copy_key"]}
 
 [profile.release]
 strip = true       # Automatically strip symbols from the binary

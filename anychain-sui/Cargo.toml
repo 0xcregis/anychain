@@ -1,0 +1,20 @@
+[package]
+name = "anychain-sui"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anychain-core = { path = "../anychain-core", version = "0.1.4" }
+schemars.workspace = true
+serde = { workspace = true }
+serde_with.workspace = true
+derive_more.workspace = true
+fastcrypto.workspace = true
+hex = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
