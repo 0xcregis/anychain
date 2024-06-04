@@ -1,6 +1,6 @@
-use serde::de::{Deserializer, Error};
-use serde::ser::{Error as SerError, Serializer};
-use serde_with::{Bytes, DeserializeAs, SerializeAs};
+use serde::de::Deserializer;
+use serde::ser::Serializer;
+use serde_with::{DeserializeAs, SerializeAs};
 
 use std::marker::PhantomData;
 

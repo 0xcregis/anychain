@@ -1,22 +1,16 @@
 use crate::address::SuiAddress;
 use crate::format::SuiFormat;
-use anychain_core::{Address, AddressError, PublicKey, PublicKeyError};
+use anychain_core::{AddressError, PublicKey, PublicKeyError};
 
-use derive_more::{AsMut, AsRef, From};
+use derive_more::From;
 use fastcrypto::ed25519::{
-    Ed25519KeyPair, Ed25519PrivateKey, Ed25519PublicKey, Ed25519PublicKeyAsBytes, Ed25519Signature,
-    Ed25519SignatureAsBytes,
+    Ed25519PrivateKey, Ed25519PublicKey, Ed25519PublicKeyAsBytes, ED25519_PUBLIC_KEY_LENGTH,
 };
-use fastcrypto::encoding::{Base64, Bech32, Encoding, Hex};
+use fastcrypto::encoding::{Base64, Encoding};
 use fastcrypto::hash::{Blake2b256, HashFunction};
-use fastcrypto::secp256k1::{
-    Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1PublicKeyAsBytes, Secp256k1Signature,
-    Secp256k1SignatureAsBytes, SECP256K1,
-};
-use fastcrypto::secp256r1::{
-    Secp256r1PrivateKey, Secp256r1PublicKey, Secp256r1PublicKeyAsBytes, Secp256r1Signature,
-    Secp256r1SignatureAsBytes,
-};
+use fastcrypto::secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1PublicKeyAsBytes};
+use fastcrypto::secp256r1::{Secp256r1PrivateKey, Secp256r1PublicKey, Secp256r1PublicKeyAsBytes};
+use fastcrypto::traits::ToFromBytes;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
@@ -34,7 +28,6 @@ pub enum SuiPublicKey {
     Ed25519(Ed25519PublicKeyAsBytes),
     Secp256k1(Secp256k1PublicKeyAsBytes),
     Secp256r1(Secp256r1PublicKeyAsBytes),
-    // ZkLogin(ZkLoginPublicIdentifier),
 }
 
 #[derive(Clone, Copy)]
@@ -123,14 +116,12 @@ impl AsRef<[u8]> for SuiPublicKey {
             SuiPublicKey::Ed25519(pk) => &pk.0,
             SuiPublicKey::Secp256k1(pk) => &pk.0,
             SuiPublicKey::Secp256r1(pk) => &pk.0,
-            // PublicKey::ZkLogin(z) => &z.0,
         }
     }
 }
 
 impl SuiPublicKey {
     pub fn flag(&self) -> u8 {
-        // self.scheme().flag()
         let signature_scheme = match self {
             SuiPublicKey::Ed25519(_) => SignatureScheme::ED25519,
             SuiPublicKey::Secp256k1(_) => SignatureScheme::Secp256k1,
@@ -139,25 +130,176 @@ impl SuiPublicKey {
         signature_scheme.flag()
     }
 
-    // pub fn scheme(&self) -> SignatureScheme {
-    //     match self {
-    //         SuiPublicKey::Ed25519(_) => Ed25519SuiSignature::SCHEME,
-    //         SuiPublicKey::Secp256k1(_) => Secp256k1SuiSignature::SCHEME,
-    //         SuiPublicKey::Secp256r1(_) => Secp256r1SuiSignature::SCHEME,
-    //         // SuiPublicKey::ZkLogin(_) => SignatureScheme::ZkLoginAuthenticator,
-    //     }
-    // }
+    fn encode_base64(&self) -> String {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(&[self.flag()]);
+        bytes.extend_from_slice(self.as_ref());
+        Base64::encode(&bytes[..])
+    }
+
+    fn decode_base64(value: &str) -> Result<Self, PublicKeyError> {
+        let bytes = Base64::decode(value).map_err(|err| {
+            PublicKeyError::Crate(
+                "Decode Sui public key failed with error",
+                format!("{}", err),
+            )
+        })?;
+        match bytes.first() {
+            Some(x) => {
+                if x == &SignatureScheme::ED25519.flag() {
+                    let pk: Ed25519PublicKey = Ed25519PublicKey::from_bytes(bytes.get(1..).ok_or(
+                        PublicKeyError::InvalidByteLength(ED25519_PUBLIC_KEY_LENGTH + 1),
+                    )?)
+                    .map_err(|err| {
+                        PublicKeyError::Crate(
+                            "Decode Ed25519 Sui public key failed",
+                            format!("{}", err),
+                        )
+                    })?;
+                    Ok(SuiPublicKey::Ed25519((&pk).into()))
+                } else if x == &SignatureScheme::Secp256k1.flag() {
+                    let pk = Secp256k1PublicKey::from_bytes(bytes.get(1..).ok_or(
+                        PublicKeyError::InvalidByteLength(ED25519_PUBLIC_KEY_LENGTH + 1),
+                    )?)
+                    .map_err(|err| {
+                        PublicKeyError::Crate(
+                            "Decode Secp256k1 Sui public key failed",
+                            format!("{}", err),
+                        )
+                    })?;
+                    Ok(SuiPublicKey::Secp256k1((&pk).into()))
+                } else if x == &SignatureScheme::Secp256r1.flag() {
+                    let pk = Secp256r1PublicKey::from_bytes(bytes.get(1..).ok_or(
+                        PublicKeyError::InvalidByteLength(ED25519_PUBLIC_KEY_LENGTH + 1),
+                    )?)
+                    .map_err(|err| {
+                        PublicKeyError::Crate(
+                            "Decode Secp256r1 Sui public key failed",
+                            format!("{}", err),
+                        )
+                    })?;
+                    Ok(SuiPublicKey::Secp256r1((&pk).into()))
+                } else {
+                    Err(PublicKeyError::Crate(
+                        "Invalid public key input",
+                        "".to_string(),
+                    ))
+                }
+            }
+            _ => Err(PublicKeyError::Crate(
+                "Invalid public key input",
+                "".to_string(),
+            )),
+        }
+    }
 }
 
 impl FromStr for SuiPublicKey {
     type Err = PublicKeyError;
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!()
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::decode_base64(s)
     }
 }
 
 impl Display for SuiPublicKey {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.encode_base64())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fastcrypto::{
+        ed25519::Ed25519KeyPair,
+        secp256k1::Secp256k1KeyPair,
+        secp256r1::Secp256r1KeyPair,
+        traits::{KeyPair, ToFromBytes},
+    };
+
+    const SAMPLE_ED25519_PK: &str = "AIhMzab/WG2MwPWJX+ojRNKRgXS7eERBLKh7jVzk2jrS";
+    const SAMPLE_ED25519_ADDRESS: &str =
+        "0xb6e7529acddc998333f553c385d400c8be99746e2cd6cd9818e9a4475862df65";
+
+    const SAMPLE_SECP256K1_PK: &str = "AQKFqpb4i7Md3H0dWi16Xq3xHnwbCY6hqSiz8WSGd119AQ==";
+    const SAMPLE_SECP256K1_ADDRESS: &str =
+        "0x7607cd694df3a99be051c2400123fee106135086a192e1df7a2f344ea15bcd83";
+
+    const SAMPLE_SECP256R1_PK: &str = "AgKEWLOwlrPvO8vwrm1RXxGKZeu221OcR7YIUrWGqsD4yw==";
+    const SAMPLE_SECP256R1_ADDRESS: &str =
+        "0x73b4e70d671ba8171a1792d7d6116df4bd9870c6550ca4c6422f5e00396f82aa";
+
+    const SAMPLE_SEED: [u8; 32] = [
+        51, 95, 147, 235, 93, 221, 105, 227, 208, 198, 105, 132, 164, 28, 174, 83, 68, 231, 82,
+        133, 50, 67, 181, 184, 126, 93, 85, 244, 135, 108, 205, 101,
+    ];
+
+    #[inline]
+    fn check_different_curve_pk(expected_pk: &str, key_type: SignatureScheme, seed: &[u8]) {
+        let sk = match key_type {
+            SignatureScheme::ED25519 => {
+                let keypair = Ed25519KeyPair::from_bytes(seed).unwrap();
+                SuiPrivateKey::Ed25519(keypair.copy().private())
+            }
+            SignatureScheme::Secp256k1 => {
+                let keypair = Secp256k1KeyPair::from_bytes(seed).unwrap();
+                SuiPrivateKey::Secp256k1(keypair.copy().private())
+            }
+            SignatureScheme::Secp256r1 => {
+                let keypair = Secp256r1KeyPair::from_bytes(seed).unwrap();
+                SuiPrivateKey::Secp256r1(keypair.copy().private())
+            }
+            _ => {
+                panic!("The public key type is not supported!");
+            }
+        };
+
+        let pk_from_secret_key = SuiPublicKey::from_secret_key(&sk);
+        assert_eq!(expected_pk.to_string(), format!("{}", pk_from_secret_key));
+    }
+
+    #[inline]
+    fn check_pk_to_address(expected_addr: &str, pk: &str) {
+        let pk = SuiPublicKey::from_str(pk).unwrap();
+        let addr = pk.to_address(&SuiFormat::Hex).unwrap();
+        assert_eq!(expected_addr.to_string(), format!("{}", addr));
+    }
+
+    #[test]
+    fn test_ed25519_pk_from_secret_key() {
+        check_different_curve_pk(SAMPLE_ED25519_PK, SignatureScheme::ED25519, &SAMPLE_SEED);
+    }
+
+    #[test]
+    fn test_ed25519_pk_address() {
+        check_pk_to_address(SAMPLE_ED25519_ADDRESS, SAMPLE_ED25519_PK);
+    }
+
+    #[test]
+    fn test_secp256k1_pk_from_secret_key() {
+        check_different_curve_pk(
+            SAMPLE_SECP256K1_PK,
+            SignatureScheme::Secp256k1,
+            &SAMPLE_SEED,
+        );
+    }
+
+    #[test]
+    fn test_secp256k1_pk_address() {
+        check_pk_to_address(SAMPLE_SECP256K1_ADDRESS, SAMPLE_SECP256K1_PK);
+    }
+
+    #[test]
+    fn test_secp256r1_pk_from_secret_key() {
+        check_different_curve_pk(
+            SAMPLE_SECP256R1_PK,
+            SignatureScheme::Secp256r1,
+            &SAMPLE_SEED,
+        );
+    }
+
+    #[test]
+    fn test_secp256r1_pk_address() {
+        check_pk_to_address(SAMPLE_SECP256R1_ADDRESS, SAMPLE_SECP256R1_PK);
     }
 }

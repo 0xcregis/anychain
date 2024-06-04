@@ -117,6 +117,7 @@ impl Debug for SuiAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::public_key::SignatureScheme;
     use fastcrypto::{
         ed25519::Ed25519KeyPair,
         secp256k1::Secp256k1KeyPair,
@@ -124,80 +125,82 @@ mod tests {
         traits::{KeyPair, ToFromBytes},
     };
 
-    const SAMPLE_ADDRESS: &str = "af306e86c74e937552df132b41a6cb3af58559f5342c6e82a98f7d1f7a4a9f30";
-    const SAMPLE_ADDRESS_VEC: [u8; 32] = [
-        175, 48, 110, 134, 199, 78, 147, 117, 82, 223, 19, 43, 65, 166, 203, 58, 245, 133, 89, 245,
-        52, 44, 110, 130, 169, 143, 125, 31, 122, 74, 159, 48,
+    const SAMPLE_SEED: [u8; 32] = [
+        51, 95, 147, 235, 93, 221, 105, 227, 208, 198, 105, 132, 164, 28, 174, 83, 68, 231, 82,
+        133, 50, 67, 181, 184, 126, 93, 85, 244, 135, 108, 205, 101,
     ];
 
     #[test]
     fn test_address_display() {
-        let hex = SAMPLE_ADDRESS;
-        let id = SuiAddress::from_str(hex).unwrap();
+        let sample_address = "af306e86c74e937552df132b41a6cb3af58559f5342c6e82a98f7d1f7a4a9f30";
+        let address = SuiAddress::from_str(sample_address).unwrap();
 
-        assert_eq!(id.0, SAMPLE_ADDRESS_VEC);
-        assert_eq!(format!("{:?}", id), format!("0x{hex}"));
-    }
-
-    enum KeyType {
-        Ed25519,
-        Secp256k1,
-        Secp256r1,
+        let sample_address_vec: [u8; 32] = [
+            175, 48, 110, 134, 199, 78, 147, 117, 82, 223, 19, 43, 65, 166, 203, 58, 245, 133, 89,
+            245, 52, 44, 110, 130, 169, 143, 125, 31, 122, 74, 159, 48,
+        ];
+        assert_eq!(address.0, sample_address_vec);
+        assert_eq!(format!("{:?}", address), format!("0x{sample_address}"));
     }
 
     #[inline]
-    fn test_different_curve_address(expected_address: &str, key_type: KeyType, seed: &[u8]) {
+    fn check_different_curve_address(
+        expected_address: &str,
+        key_type: SignatureScheme,
+        seed: &[u8],
+    ) {
         let (sk, pk) = match key_type {
-            KeyType::Ed25519 => {
+            SignatureScheme::ED25519 => {
                 let keypair = Ed25519KeyPair::from_bytes(seed).unwrap();
                 let sk = SuiPrivateKey::Ed25519(keypair.copy().private());
                 let pk = SuiPublicKey::Ed25519(keypair.public().into());
                 (sk, pk)
             }
-            KeyType::Secp256k1 => {
+            SignatureScheme::Secp256k1 => {
                 let keypair = Secp256k1KeyPair::from_bytes(seed).unwrap();
                 let sk = SuiPrivateKey::Secp256k1(keypair.copy().private());
                 let pk = SuiPublicKey::Secp256k1(keypair.public().into());
                 (sk, pk)
             }
-            KeyType::Secp256r1 => {
+            SignatureScheme::Secp256r1 => {
                 let keypair = Secp256r1KeyPair::from_bytes(seed).unwrap();
                 let sk = SuiPrivateKey::Secp256r1(keypair.copy().private());
                 let pk = SuiPublicKey::Secp256r1(keypair.public().into());
                 (sk, pk)
             }
+            _ => {
+                panic!("The public key type is not supported!");
+            }
         };
 
-        let address_from_secret_key = SuiAddress::from_secret_key(&sk, &SuiFormat::Hex);
-        assert!(address_from_secret_key.is_ok());
+        let address_from_secret_key = SuiAddress::from_secret_key(&sk, &SuiFormat::Hex).unwrap();
         assert_eq!(
-            address_from_secret_key.unwrap(),
+            address_from_secret_key,
             SuiAddress::from_str(expected_address).unwrap()
         );
 
-        let address_from_public_key = SuiAddress::from_public_key(&pk, &SuiFormat::Hex);
-        assert!(address_from_public_key.is_ok());
+        let address_from_public_key = SuiAddress::from_public_key(&pk, &SuiFormat::Hex).unwrap();
         assert_eq!(
-            address_from_public_key.unwrap(),
+            address_from_public_key,
             SuiAddress::from_str(expected_address).unwrap()
         );
     }
 
     #[test]
     fn test_address_ed25519() {
-        let expected_address = "0x29dfbf688abce7ab43bb8e70cae158ae961196e721440f515482f8ba1684390f";
-        test_different_curve_address(expected_address, KeyType::Ed25519, &[1; 32]);
+        let expected_address = "0xb6e7529acddc998333f553c385d400c8be99746e2cd6cd9818e9a4475862df65";
+        check_different_curve_address(expected_address, SignatureScheme::ED25519, &SAMPLE_SEED);
     }
 
     #[test]
     fn test_address_secp256k1() {
-        let expected_address = "0xf87edcc926ae7dded7f91ffddcb0ba6c9e3373946e89ec47e478c1bca90c750d";
-        test_different_curve_address(expected_address, KeyType::Secp256k1, &[1; 32]);
+        let expected_address = "0x7607cd694df3a99be051c2400123fee106135086a192e1df7a2f344ea15bcd83";
+        check_different_curve_address(expected_address, SignatureScheme::Secp256k1, &SAMPLE_SEED);
     }
 
     #[test]
     fn test_address_secp256r1() {
-        let expected_address = "0x575dc0072a3309367790cb4415ddc87df5ffa4360ccd2c29f7ec0515026cc0e1";
-        test_different_curve_address(expected_address, KeyType::Secp256r1, &[1; 32]);
+        let expected_address = "0x73b4e70d671ba8171a1792d7d6116df4bd9870c6550ca4c6422f5e00396f82aa";
+        check_different_curve_address(expected_address, SignatureScheme::Secp256r1, &SAMPLE_SEED);
     }
 }
