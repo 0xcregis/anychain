@@ -13,7 +13,24 @@ use fastcrypto::secp256r1::{Secp256r1PrivateKey, Secp256r1PublicKey, Secp256r1Pu
 use fastcrypto::traits::ToFromBytes;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr};
+use std::{clone::Clone, fmt::Display, ops::Deref, str::FromStr};
+use sui_types::crypto::SuiKeyPair as RawSuiKeyPair;
+
+#[derive(Debug)]
+pub struct SuiKeyPair(pub RawSuiKeyPair);
+
+impl Clone for SuiKeyPair {
+    fn clone(&self) -> Self {
+        Self(self.0.copy())
+    }
+}
+
+impl Deref for SuiKeyPair {
+    type Target = RawSuiKeyPair;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, From, PartialEq, Eq)]

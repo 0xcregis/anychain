@@ -15,6 +15,10 @@ serde_with.workspace = true
 derive_more.workspace = true
 fastcrypto.workspace = true
 hex = { workspace = true }
+sui_sdk = { workspace = true }
+sui_types = { workspace = true }
+shared_crypto = { workspace = true }
+bcs = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
