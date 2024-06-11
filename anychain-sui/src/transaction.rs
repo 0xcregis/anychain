@@ -91,7 +91,7 @@ impl Transaction for SuiTransaction {
         .as_ref()
         .to_vec();
 
-        self.signature = signature.clone();
+        self.signature.clone_from(&signature);
         Ok(signature)
     }
 
