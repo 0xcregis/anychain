@@ -11,6 +11,7 @@ use std::{
     fmt::{Debug, Display},
     str::FromStr,
 };
+use sui_types::base_types::SuiAddress as RawSuiAddress;
 
 pub const SUI_ADDRESS_LENGTH: usize = 32;
 
@@ -37,6 +38,10 @@ impl SuiAddress {
         <[u8; SUI_ADDRESS_LENGTH]>::try_from(bytes.as_ref())
             .map_err(|err| AddressError::InvalidAddress(format!("Parse bytes failed: {}", err)))
             .map(SuiAddress)
+    }
+
+    pub fn to_raw(&self) -> RawSuiAddress {
+        RawSuiAddress::from_bytes(self.0).expect("Failed to convert sui address to raw type")
     }
 }
 

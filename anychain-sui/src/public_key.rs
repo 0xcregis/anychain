@@ -10,6 +10,7 @@ use fastcrypto::encoding::{Base64, Encoding};
 use fastcrypto::hash::{Blake2b256, HashFunction};
 use fastcrypto::secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1PublicKeyAsBytes};
 use fastcrypto::secp256r1::{Secp256r1PrivateKey, Secp256r1PublicKey, Secp256r1PublicKeyAsBytes};
+use fastcrypto::traits::KeyPair;
 use fastcrypto::traits::ToFromBytes;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,20 @@ use sui_types::crypto::SuiKeyPair as RawSuiKeyPair;
 
 #[derive(Debug)]
 pub struct SuiKeyPair(pub RawSuiKeyPair);
+
+impl SuiKeyPair {
+    pub fn from_raw(keypair: RawSuiKeyPair) -> Self {
+        Self(keypair)
+    }
+
+    pub fn pubkey(&self) -> SuiPublicKey {
+        match &self.0 {
+            RawSuiKeyPair::Ed25519(kp) => SuiPublicKey::Ed25519(kp.public().into()),
+            RawSuiKeyPair::Secp256k1(kp) => SuiPublicKey::Secp256k1(kp.public().into()),
+            RawSuiKeyPair::Secp256r1(kp) => SuiPublicKey::Secp256r1(kp.public().into()),
+        }
+    }
+}
 
 impl Clone for SuiKeyPair {
     fn clone(&self) -> Self {

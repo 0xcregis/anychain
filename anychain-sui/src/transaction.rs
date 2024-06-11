@@ -41,7 +41,7 @@ impl SuiTransactionParameters {
 
 #[derive(Debug, Clone)]
 pub struct SuiTransaction {
-    keypair: SuiKeyPair,
+    keypair: Option<SuiKeyPair>,
     tx_data: RawSuiTransaction,
     signature: Vec<u8>,
 }
@@ -73,20 +73,20 @@ impl Transaction for SuiTransaction {
         );
 
         Ok(Self {
-            keypair: parameters.keypair.clone(),
+            keypair: Some(parameters.keypair.clone()),
             tx_data,
             signature: vec![],
         })
     }
 
-    fn sign(
-        &mut self,
-        _signature: Vec<u8>,
-        _recid: u8,
-    ) -> Result<Vec<u8>, anychain_core::TransactionError> {
+    fn sign(&mut self, _signature: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
         let signature = RawSignature::new_secure(
             &IntentMessage::new(Intent::sui_transaction(), &self.tx_data),
-            &self.keypair.0,
+            &self
+                .keypair
+                .as_ref()
+                .expect("Keypair is missing for signing transaction")
+                .0,
         )
         .as_ref()
         .to_vec();
@@ -95,14 +95,20 @@ impl Transaction for SuiTransaction {
         Ok(signature)
     }
 
-    fn from_bytes(_transaction: &[u8]) -> Result<Self, anychain_core::TransactionError> {
-        todo!()
+    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
+        Ok(Self {
+            keypair: None,
+            tx_data: bcs::from_bytes(transaction).map_err(|err| {
+                TransactionError::Message(format!("Deserialize transaction failed: {}", err))
+            })?,
+            signature: vec![],
+        })
     }
 
-    fn to_bytes(&self) -> Result<Vec<u8>, anychain_core::TransactionError> {
-        Ok(bcs::to_bytes(&self.tx_data)
-            .expect("Message serialization should not fail")
-            .to_vec())
+    fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
+        bcs::to_bytes(&self.tx_data).map_err(|err| {
+            TransactionError::Message(format!("Serialize transaction failed: {}", err))
+        })
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, anychain_core::TransactionError> {
@@ -124,35 +130,44 @@ impl Display for SuiTransactionId {
 #[cfg(test)]
 mod tests {
     use crate::transaction::SuiTransactionParameters;
+    use anychain_core::Address;
     use fastcrypto::ed25519::Ed25519KeyPair;
     use fastcrypto::traits::ToFromBytes;
     use std::str::FromStr;
+    use sui_types::crypto::SuiKeyPair as RawSuiKeyPair;
     use sui_types::object::Object;
-    use sui_types::{base_types::SuiAddress as RawSuiAddress, crypto::SuiKeyPair as RawSuiKeyPair};
 
     use super::*;
     use crate::SuiAddress;
 
     #[test]
     fn test_tx_generation_one_sui_transfer() {
+        // Sender's keypair
         let keypair_bytes = [
             51, 95, 147, 235, 93, 221, 105, 227, 208, 198, 105, 132, 164, 28, 174, 83, 68, 231, 82,
             133, 50, 67, 181, 184, 126, 93, 85, 244, 135, 108, 205, 101,
         ];
-        let alice_keypair =
+        let raw_alice_keypair =
             RawSuiKeyPair::Ed25519(Ed25519KeyPair::from_bytes(&keypair_bytes).unwrap());
-        let alice_keypair = SuiKeyPair(alice_keypair);
-        let address_alice = RawSuiAddress::from(&alice_keypair.0.public());
+        let alice_keypair = SuiKeyPair::from_raw(raw_alice_keypair);
+        let address_alice =
+            SuiAddress::from_public_key(&alice_keypair.pubkey(), &SuiFormat::Hex).unwrap();
 
+        // Recipient's address
         let address_bob = SuiAddress::from_str(
             "af306e86c74e937552df132b41a6cb3af58559f5342c6e82a98f7d1f7a4a9f30",
         )
         .unwrap();
+
+        // Transfer value, gas_budget, gas_price.
         let sui_transfered = 1_000_000_000u64; // 1 SUI
         let gas_budget = 3_000_000u64; // 0.003 SUI
         let gas_price = 750u64; // 0.00000075 SUI
-        let gas_object = Object::with_owner_for_testing(address_alice); // 300_000 SUI
 
+        // Sender's balance object.
+        let gas_object = Object::with_owner_for_testing(address_alice.to_raw()); // 300_000 SUI
+
+        // Construct transaction parameters
         let params = SuiTransactionParameters::new(
             alice_keypair,
             address_bob,
@@ -162,12 +177,23 @@ mod tests {
             gas_object.compute_object_reference(),
         );
 
+        // Construct transaction by parameters
         let mut transaction = SuiTransaction::new(&params).unwrap();
         println!(
             "transaction id: {}",
             transaction.to_transaction_id().unwrap()
         );
+
+        // Sign the transaction
         let res = transaction.sign(vec![], 0);
         assert!(res.is_ok());
+
+        // Serialize transaction
+        let tx_data = transaction.to_bytes().unwrap();
+
+        // Deserializ transaction
+        let deserialized_tx = SuiTransaction::from_bytes(&tx_data);
+        assert!(deserialized_tx.is_ok());
+        assert_eq!(transaction.tx_data, deserialized_tx.unwrap().tx_data);
     }
 }
