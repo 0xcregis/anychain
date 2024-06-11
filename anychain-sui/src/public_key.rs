@@ -1,17 +1,16 @@
-use crate::address::SuiAddress;
-use crate::format::SuiFormat;
+use crate::{address::SuiAddress, format::SuiFormat};
 use anychain_core::{AddressError, PublicKey, PublicKeyError};
-
 use derive_more::From;
-use fastcrypto::ed25519::{
-    Ed25519PrivateKey, Ed25519PublicKey, Ed25519PublicKeyAsBytes, ED25519_PUBLIC_KEY_LENGTH,
+use fastcrypto::{
+    ed25519::{
+        Ed25519PrivateKey, Ed25519PublicKey, Ed25519PublicKeyAsBytes, ED25519_PUBLIC_KEY_LENGTH,
+    },
+    encoding::{Base64, Encoding},
+    hash::{Blake2b256, HashFunction},
+    secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1PublicKeyAsBytes},
+    secp256r1::{Secp256r1PrivateKey, Secp256r1PublicKey, Secp256r1PublicKeyAsBytes},
+    traits::{KeyPair, ToFromBytes},
 };
-use fastcrypto::encoding::{Base64, Encoding};
-use fastcrypto::hash::{Blake2b256, HashFunction};
-use fastcrypto::secp256k1::{Secp256k1PrivateKey, Secp256k1PublicKey, Secp256k1PublicKeyAsBytes};
-use fastcrypto::secp256r1::{Secp256r1PrivateKey, Secp256r1PublicKey, Secp256r1PublicKeyAsBytes};
-use fastcrypto::traits::KeyPair;
-use fastcrypto::traits::ToFromBytes;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{clone::Clone, fmt::Display, ops::Deref, str::FromStr};

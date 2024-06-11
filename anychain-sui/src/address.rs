@@ -1,6 +1,8 @@
 use crate::format::SuiFormat;
-use crate::public_key::SuiPrivateKey;
-use crate::{public_key::SuiPublicKey, utils::*};
+use crate::{
+    public_key::{SuiPrivateKey, SuiPublicKey},
+    utils::*,
+};
 use anychain_core::{Address, AddressError, PublicKey};
 
 use fastcrypto::encoding::Hex;

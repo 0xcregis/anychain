@@ -131,11 +131,9 @@ impl Display for SuiTransactionId {
 mod tests {
     use crate::transaction::SuiTransactionParameters;
     use anychain_core::Address;
-    use fastcrypto::ed25519::Ed25519KeyPair;
-    use fastcrypto::traits::ToFromBytes;
+    use fastcrypto::{ed25519::Ed25519KeyPair, traits::ToFromBytes};
     use std::str::FromStr;
-    use sui_types::crypto::SuiKeyPair as RawSuiKeyPair;
-    use sui_types::object::Object;
+    use sui_types::{crypto::SuiKeyPair as RawSuiKeyPair, object::Object};
 
     use super::*;
     use crate::SuiAddress;
