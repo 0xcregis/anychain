@@ -3,9 +3,9 @@ use crate::public_key::FilecoinPublicKey;
 
 use std::borrow::Cow;
 use std::default::Default;
+use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
-use std::{fmt, u64};
 
 use crate::utilities::crypto::{blake2b_160, blake2b_checksum};
 use anychain_core::PublicKey;
