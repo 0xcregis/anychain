@@ -2,7 +2,7 @@
 
 use crate::bip32::{
     ChildNumber, Depth, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPublicKey, HmacSha512,
-    KeyFingerprint, Prefix, PrivateKey, PrivateKeyBytes, PublicKey, Result, KEY_SIZE,
+    KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, KEY_SIZE,
 };
 use core::{
     fmt::{self, Debug},
@@ -25,11 +25,12 @@ const BIP39_DOMAIN_SEPARATOR: [u8; 12] = [
 ];
 
 /// Extended private secp256k1 ECDSA signing key.
-pub type XPrv = ExtendedPrivateKey<libsecp256k1::SecretKey>;
+pub type XprvSecp256k1 = ExtendedPrivateKey<libsecp256k1::SecretKey>;
+
 /// Extended private keys derived using BIP32.
 ///
 /// Generic around a [`PrivateKey`] type. When the `secp256k1` feature of this
-/// crate is enabled, the [`XPrv`] type provides a convenient alias for
+/// crate is enabled, the [`XprvSecp256k1`] type provides a convenient alias for
 /// extended ECDSA/secp256k1 private keys.
 #[derive(Clone)]
 pub struct ExtendedPrivateKey<K: PrivateKey> {
@@ -72,7 +73,7 @@ where
 
         let result = hmac.finalize().into_bytes();
         let (secret_key, chain_code) = result.split_at(KEY_SIZE);
-        let private_key = PrivateKey::from_bytes(secret_key.try_into()?)?;
+        let private_key = PrivateKey::from_bytes(secret_key.to_vec())?;
         let attrs = ExtendedKeyAttrs {
             depth: 0,
             parent_fingerprint: KeyFingerprint::default(),
@@ -116,7 +117,7 @@ where
         //
         // ...so instead, we simply return an error if this were ever to happen,
         // as the chances of it happening are vanishingly small.
-        let private_key = self.private_key.derive_child(child_key.try_into()?)?;
+        let private_key = self.private_key.derive_child(child_key.to_vec())?;
 
         let attrs = ExtendedKeyAttrs {
             parent_fingerprint: self.private_key.public_key().fingerprint(),
@@ -145,7 +146,7 @@ where
     }
 
     /// Serialize the raw private key as a byte array.
-    pub fn to_bytes(&self) -> PrivateKeyBytes {
+    pub fn to_bytes(&self) -> Vec<u8> {
         self.private_key.to_bytes()
     }
 
@@ -239,7 +240,7 @@ where
     fn try_from(extended_key: ExtendedKey) -> Result<ExtendedPrivateKey<K>> {
         if extended_key.prefix.is_private() && extended_key.key_bytes[0] == 0 {
             Ok(ExtendedPrivateKey {
-                private_key: PrivateKey::from_bytes(extended_key.key_bytes[1..].try_into()?)?,
+                private_key: PrivateKey::from_bytes(extended_key.key_bytes[1..].to_vec())?,
                 attrs: extended_key.attrs.clone(),
             })
         } else {

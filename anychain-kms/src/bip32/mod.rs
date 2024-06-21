@@ -12,10 +12,13 @@ pub use extended_key::{
     attrs::ExtendedKeyAttrs, extended_private_key::ExtendedPrivateKey,
     extended_public_key::ExtendedPublicKey, ExtendedKey,
 };
-pub use extended_key::{extended_private_key::XPrv, extended_public_key::XPub};
+pub use extended_key::{
+    extended_private_key::XprvSecp256k1,
+    extended_public_key::{XpubEd25519, XpubSecp256k1},
+};
 pub use prefix::Prefix;
-pub use private_key::{PrivateKey, PrivateKeyBytes};
-pub use public_key::{PublicKey, PublicKeyBytes};
+pub use private_key::PrivateKey;
+pub use public_key::PublicKey;
 
 pub use derivation_path::DerivationPath;
 
@@ -35,7 +38,6 @@ pub type Version = u32;
 /// HMAC with SHA-512
 pub type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 
-/// Size of input key material and derived keys.
 pub const KEY_SIZE: usize = 32;
 
 #[cfg(test)]
@@ -92,7 +94,7 @@ mod test_mod {
             let seed = hex::decode(vector.seed).unwrap();
             vector.ckd.iter().for_each(|item| {
                 let path: DerivationPath = item.0.parse().unwrap();
-                let xprv = XPrv::new_from_path(seed.clone(), &path).unwrap();
+                let xprv = XprvSecp256k1::new_from_path(seed.clone(), &path).unwrap();
                 let xpub = xprv.public_key();
                 assert_eq!(item.1, xprv.to_string(Prefix::XPRV).as_str());
                 assert_eq!(item.2, xpub.to_string(Prefix::XPUB).as_str());

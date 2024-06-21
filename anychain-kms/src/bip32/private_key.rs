@@ -1,12 +1,10 @@
 //! Trait for deriving child keys on a given type.
 
-use crate::bip32::{PublicKey, Result, KEY_SIZE};
+use crate::bip32::{PublicKey, Result};
 
-use crate::bip32::{Error, XPrv};
+use crate::bip32::{Error, XprvSecp256k1};
 
 use libsecp256k1;
-/// Bytes which represent a private key.
-pub type PrivateKeyBytes = [u8; KEY_SIZE];
 
 /// Trait for key types which can be derived using BIP32.
 pub trait PrivateKey: Sized {
@@ -14,15 +12,15 @@ pub trait PrivateKey: Sized {
     type PublicKey: PublicKey;
 
     /// Initialize this key from bytes.
-    fn from_bytes(bytes: &PrivateKeyBytes) -> Result<Self>;
+    fn from_bytes(bytes: Vec<u8>) -> Result<Self>;
 
     /// Serialize this key as bytes.
-    fn to_bytes(&self) -> PrivateKeyBytes;
+    fn to_bytes(&self) -> Vec<u8>;
 
-    /// Derive a child key from a parent key and the a provided tweak value,
+    /// Derive a child key from a parent key with provided tweak value,
     /// i.e. where `other` is referred to as "I sub L" in BIP32 and sourced
     /// from the left half of the HMAC-SHA-512 output.
-    fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self>;
+    fn derive_child(&self, tweak: Vec<u8>) -> Result<Self>;
 
     /// Get the [`Self::PublicKey`] that corresponds to this private key.
     fn public_key(&self) -> Self::PublicKey;
@@ -31,20 +29,20 @@ pub trait PrivateKey: Sized {
 impl PrivateKey for libsecp256k1::SecretKey {
     type PublicKey = libsecp256k1::PublicKey;
 
-    fn from_bytes(bytes: &PrivateKeyBytes) -> Result<Self> {
-        match libsecp256k1::SecretKey::parse(bytes) {
+    fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
+        match libsecp256k1::SecretKey::parse_slice(&bytes) {
             Ok(sk) => Ok(sk),
             Err(_) => Err(Error::Crypto),
         }
     }
 
-    fn to_bytes(&self) -> PrivateKeyBytes {
-        libsecp256k1::SecretKey::serialize(self)
+    fn to_bytes(&self) -> Vec<u8> {
+        libsecp256k1::SecretKey::serialize(self).to_vec()
     }
 
-    fn derive_child(&self, other: PrivateKeyBytes) -> Result<Self> {
+    fn derive_child(&self, tweak: Vec<u8>) -> Result<Self> {
         let mut cpk = *self;
-        match cpk.tweak_add_assign(&libsecp256k1::SecretKey::parse(&other).unwrap()) {
+        match cpk.tweak_add_assign(&libsecp256k1::SecretKey::parse_slice(&tweak).unwrap()) {
             Ok(_) => Ok(cpk),
             Err(_) => Err(Error::Crypto),
         }
@@ -55,14 +53,14 @@ impl PrivateKey for libsecp256k1::SecretKey {
     }
 }
 
-impl From<XPrv> for libsecp256k1::SecretKey {
-    fn from(xprv: XPrv) -> libsecp256k1::SecretKey {
+impl From<XprvSecp256k1> for libsecp256k1::SecretKey {
+    fn from(xprv: XprvSecp256k1) -> libsecp256k1::SecretKey {
         libsecp256k1::SecretKey::from(&xprv)
     }
 }
 
-impl From<&XPrv> for libsecp256k1::SecretKey {
-    fn from(xprv: &XPrv) -> libsecp256k1::SecretKey {
+impl From<&XprvSecp256k1> for libsecp256k1::SecretKey {
+    fn from(xprv: &XprvSecp256k1) -> libsecp256k1::SecretKey {
         *xprv.private_key()
     }
 }
@@ -71,9 +69,9 @@ impl From<&XPrv> for libsecp256k1::SecretKey {
 mod tests {
     use hex_literal::hex;
 
-    //type XPrv = crate::bip32::ExtendedPrivateKey<k256::ecdsa::SigningKey>;
+    //type XprvSecp256k1 = crate::bip32::ExtendedPrivateKey<k256::ecdsa::SigningKey>;
 
-    type XPrv = crate::bip32::ExtendedPrivateKey<libsecp256k1::SecretKey>;
+    type XprvSecp256k1 = crate::bip32::ExtendedPrivateKey<libsecp256k1::SecretKey>;
 
     #[test]
     fn secp256k1_derivation() {
@@ -83,7 +81,7 @@ mod tests {
         );
 
         let path = "m/0/2147483647'/1/2147483646'/2";
-        let xprv = XPrv::new_from_path(seed, &path.parse().unwrap()).unwrap();
+        let xprv = XprvSecp256k1::new_from_path(seed, &path.parse().unwrap()).unwrap();
 
         assert_eq!(
             xprv,
