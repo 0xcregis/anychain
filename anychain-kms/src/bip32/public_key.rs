@@ -1,12 +1,14 @@
 //! Trait for deriving child keys on a given type.
 
-use crate::bip32::{KeyFingerprint, Result, KEY_SIZE};
-use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE as G, edwards::EdwardsPoint, scalar::Scalar};
+use crate::bip32::{KeyFingerprint, Result};
+use curve25519_dalek::{
+    constants::ED25519_BASEPOINT_TABLE as G, edwards::EdwardsPoint, scalar::Scalar,
+};
 use group::GroupEncoding;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
-use crate::bip32::{XpubSecp256k1, Error};
+use crate::bip32::Error;
 
 /// Trait for key types which can be derived using BIP32.
 pub trait PublicKey: Sized {
@@ -52,11 +54,13 @@ impl PublicKey for libsecp256k1::PublicKey {
 impl PublicKey for ed25519_dalek::PublicKey {
     fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
         if bytes.len() == 32 {
-            Ok(ed25519_dalek::PublicKey::from_bytes(&bytes)
-            .or(Err(crate::bip32::Error::Crypto))?)
+            Ok(
+                ed25519_dalek::PublicKey::from_bytes(&bytes)
+                    .or(Err(crate::bip32::Error::Crypto))?,
+            )
         } else if bytes.len() == 33 {
             Ok(ed25519_dalek::PublicKey::from_bytes(&bytes[1..])
-            .or(Err(crate::bip32::Error::Crypto))?)
+                .or(Err(crate::bip32::Error::Crypto))?)
         } else {
             Err(crate::bip32::Error::Crypto)
         }
@@ -72,7 +76,7 @@ impl PublicKey for ed25519_dalek::PublicKey {
         _tweak.copy_from_slice(&tweak);
         let point = EdwardsPoint::from_bytes(pk).unwrap();
         let tweak = &Scalar::from_bytes_mod_order(_tweak) * G;
-        let child = point + &tweak;
+        let child = point + tweak;
         let child = child.to_bytes();
         Ok(ed25519_dalek::PublicKey::from_bytes(&child).unwrap())
     }

@@ -1,7 +1,8 @@
 //! Extended public keys
 
 use crate::bip32::{
-    ChildNumber, DerivationPath, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPrivateKey, HmacSha512, KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, KEY_SIZE
+    ChildNumber, DerivationPath, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPrivateKey,
+    HmacSha512, KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, KEY_SIZE,
 };
 use core::str::FromStr;
 use hmac::Mac;
@@ -97,7 +98,7 @@ where
                 let mut key_bytes = [0u8; KEY_SIZE + 1];
                 key_bytes.copy_from_slice(&self.to_bytes());
                 key_bytes
-            }
+            },
         }
     }
 

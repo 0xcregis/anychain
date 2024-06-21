@@ -1,9 +1,8 @@
 //! Extended private keys
 
 use crate::bip32::{
-    ChildNumber, Depth, Error, ExtendedKey, ExtendedKeyAttrs,
-    ExtendedPublicKey, HmacSha512, KeyFingerprint, Prefix,
-    PrivateKey, PublicKey, Result, KEY_SIZE,
+    ChildNumber, Depth, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPublicKey, HmacSha512,
+    KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, KEY_SIZE,
 };
 use core::{
     fmt::{self, Debug},
@@ -27,7 +26,6 @@ const BIP39_DOMAIN_SEPARATOR: [u8; 12] = [
 
 /// Extended private secp256k1 ECDSA signing key.
 pub type XprvSecp256k1 = ExtendedPrivateKey<libsecp256k1::SecretKey>;
-
 
 /// Extended private keys derived using BIP32.
 ///

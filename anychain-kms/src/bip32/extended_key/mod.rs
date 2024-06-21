@@ -71,7 +71,7 @@ impl FromStr for ExtendedKey {
     fn from_str(base58: &str) -> Result<Self> {
         let mut bytes = [0u8; Self::BYTE_SIZE + 4]; // with 4-byte checksum
         let decoded_len = bs58::decode(base58).with_check(None).into(&mut bytes)?;
-        
+
         if decoded_len != Self::BYTE_SIZE {
             return Err(Error::Decode);
         }
@@ -114,8 +114,8 @@ impl Drop for ExtendedKey {
 
 #[cfg(test)]
 mod tests {
+    use crate::bip32::{DerivationPath, ExtendedKey};
     use crate::bip32::{Prefix, XprvSecp256k1};
-    use crate::bip32::{DerivationPath, ExtendedKey,};
     use alloc::string::ToString;
     use hex_literal::hex;
 

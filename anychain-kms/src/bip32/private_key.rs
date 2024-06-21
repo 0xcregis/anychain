@@ -1,6 +1,6 @@
 //! Trait for deriving child keys on a given type.
 
-use crate::bip32::{PublicKey, Result, KEY_SIZE};
+use crate::bip32::{PublicKey, Result};
 
 use crate::bip32::{Error, XprvSecp256k1};
 
