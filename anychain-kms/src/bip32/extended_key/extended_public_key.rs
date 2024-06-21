@@ -1,8 +1,7 @@
 //! Extended public keys
 
 use crate::bip32::{
-    ChildNumber, DerivationPath, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPrivateKey,
-    HmacSha512, KeyFingerprint, Prefix, PrivateKey, PublicKey, PublicKeyBytes, Result, KEY_SIZE,
+    ChildNumber, DerivationPath, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPrivateKey, HmacSha512, KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, KEY_SIZE
 };
 use core::str::FromStr;
 use hmac::Mac;
@@ -10,13 +9,16 @@ use hmac::Mac;
 #[cfg(feature = "alloc")]
 use alloc::string::{String, ToString};
 
-/// Extended public secp256k1 ECDSA verification key.
+/// Extended public secp256k1 ECDSA verifiying key.
+pub type XpubSecp256k1 = ExtendedPublicKey<libsecp256k1::PublicKey>;
 
-pub type XPub = ExtendedPublicKey<libsecp256k1::PublicKey>;
+/// Extended public ed25519 EDDSA verifiying key.
+pub type XpubEd25519 = ExtendedPublicKey<ed25519_dalek::PublicKey>;
+
 /// Extended public keys derived using BIP32.
 ///
 /// Generic around a [`PublicKey`] type. When the `secp256k1` feature of this
-/// crate is enabled, the [`XPub`] type provides a convenient alias for
+/// crate is enabled, the [`XpubSecp256k1`] type provides a convenient alias for
 /// extended ECDSA/secp256k1 public keys.
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct ExtendedPublicKey<K: PublicKey> {
@@ -68,8 +70,8 @@ where
         hmac.update(&child_number.to_bytes());
 
         let result = hmac.finalize().into_bytes();
-        let (child_key, chain_code) = result.split_at(KEY_SIZE);
-        let public_key = self.public_key.derive_child(child_key.try_into()?)?;
+        let (tweak, chain_code) = result.split_at(KEY_SIZE);
+        let public_key = self.public_key.derive_child(tweak.to_vec())?;
 
         let attrs = ExtendedKeyAttrs {
             parent_fingerprint: self.public_key.fingerprint(),
@@ -82,7 +84,7 @@ where
     }
 
     /// Serialize the raw public key as a byte array (e.g. SEC1-encoded).
-    pub fn to_bytes(&self) -> PublicKeyBytes {
+    pub fn to_bytes(&self) -> Vec<u8> {
         self.public_key.to_bytes()
     }
 
@@ -91,7 +93,11 @@ where
         ExtendedKey {
             prefix,
             attrs: self.attrs.clone(),
-            key_bytes: self.to_bytes(),
+            key_bytes: {
+                let mut key_bytes = [0u8; KEY_SIZE + 1];
+                key_bytes.copy_from_slice(&self.to_bytes());
+                key_bytes
+            }
         }
     }
 
@@ -134,7 +140,7 @@ where
     fn try_from(extended_key: ExtendedKey) -> Result<ExtendedPublicKey<K>> {
         if extended_key.prefix.is_public() {
             Ok(ExtendedPublicKey {
-                public_key: PublicKey::from_bytes(extended_key.key_bytes)?,
+                public_key: PublicKey::from_bytes(extended_key.key_bytes.to_vec())?,
                 attrs: extended_key.attrs.clone(),
             })
         } else {
