@@ -36,16 +36,17 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 
 ## Crates
 
-| Name                  | Description            | Crates.io                                                                             | Documentation                                                                           |
-|-----------------------|------------------------|---------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| [`anychain-core`]     | Core types and traits. | [![Crates.io](https://img.shields.io/crates/v/anychain-core)][anychain-core]          | [![Documentation](https://shields.io/docsrs/anychain-core)][anychain-core-docs]         |
-| [`anychain-kms`]      | BIP32、BIP39.          | [![Crates.io](https://img.shields.io/crates/v/anychain-kms)][anychain-kms]           | [![Documentation](https://shields.io/docsrs/anychain-kms)][anychain-kms-docs]           |
-| [`anychain-bitcoin`]  | Bitcoin impl.          | [![Crates.io](https://img.shields.io/crates/v/anychain-bitcoin)][anychain-bitcoin]    | [![Documentation](https://shields.io/docsrs/anychain-bitcoin)][anychain-bitcoin-docs]   |
-| [`anychain-ethereum`] | Ethereum impl.         | [![Crates.io](https://img.shields.io/crates/v/anychain-ethereum)][anychain-ethereum]  | [![Documentation](https://shields.io/docsrs/anychain-ethereum)][anychain-ethereum-docs] |
-| [`anychain-filecoin`] | Filecoin impl.         | [![Crates.io](https://img.shields.io/crates/v/anychain-filecoin)][anychain-filecoin]  | [![Documentation](https://shields.io/docsrs/anychain-filecoin)][anychain-filecoin-docs] |
-| [`anychain-tron`]     | Tron impl.             | [![Crates.io](https://img.shields.io/crates/v/anychain-tron)][anychain-tron]          | [![Documentation](https://shields.io/docsrs/anychain-tron)][anychain-tron-docs]         |
-| [`anychain-ripple`]   | Ripple impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-ripple)][anychain-ripple]      | [![Documentation](https://shields.io/docsrs/anychain-ripple)][anychain-ripple-docs]     |
-| [`anychain-polkadot`] | Polkadot impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-polkadot)][anychain-polkadot]      | [![Documentation](https://shields.io/docsrs/anychain-polkadot)][anychain-polkadot-docs]     |
+| Name               | Description            | Crates.io                                                                            | Documentation                                                                           |
+|--------------------|------------------------|--------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| [`anychain-core`]  | Core types and traits. | [![Crates.io](https://img.shields.io/crates/v/anychain-core)][anychain-core]         | [![Documentation](https://shields.io/docsrs/anychain-core)][anychain-core-docs]         |
+| [`anychain-kms`]   | BIP32、BIP39.           | [![Crates.io](https://img.shields.io/crates/v/anychain-kms)][anychain-kms]           | [![Documentation](https://shields.io/docsrs/anychain-kms)][anychain-kms-docs]           |
+| [`anychain-bitcoin`] | Bitcoin impl.          | [![Crates.io](https://img.shields.io/crates/v/anychain-bitcoin)][anychain-bitcoin]   | [![Documentation](https://shields.io/docsrs/anychain-bitcoin)][anychain-bitcoin-docs]   |
+| [`anychain-ethereum`] | Ethereum impl.         | [![Crates.io](https://img.shields.io/crates/v/anychain-ethereum)][anychain-ethereum] | [![Documentation](https://shields.io/docsrs/anychain-ethereum)][anychain-ethereum-docs] |
+| [`anychain-filecoin`] | Filecoin impl.         | [![Crates.io](https://img.shields.io/crates/v/anychain-filecoin)][anychain-filecoin] | [![Documentation](https://shields.io/docsrs/anychain-filecoin)][anychain-filecoin-docs] |
+| [`anychain-tron`]  | Tron impl.             | [![Crates.io](https://img.shields.io/crates/v/anychain-tron)][anychain-tron]         | [![Documentation](https://shields.io/docsrs/anychain-tron)][anychain-tron-docs]         |
+| [`anychain-ripple`] | Ripple impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-ripple)][anychain-ripple]     | [![Documentation](https://shields.io/docsrs/anychain-ripple)][anychain-ripple-docs]     |
+| [`anychain-polkadot`] | Polkadot impl.         | [![Crates.io](https://img.shields.io/crates/v/anychain-polkadot)][anychain-polkadot] | [![Documentation](https://shields.io/docsrs/anychain-polkadot)][anychain-polkadot-docs] |
+| [`anychain-solana`] | Solana impl.           | [![Crates.io](https://img.shields.io/crates/v/anychain-solana)][anychain-solana]     | [![Documentation](https://shields.io/docsrs/anychain-solana)][anychain-solana-docs]     |
 
 ## Supported Chains
 - Bitcoin
@@ -59,6 +60,10 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 - Arbitrum, Optimism, and Avalanche
 - Polkadot
 - Neo
+- Solana
+- Sui
+- Aptos
+- Sei
  
 ## License
 
@@ -76,6 +81,7 @@ Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discuss
 [`anychain-tron`]: https://github.com/0xcregis/anychain/tree/main/anychain-tron
 [`anychain-ripple`]: https://github.com/0xcregis/anychain/tree/main/anychain-ripple
 [`anychain-polkadot`]: https://github.com/0xcregis/anychain/tree/main/anychain-polkadot
+[`anychain-solana`]:https://github.com/0xcregis/anychain-solana
 [anychain-core]: https://crates.io/crates/anychain-core
 [anychain-kms]: https://crates.io/crates/anychain-kms
 [anychain-bitcoin]: https://crates.io/crates/anychain-bitcoin
@@ -84,6 +90,7 @@ Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discuss
 [anychain-tron]: https://crates.io/crates/anychain-tron
 [anychain-ripple]: https://crates.io/crates/anychain-ripple
 [anychain-polkadot]: https://crates.io/crates/anychain-polkadot
+[anychain-solana]: https://crates.io/crates/anychain-solana
 [anychain-core-docs]: https://docs.rs/anychain-core
 [anychain-kms-docs]: https://docs.rs/anychain-kms
 [anychain-bitcoin-docs]: https://docs.rs/anychain-bitcoin
@@ -92,4 +99,5 @@ Feel free to join anychain sdk [Telegram](https://t.me/anychain_sdk) for discuss
 [anychain-tron-docs]: https://docs.rs/anychain-tron
 [anychain-ripple-docs]: https://docs.rs/anychain-ripple
 [anychain-polkadot-docs]: https://docs.rs/anychain-polkadot
+[anychain-solana-docs]: https://docs.rs/anychain-solana
 [license]: https://github.com/0xcregis/anychain/blob/main/LICENSE
