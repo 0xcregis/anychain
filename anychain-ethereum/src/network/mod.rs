@@ -6,6 +6,9 @@ pub use self::ethereum::*;
 pub mod goerli;
 pub use self::goerli::*;
 
+pub mod sepolia;
+pub use self::sepolia::*;
+
 pub mod ethereum_classic;
 pub use self::ethereum_classic::*;
 
