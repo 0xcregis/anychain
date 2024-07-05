@@ -134,9 +134,9 @@ impl Transaction for TronTransaction {
     type TransactionId = TronTransactionId;
     type TransactionParameters = TronTransactionParameters;
 
-    fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
+    fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         Ok(Self {
-            data: parameters.clone(),
+            data: params.clone(),
             signature: None,
         })
     }
@@ -146,9 +146,22 @@ impl Transaction for TronTransaction {
         self.to_bytes()
     }
 
-    fn from_bytes(transaction: &[u8]) -> Result<Self, TransactionError> {
-        let raw = TransactionRaw::parse_from_bytes(transaction)
-            .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?;
+    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
+        let (raw, sig) = if let Ok(tx) = TransactionProto::parse_from_bytes(tx) {
+            let raw = tx.raw_data.unwrap();
+            let sig = tx.signature[0].clone();
+            match sig.len() == 65 {
+                true => (raw, Some(TronTransactionSignature(sig))),
+                false => (raw, None),
+            }
+        } else if let Ok(raw) = TransactionRaw::parse_from_bytes(tx) {
+            (raw, None)
+        } else {
+            return Err(TransactionError::Message(
+                "illegal tron transaction stream".to_string(),
+            ));
+        };
+
         let param = TronTransactionParameters {
             timestamp: raw.timestamp,
             expiration: raw.expiration - raw.timestamp,
@@ -162,13 +175,13 @@ impl Transaction for TronTransaction {
 
         Ok(Self {
             data: param,
-            signature: None,
+            signature: sig,
         })
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
         let raw = self.data.to_transaction_raw()?;
-        match self.signature.clone() {
+        match &self.signature {
             Some(sign) => {
                 let mut signed_tx = TransactionProto::new();
                 signed_tx.raw_data = ::protobuf::MessageField::some(raw);
@@ -184,13 +197,8 @@ impl Transaction for TronTransaction {
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        let bytes = self
-            .data
-            .to_transaction_raw()?
-            .write_to_bytes()
-            .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?;
         Ok(Self::TransactionId {
-            txid: crypto::sha256(&bytes).to_vec(),
+            txid: crypto::sha256(&self.to_bytes()?).to_vec(),
         })
     }
 }
