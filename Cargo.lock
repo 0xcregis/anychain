@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-tron"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "anychain-core",
  "base58",
