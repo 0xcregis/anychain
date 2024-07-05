@@ -121,7 +121,7 @@ impl EthereumTransactionParameters {
                             "function": "transfer",
                             "params": {
                                 "to": to,
-                                "amount": amount
+                                "amount": amount.to_string(),
                             }
                         }))
                     }
