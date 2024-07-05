@@ -147,15 +147,16 @@ impl Transaction for TronTransaction {
     }
 
     fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-        let (raw, sig) =
-        if let Ok(tx) = TransactionProto::parse_from_bytes(tx) {
+        let (raw, sig) = if let Ok(tx) = TransactionProto::parse_from_bytes(tx) {
             let raw = tx.raw_data.unwrap();
             let sig = tx.signature[0].clone();
             (raw, Some(sig))
         } else if let Ok(raw) = TransactionRaw::parse_from_bytes(tx) {
             (raw, None)
         } else {
-            return Err(TransactionError::Message("illegal tron transaction stream".to_string()));
+            return Err(TransactionError::Message(
+                "illegal tron transaction stream".to_string(),
+            ));
         };
 
         let param = TronTransactionParameters {
@@ -170,11 +171,20 @@ impl Transaction for TronTransaction {
         };
 
         let sig = match sig {
-            Some(sig) => if sig.len() == 65 { Some(TronTransactionSignature(sig)) } else { None },
+            Some(sig) => {
+                if sig.len() == 65 {
+                    Some(TronTransactionSignature(sig))
+                } else {
+                    None
+                }
+            }
             None => None,
         };
-        
-        Ok(Self {data: param, signature: sig})
+
+        Ok(Self {
+            data: param,
+            signature: sig,
+        })
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
@@ -195,7 +205,9 @@ impl Transaction for TronTransaction {
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        Ok(Self::TransactionId { txid: crypto::sha256(&self.to_bytes()?).to_vec() })
+        Ok(Self::TransactionId {
+            txid: crypto::sha256(&self.to_bytes()?).to_vec(),
+        })
     }
 }
 
