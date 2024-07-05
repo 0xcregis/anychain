@@ -150,7 +150,10 @@ impl Transaction for TronTransaction {
         let (raw, sig) = if let Ok(tx) = TransactionProto::parse_from_bytes(tx) {
             let raw = tx.raw_data.unwrap();
             let sig = tx.signature[0].clone();
-            (raw, Some(sig))
+            match sig.len() == 65 {
+                true => (raw, Some(TronTransactionSignature(sig))),
+                false => (raw, None),
+            }
         } else if let Ok(raw) = TransactionRaw::parse_from_bytes(tx) {
             (raw, None)
         } else {
@@ -168,17 +171,6 @@ impl Transaction for TronTransaction {
                 .map_err(|e| TransactionError::Crate("protobuf", e.to_string()))?,
             fee_limit: raw.fee_limit,
             contract: raw.contract[0].clone(),
-        };
-
-        let sig = match sig {
-            Some(sig) => {
-                if sig.len() == 65 {
-                    Some(TronTransactionSignature(sig))
-                } else {
-                    None
-                }
-            }
-            None => None,
         };
 
         Ok(Self {
