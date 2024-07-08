@@ -398,7 +398,7 @@ impl TransactionId for RippleTransactionId {}
 
 impl fmt::Display for RippleTransactionId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "0x{}", hex::encode(&self.txid))
+        write!(f, "{}", hex::encode(&self.txid).to_uppercase())
     }
 }
 
