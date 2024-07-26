@@ -278,7 +278,6 @@ impl fmt::Display for SignatureHash {
 impl SignatureHash {
     pub fn from_byte(byte: &u8) -> Self {
         match byte {
-            0x01 => SignatureHash::SIGHASH_ALL,
             0x02 => SignatureHash::SIGHASH_NONE,
             0x03 => SignatureHash::SIGHASH_SINGLE,
             0x41 => SignatureHash::SIGHASH_ALL_SIGHASH_FORKID,
@@ -290,7 +289,7 @@ impl SignatureHash {
             0xc1 => SignatureHash::SIGHASH_ALL_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
             0xc2 => SignatureHash::SIGHASH_NONE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
             0xc3 => SignatureHash::SIGHASH_SINGLE_SIGHASH_FORKID_SIGHASH_ANYONECANPAY,
-            _ => panic!("Unrecognized signature hash"),
+            _ => SignatureHash::SIGHASH_ALL,
         }
     }
 }
