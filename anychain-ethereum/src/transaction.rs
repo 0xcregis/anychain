@@ -1,70 +1,13 @@
-use crate::address::EthereumAddress;
-use crate::amount::EthereumAmount;
-use crate::format::EthereumFormat;
-use crate::network::EthereumNetwork;
-use crate::public_key::EthereumPublicKey;
-use anychain_core::utilities::crypto::keccak256;
-use anychain_core::{hex, PublicKey, Transaction, TransactionError, TransactionId};
+use crate::{EthereumAddress, EthereumAmount, EthereumFormat, EthereumNetwork, EthereumPublicKey};
+use anychain_core::{
+    hex, utilities::crypto::keccak256, PublicKey, Transaction, TransactionError, TransactionId,
+};
 use core::{fmt, marker::PhantomData, str::FromStr};
-use ethabi::ethereum_types::H160;
-use ethabi::{Function, Param, ParamType, StateMutability, Token};
+use ethabi::{ethereum_types::H160, Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
 use serde_json::{json, Value};
 use std::convert::TryInto;
-
-/// Trim the leading zeros of a byte stream and return it
-fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
-    let mut cnt: usize = 0;
-    for byte in v {
-        if *byte != 0 {
-            break;
-        } else {
-            cnt += 1;
-        }
-    }
-    &v[cnt..]
-}
-
-/// Prepend a number of zeros to 'v' to make it 'to_len' bytes long
-fn pad_zeros(v: &mut Vec<u8>, to_len: usize) {
-    if v.len() < to_len {
-        let mut temp = v.clone();
-        let len = v.len();
-        v.clear();
-        v.resize(to_len - len, 0);
-        v.append(&mut temp);
-    }
-}
-
-pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8> {
-    #[allow(deprecated)]
-    let func = Function {
-        name: func_name.to_string(),
-        inputs: vec![
-            Param {
-                name: "address".to_string(),
-                kind: ParamType::Address,
-                internal_type: None,
-            },
-            Param {
-                name: "amount".to_string(),
-                kind: ParamType::Uint(256),
-                internal_type: None,
-            },
-        ],
-        outputs: vec![],
-        constant: None,
-        state_mutability: StateMutability::Payable,
-    };
-
-    let tokens = vec![
-        Token::Address(H160::from_slice(&address.to_bytes().unwrap())),
-        Token::Uint(amount),
-    ];
-
-    func.encode_input(&tokens).unwrap()
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransactionParameters {
@@ -378,4 +321,57 @@ pub struct Eip1559Transaction<N: EthereumNetwork> {
     pub parameters: Eip1559TransactionParameters,
     pub signature: Option<Eip1559TransactionSignature>,
     _network: PhantomData<N>,
+}
+
+pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8> {
+    #[allow(deprecated)]
+    let func = Function {
+        name: func_name.to_string(),
+        inputs: vec![
+            Param {
+                name: "address".to_string(),
+                kind: ParamType::Address,
+                internal_type: None,
+            },
+            Param {
+                name: "amount".to_string(),
+                kind: ParamType::Uint(256),
+                internal_type: None,
+            },
+        ],
+        outputs: vec![],
+        constant: None,
+        state_mutability: StateMutability::Payable,
+    };
+
+    let tokens = vec![
+        Token::Address(H160::from_slice(&address.to_bytes().unwrap())),
+        Token::Uint(amount),
+    ];
+
+    func.encode_input(&tokens).unwrap()
+}
+
+/// Trim the leading zeros of a byte stream and return it
+fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
+    let mut cnt: usize = 0;
+    for byte in v {
+        if *byte != 0 {
+            break;
+        } else {
+            cnt += 1;
+        }
+    }
+    &v[cnt..]
+}
+
+/// Prepend a number of zeros to 'v' to make it 'to_len' bytes long
+fn pad_zeros(v: &mut Vec<u8>, to_len: usize) {
+    if v.len() < to_len {
+        let mut temp = v.clone();
+        let len = v.len();
+        v.clear();
+        v.resize(to_len - len, 0);
+        v.append(&mut temp);
+    }
 }
