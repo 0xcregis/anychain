@@ -403,7 +403,7 @@ impl<N: EthereumNetwork> Transaction for Eip1559Transaction<N> {
             )));
         }
         let y_parity = recid == 1;
-        let r = rs[32..].to_vec();
+        let r = rs[..32].to_vec();
         let s = rs[32..].to_vec();
         self.signature = Some(Eip1559TransactionSignature { y_parity, r, s });
         self.to_bytes()
