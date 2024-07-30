@@ -20,6 +20,7 @@ serde_json = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
 ethereum-types = { workspace = true }
+alloy-rlp = "0.3.7"
 
 [features]
 default = ["std"]
