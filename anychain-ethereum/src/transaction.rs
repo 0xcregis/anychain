@@ -123,6 +123,12 @@ pub struct EthereumTransaction<N: EthereumNetwork> {
 
 impl<N: EthereumNetwork> EthereumTransaction<N> {
     pub fn restore_sender(&mut self) -> Result<(), TransactionError> {
+        if self.signature.is_none() {
+            return Err(TransactionError::Message(
+                "Signature is missing".to_string(),
+            ));
+        }
+
         let sig = self.signature.clone().unwrap();
         self.signature = None;
 
