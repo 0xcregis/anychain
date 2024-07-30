@@ -64,16 +64,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-rlp"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a43b18702501396fa9bcdeecd533bc85fac75150d308fc0f6800a01e6234a003"
-dependencies = [
- "arrayvec 0.7.4",
- "bytes",
-]
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -200,7 +190,6 @@ dependencies = [
 name = "anychain-ethereum"
 version = "0.1.13"
 dependencies = [
- "alloy-rlp",
  "anychain-core",
  "ethabi",
  "ethereum-types",
