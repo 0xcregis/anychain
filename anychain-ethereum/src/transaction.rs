@@ -513,12 +513,12 @@ pub fn decode_transfer(data: Vec<u8>) -> Result<Value, TransactionError> {
             match func.decode_input(&data[4..]) {
                 Ok(tokens) => {
                     let to = hex::encode(tokens[0].clone().into_address().unwrap().as_bytes());
-                    let amount = tokens[1].clone().into_uint().unwrap().as_u128();
+                    let amount = tokens[1].clone().into_uint().unwrap();
                     Ok(json!({
                         "function": "transfer",
                         "params": {
                             "to": to,
-                            "amount": amount
+                            "amount": amount.to_string(),
                         }
                     }))
                 }
