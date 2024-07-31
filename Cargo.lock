@@ -188,7 +188,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-ethereum"
-version = "0.1.13"
+version = "0.1.15"
 dependencies = [
  "anychain-core",
  "ethabi",
