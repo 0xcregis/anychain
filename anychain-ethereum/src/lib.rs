@@ -5,6 +5,7 @@ pub mod format;
 pub mod network;
 pub mod public_key;
 pub mod transaction;
+mod util;
 
 pub use self::address::*;
 pub use self::format::*;

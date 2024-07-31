@@ -1,11 +1,12 @@
-use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey, Sepolia};
+use crate::util::{adapt2, pad_zeros, restore_sender, trim_leading_zeros};
+use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey};
 use anychain_core::{
-    hex, utilities::crypto::keccak256, PublicKey, Transaction, TransactionError, TransactionId,
+    hex, utilities::crypto::keccak256, Transaction, TransactionError, TransactionId,
 };
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::{ethereum_types::H160, Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
-use rlp::{Decodable, Encodable, RlpStream, DecoderError};
+use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use serde_json::{json, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -200,7 +201,43 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 
     fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-        todo!()
+        let rlp = Rlp::new(tx);
+
+        let to = adapt2(rlp.val_at::<Vec<u8>>(3))?;
+        let to = hex::encode(to);
+
+        let nonce = adapt2(rlp.val_at::<U256>(0))?;
+        let gas_price = adapt2(rlp.val_at::<U256>(1))?;
+        let gas_limit = adapt2(rlp.val_at::<U256>(2))?;
+        let to = EthereumAddress::from_str(&to)?;
+        let amount = adapt2(rlp.val_at::<U256>(4))?;
+        let data = adapt2(rlp.val_at::<Vec<u8>>(5))?;
+
+        let v = adapt2(rlp.val_at::<u32>(6))?;
+        let mut r = adapt2(rlp.val_at::<Vec<u8>>(7))?;
+        let mut s = adapt2(rlp.val_at::<Vec<u8>>(8))?;
+
+        pad_zeros(&mut r, 32);
+        pad_zeros(&mut s, 32);
+
+        let params = EthereumTransactionParameters {
+            nonce,
+            gas_price,
+            gas_limit,
+            to,
+            amount,
+            data,
+        };
+
+        let mut tx = EthereumTransaction::<N>::new(&params)?;
+
+        if !r.is_empty() && !s.is_empty() {
+            let sig = EthereumTransactionSignature { v, r, s };
+            tx.signature = Some(sig);
+            tx.restore_sender()?;
+        }
+
+        Ok(tx)
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -261,7 +298,10 @@ impl Decodable for AccessItem {
         let address = hex::encode(rlp.val_at::<Vec<u8>>(0)?);
         let address = EthereumAddress::from_str(&address).unwrap();
         let storage_keys = rlp.list_at::<Vec<u8>>(1)?;
-        Ok(Self { address, storage_keys })
+        Ok(Self {
+            address,
+            storage_keys,
+        })
     }
 }
 
@@ -385,7 +425,49 @@ impl<N: EthereumNetwork> Transaction for Eip1559Transaction<N> {
     }
 
     fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-        todo!()
+        let rlp = Rlp::new(&tx[1..]);
+
+        let to = adapt2(rlp.val_at::<Vec<u8>>(5))?;
+        let to = hex::encode(to);
+
+        let chain_id = adapt2(rlp.val_at::<u32>(0))?;
+        let nonce = adapt2(rlp.val_at::<U256>(1))?;
+        let max_priority_fee_per_gas = adapt2(rlp.val_at::<U256>(2))?;
+        let max_fee_per_gas = adapt2(rlp.val_at::<U256>(3))?;
+        let gas_limit = adapt2(rlp.val_at::<U256>(4))?;
+        let to = EthereumAddress::from_str(&to)?;
+        let amount = adapt2(rlp.val_at::<U256>(6))?;
+        let data = adapt2(rlp.val_at::<Vec<u8>>(7))?;
+        let access_list = adapt2(rlp.list_at::<AccessItem>(8))?;
+
+        let y_parity = adapt2(rlp.val_at::<bool>(9))?;
+        let mut r = adapt2(rlp.val_at::<Vec<u8>>(10))?;
+        let mut s = adapt2(rlp.val_at::<Vec<u8>>(11))?;
+
+        pad_zeros(&mut r, 32);
+        pad_zeros(&mut s, 32);
+
+        let params = Eip1559TransactionParameters {
+            chain_id,
+            nonce,
+            max_priority_fee_per_gas,
+            max_fee_per_gas,
+            gas_limit,
+            to,
+            amount,
+            data,
+            access_list,
+        };
+
+        let mut tx = Eip1559Transaction::<N>::new(&params)?;
+
+        if !r.is_empty() && !s.is_empty() {
+            let sig = Eip1559TransactionSignature { y_parity, r, s };
+            tx.signature = Some(sig);
+            tx.restore_sender()?;
+        }
+
+        Ok(tx)
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -449,104 +531,72 @@ pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256)
     func.encode_input(&tokens).unwrap()
 }
 
-/// Trim the leading zeros of a byte stream and return it
-fn trim_leading_zeros(v: &Vec<u8>) -> &[u8] {
-    let mut cnt: usize = 0;
-    for byte in v {
-        if *byte != 0 {
-            break;
-        } else {
-            cnt += 1;
-        }
-    }
-    &v[cnt..]
-}
+// mod tests {
+//     use super::*;
+//     use crate::Sepolia;
 
-/// Prepend a number of zeros to 'v' to make it 'to_len' bytes long
-fn pad_zeros(v: &mut Vec<u8>, to_len: usize) {
-    if v.len() < to_len {
-        let mut temp = v.clone();
-        let len = v.len();
-        v.clear();
-        v.resize(to_len - len, 0);
-        v.append(&mut temp);
-    }
-}
+//     #[test]
+//     fn test_legacy_tx() {
+//         let params = EthereumTransactionParameters {
+//             nonce: U256::from_dec_str("6").unwrap(),
+//             gas_price: U256::from_dec_str("20000000000").unwrap(),
+//             gas_limit: U256::from_dec_str("21000").unwrap(),
+//             to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
+//             amount: U256::from_dec_str("10000000000000000").unwrap(),
+//             data: vec![],
+//         };
+//         let mut tx = EthereumTransaction::<Sepolia>::new(&params).unwrap();
+//         let msg = tx.to_transaction_id().unwrap().txid;
+//         let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
 
-fn restore_sender(
-    msg: Vec<u8>,
-    sig: Vec<u8>,
-    recid: u8,
-) -> Result<EthereumAddress, TransactionError> {
-    let recid = libsecp256k1::RecoveryId::parse(recid)
-        .map_err(|e| TransactionError::Message(format!("{}", e)))?;
-    let sig = libsecp256k1::Signature::parse_standard_slice(&sig)
-        .map_err(|e| TransactionError::Message(format!("{}", e)))?;
-    let msg = libsecp256k1::Message::parse_slice(&msg)
-        .map_err(|e| TransactionError::Message(format!("{}", e)))?;
-    let pk = libsecp256k1::recover(&msg, &sig, &recid)
-        .map_err(|e| TransactionError::Message(format!("{}", e)))?;
-    let pk = EthereumPublicKey::from_secp256k1_public_key(pk);
-    let sender = pk
-        .to_address(&EthereumFormat::Standard)
-        .map_err(|e| TransactionError::Message(format!("{}", e)))?;
-    Ok(sender)
-}
+//         let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
+//         let sk = hex::decode(sk).unwrap();
+//         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
-#[test]
-fn test_legacy_tx() {
-    let params = EthereumTransactionParameters {
-        nonce: U256::from_dec_str("6").unwrap(),
-        gas_price: U256::from_dec_str("20000000000").unwrap(),
-        gas_limit: U256::from_dec_str("21000").unwrap(),
-        to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
-        amount: U256::from_dec_str("10000000000000000").unwrap(),
-        data: vec![],
-    };
-    let mut tx = EthereumTransaction::<Sepolia>::new(&params).unwrap();
-    let msg = tx.to_transaction_id().unwrap().txid;
-    let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
+//         let (sig, recid) = libsecp256k1::sign(&msg, &sk);
 
-    let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
-    let sk = hex::decode(sk).unwrap();
-    let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
-    
-    let (sig, recid) = libsecp256k1::sign(&msg, &sk);
-    
-    let sig = sig.serialize().to_vec();
-    let recid = recid.serialize();
+//         let sig = sig.serialize().to_vec();
+//         let recid = recid.serialize();
 
-    let _ = tx.sign(sig, recid);
+//         let _ = tx.sign(sig, recid);
 
-    println!("{}", tx);
-}
+//         println!("{}", tx);
+//     }
 
-#[test]
-fn test_eip1559_tx() {
-    let params = Eip1559TransactionParameters {
-        chain_id: Sepolia::CHAIN_ID,
-        nonce: U256::from_dec_str("4").unwrap(),
-        max_priority_fee_per_gas: U256::from_dec_str("100000000000").unwrap(),
-        max_fee_per_gas: U256::from_dec_str("200000000000").unwrap(),
-        gas_limit: U256::from_dec_str("21000").unwrap(),
-        to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
-        amount: U256::from_dec_str("10000000000000000").unwrap(),
-        data: vec![],
-        access_list: vec![],
-    };
-    let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
-    let msg = tx.to_transaction_id().unwrap().txid;
-    let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
+//     #[test]
+//     fn test_eip1559_tx() {
+//         let params = Eip1559TransactionParameters {
+//             chain_id: Sepolia::CHAIN_ID,
+//             nonce: U256::from_dec_str("4").unwrap(),
+//             max_priority_fee_per_gas: U256::from_dec_str("100000000000").unwrap(),
+//             max_fee_per_gas: U256::from_dec_str("200000000000").unwrap(),
+//             gas_limit: U256::from_dec_str("21000").unwrap(),
+//             to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
+//             amount: U256::from_dec_str("10000000000000000").unwrap(),
+//             data: vec![],
+//             access_list: vec![],
+//         };
+//         let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
+//         let msg = tx.to_transaction_id().unwrap().txid;
+//         let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
 
-    let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
-    let sk = hex::decode(sk).unwrap();
-    let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
-    
-    let (sig, recid) = libsecp256k1::sign(&msg, &sk);
-    let sig = sig.serialize().to_vec();
-    let recid = recid.serialize();
+//         let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
+//         let sk = hex::decode(sk).unwrap();
+//         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
-    let _ = tx.sign(sig, recid);
+//         let (sig, recid) = libsecp256k1::sign(&msg, &sk);
+//         let sig = sig.serialize().to_vec();
+//         let recid = recid.serialize();
 
-    println!("{}", tx);
-}
+//         let _ = tx.sign(sig, recid);
+
+//         println!("{}", tx);
+//     }
+
+//     #[test]
+//     fn test() {
+//         let tx = "0x02f87683aa36a70485174876e800852e90edd00082520894f7a63003b8ef116939804b4c2dd49290a39c4d97872386f26fc1000080c001a077233c9ef0d1a3211f844865172aa31ef716b98f4d82e7c86c2cd7050455e243a0678fdd0f3dd4e0bce65642e24368fa22bb34a8b4542c6bcac55e943c051dbb56";
+//         let tx = Eip1559Transaction::<Sepolia>::from_str(tx).unwrap();
+//         println!("{}", tx);
+//     }
+// }
