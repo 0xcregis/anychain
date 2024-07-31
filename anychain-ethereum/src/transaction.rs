@@ -47,19 +47,6 @@ pub struct EthereumTransactionSignature {
     pub s: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EthereumTransactionId {
-    pub txid: Vec<u8>,
-}
-
-impl TransactionId for EthereumTransactionId {}
-
-impl fmt::Display for EthereumTransactionId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "0x{}", hex::encode(&self.txid))
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransaction<N: EthereumNetwork> {
     /// The address of the sender
@@ -222,39 +209,6 @@ impl<N: EthereumNetwork> fmt::Display for EthereumTransaction<N> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Eip1559TransactionSignature {
-    pub y_parity: bool,
-    pub r: Vec<u8>,
-    pub s: Vec<u8>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AccessItem {
-    pub address: EthereumAddress,
-    pub storage_keys: Vec<Vec<u8>>,
-}
-
-impl Encodable for AccessItem {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        s.begin_list(2);
-        s.append(&self.address.to_bytes().unwrap());
-        s.append_list::<Vec<u8>, Vec<u8>>(&self.storage_keys);
-    }
-}
-
-impl Decodable for AccessItem {
-    fn decode(rlp: &rlp::Rlp) -> Result<Self, DecoderError> {
-        let address = hex::encode(rlp.val_at::<Vec<u8>>(0)?);
-        let address = EthereumAddress::from_str(&address).unwrap();
-        let storage_keys = rlp.list_at::<Vec<u8>>(1)?;
-        Ok(Self {
-            address,
-            storage_keys,
-        })
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Eip1559TransactionParameters {
     pub chain_id: u32,
@@ -289,6 +243,39 @@ impl Eip1559TransactionParameters {
         rlp.append_list(&self.access_list);
 
         Ok(rlp)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Eip1559TransactionSignature {
+    pub y_parity: bool,
+    pub r: Vec<u8>,
+    pub s: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AccessItem {
+    pub address: EthereumAddress,
+    pub storage_keys: Vec<Vec<u8>>,
+}
+
+impl Encodable for AccessItem {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        s.begin_list(2);
+        s.append(&self.address.to_bytes().unwrap());
+        s.append_list::<Vec<u8>, Vec<u8>>(&self.storage_keys);
+    }
+}
+
+impl Decodable for AccessItem {
+    fn decode(rlp: &rlp::Rlp) -> Result<Self, DecoderError> {
+        let address = hex::encode(rlp.val_at::<Vec<u8>>(0)?);
+        let address = EthereumAddress::from_str(&address).unwrap();
+        let storage_keys = rlp.list_at::<Vec<u8>>(1)?;
+        Ok(Self {
+            address,
+            storage_keys,
+        })
     }
 }
 
@@ -449,6 +436,19 @@ impl<N: EthereumNetwork> fmt::Display for Eip1559Transaction<N> {
                 _ => return Err(fmt::Error),
             })
         )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EthereumTransactionId {
+    pub txid: Vec<u8>,
+}
+
+impl TransactionId for EthereumTransactionId {}
+
+impl fmt::Display for EthereumTransactionId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{}", hex::encode(&self.txid))
     }
 }
 
