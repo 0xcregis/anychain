@@ -8,6 +8,7 @@ use core::{convert::TryFrom, fmt, str::FromStr};
 use libsecp256k1::SecretKey;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use rlp::{Encodable, Decodable, RlpStream, Rlp};
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, Default)]

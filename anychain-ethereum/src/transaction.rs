@@ -1,21 +1,20 @@
-use crate::{EthereumAddress, EthereumAmount, EthereumFormat, EthereumNetwork, EthereumPublicKey};
+use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey, Sepolia};
 use anychain_core::{
     hex, utilities::crypto::keccak256, PublicKey, Transaction, TransactionError, TransactionId,
 };
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::{ethereum_types::H160, Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
-use rlp::{decode_list, RlpStream};
+use rlp::{Decodable, Encodable, RlpStream, DecoderError};
 use serde_json::{json, Value};
-use std::{convert::TryInto, vec};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransactionParameters {
     pub nonce: U256,
-    pub gas_price: EthereumAmount,
+    pub gas_price: U256,
     pub gas_limit: U256,
     pub to: EthereumAddress,
-    pub amount: EthereumAmount,
+    pub amount: U256,
     pub data: Vec<u8>,
 }
 
@@ -30,10 +29,10 @@ impl EthereumTransactionParameters {
         rlp.begin_list(9);
 
         rlp.append(&self.nonce);
-        rlp.append(&self.gas_price.0);
+        rlp.append(&self.gas_price);
         rlp.append(&self.gas_limit);
         rlp.append(&to);
-        rlp.append(&self.amount.0);
+        rlp.append(&self.amount);
         rlp.append(&self.data);
 
         Ok(rlp)
@@ -92,7 +91,7 @@ impl EthereumTransactionParameters {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransactionSignature {
-    pub v: Vec<u8>,
+    pub v: u32,
     pub r: Vec<u8>,
     pub s: Vec<u8>,
 }
@@ -132,13 +131,10 @@ impl<N: EthereumNetwork> EthereumTransaction<N> {
         let sig = self.signature.clone().unwrap();
         self.signature = None;
 
-        let v = sig.v.clone();
         let r = sig.r.clone();
         let s = sig.s.clone();
 
-        let v: [u8; 4] = v.try_into().unwrap();
-        let v = u32::from_be_bytes(v);
-        let recid = (v - N::CHAIN_ID * 2 - 35) as u8;
+        let recid = (sig.v - 2 * N::CHAIN_ID - 35) as u8;
 
         let _sig = [r, s].concat();
         let msg = self.to_transaction_id()?.txid;
@@ -175,8 +171,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 rs.len()
             )));
         }
-        let v = u32::from(recid) + N::CHAIN_ID * 2 + 35;
-        let v = v.to_be_bytes().to_vec();
+        let v = 2 * N::CHAIN_ID + 35 + (recid as u32);
         let r = rs[..32].to_vec();
         let s = rs[32..].to_vec();
         self.signature = Some(EthereumTransactionSignature { v, r, s });
@@ -187,19 +182,16 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         match &self.signature {
             Some(sig) => {
                 let mut rlp = self.params.to_rlp()?;
-                let v = trim_leading_zeros(&sig.v);
                 let r = trim_leading_zeros(&sig.r);
                 let s = trim_leading_zeros(&sig.s);
-                rlp.append(&v);
+                rlp.append(&sig.v);
                 rlp.append(&r);
                 rlp.append(&s);
                 Ok(rlp.out().to_vec())
             }
             None => {
                 let mut rlp = self.params.to_rlp()?;
-                let chain_id = N::CHAIN_ID.to_be_bytes().to_vec();
-                let chain_id = trim_leading_zeros(&chain_id);
-                rlp.append(&chain_id);
+                rlp.append(&N::CHAIN_ID);
                 rlp.append(&0u8);
                 rlp.append(&0u8);
                 Ok(rlp.out().to_vec())
@@ -208,57 +200,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 
     fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-        let list: Vec<Vec<u8>> = decode_list(tx);
-
-        if list.len() != 9 {
-            return Err(TransactionError::InvalidRlpLength(list.len()));
-        }
-
-        let nonce = match list[0].is_empty() {
-            true => U256::zero(),
-            false => U256::from(list[0].as_slice()),
-        };
-
-        let gas_price = match list[1].is_empty() {
-            true => EthereumAmount::from_u256(U256::zero()),
-            false => EthereumAmount::from_u256(U256::from(list[1].as_slice())),
-        };
-
-        let gas_limit = match list[2].is_empty() {
-            true => U256::zero(),
-            false => U256::from(list[2].as_slice()),
-        };
-
-        let to = EthereumAddress::from_str(&hex::encode(&list[3]))?;
-
-        let amount = match list[4].is_empty() {
-            true => EthereumAmount::from_u256(U256::zero()),
-            false => EthereumAmount::from_u256(U256::from(list[4].as_slice())),
-        };
-
-        let params = EthereumTransactionParameters {
-            nonce,
-            gas_price,
-            gas_limit,
-            to,
-            amount,
-            data: list[5].clone(),
-        };
-
-        let mut tx = EthereumTransaction::<N>::new(&params)?;
-
-        if !list[7].is_empty() && !list[8].is_empty() {
-            let mut v = list[6].clone();
-            let mut r = list[7].clone();
-            let mut s = list[8].clone();
-            pad_zeros(&mut v, 4);
-            pad_zeros(&mut r, 32);
-            pad_zeros(&mut s, 32);
-            tx.signature = Some(EthereumTransactionSignature { v, r, s });
-            tx.restore_sender()?;
-        }
-
-        Ok(tx)
+        todo!()
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -300,16 +242,40 @@ pub struct Eip1559TransactionSignature {
     pub s: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AccessItem {
+    pub address: EthereumAddress,
+    pub storage_keys: Vec<Vec<u8>>,
+}
+
+impl Encodable for AccessItem {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        s.begin_list(2);
+        s.append(&self.address.to_bytes().unwrap());
+        s.append_list::<Vec<u8>, Vec<u8>>(&self.storage_keys);
+    }
+}
+
+impl Decodable for AccessItem {
+    fn decode(rlp: &rlp::Rlp) -> Result<Self, DecoderError> {
+        let address = hex::encode(rlp.val_at::<Vec<u8>>(0)?);
+        let address = EthereumAddress::from_str(&address).unwrap();
+        let storage_keys = rlp.list_at::<Vec<u8>>(1)?;
+        Ok(Self { address, storage_keys })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Eip1559TransactionParameters {
     pub chain_id: u32,
     pub nonce: U256,
-    pub max_priority_fee_per_gas: EthereumAmount,
-    pub max_fee_per_gas: EthereumAmount,
+    pub max_priority_fee_per_gas: U256,
+    pub max_fee_per_gas: U256,
     pub gas_limit: U256,
     pub to: EthereumAddress,
-    pub amount: EthereumAmount,
+    pub amount: U256,
     pub data: Vec<u8>,
+    pub access_list: Vec<AccessItem>,
 }
 
 impl Eip1559TransactionParameters {
@@ -322,22 +288,15 @@ impl Eip1559TransactionParameters {
         let mut rlp = RlpStream::new();
         rlp.begin_list(array_len);
 
-        let chain_id = self.chain_id.to_be_bytes().to_vec();
-        let chain_id = trim_leading_zeros(&chain_id);
-
-        let mut access_list = RlpStream::new();
-        access_list.begin_list(0);
-        let access_list = access_list.out().to_vec();
-
-        rlp.append(&chain_id);
+        rlp.append(&self.chain_id);
         rlp.append(&self.nonce);
-        rlp.append(&self.max_priority_fee_per_gas.0);
-        rlp.append(&self.max_fee_per_gas.0);
+        rlp.append(&self.max_priority_fee_per_gas);
+        rlp.append(&self.max_fee_per_gas);
         rlp.append(&self.gas_limit);
         rlp.append(&to);
-        rlp.append(&self.amount.0);
+        rlp.append(&self.amount);
         rlp.append(&self.data);
-        rlp.append(&access_list);
+        rlp.append_list(&self.access_list);
 
         Ok(rlp)
     }
@@ -413,13 +372,11 @@ impl<N: EthereumNetwork> Transaction for Eip1559Transaction<N> {
         let rlp = match &self.signature {
             Some(sig) => {
                 let mut rlp = self.params.to_rlp(12)?;
-                let y_parity = match sig.y_parity {
-                    true => vec![1u8],
-                    false => vec![0u8],
-                };
-                rlp.append(&y_parity);
-                rlp.append(&sig.r);
-                rlp.append(&sig.s);
+                let r = trim_leading_zeros(&sig.r);
+                let s = trim_leading_zeros(&sig.s);
+                rlp.append(&sig.y_parity);
+                rlp.append(&r);
+                rlp.append(&s);
                 rlp.out().to_vec()
             }
             None => self.params.to_rlp(9)?.out().to_vec(),
@@ -428,74 +385,7 @@ impl<N: EthereumNetwork> Transaction for Eip1559Transaction<N> {
     }
 
     fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-        let list: Vec<Vec<u8>> = decode_list(&tx[1..]);
-
-        let len = list.len();
-        if len != 9 && len != 12 {
-            return Err(TransactionError::InvalidRlpLength(list.len()));
-        }
-
-        let mut chain_id = list[0].clone();
-        pad_zeros(&mut chain_id, 4);
-        let chain_id: [u8; 4] = chain_id.try_into().unwrap();
-        let chain_id = u32::from_be_bytes(chain_id);
-
-        let nonce = match list[1].is_empty() {
-            true => U256::zero(),
-            false => U256::from(list[1].as_slice()),
-        };
-
-        let max_priority_fee_per_gas = match list[2].is_empty() {
-            true => EthereumAmount::from_u256(U256::zero()),
-            false => EthereumAmount::from_u256(U256::from(list[2].as_slice())),
-        };
-
-        let max_fee_per_gas = match list[3].is_empty() {
-            true => EthereumAmount::from_u256(U256::zero()),
-            false => EthereumAmount::from_u256(U256::from(list[3].as_slice())),
-        };
-
-        let gas_limit = match list[4].is_empty() {
-            true => U256::zero(),
-            false => U256::from(list[4].as_slice()),
-        };
-
-        let to = EthereumAddress::from_str(&hex::encode(&list[5]))?;
-
-        let amount = match list[6].is_empty() {
-            true => EthereumAmount::from_u256(U256::zero()),
-            false => EthereumAmount::from_u256(U256::from(list[6].as_slice())),
-        };
-
-        let params = Eip1559TransactionParameters {
-            chain_id,
-            nonce,
-            max_priority_fee_per_gas,
-            max_fee_per_gas,
-            gas_limit,
-            to,
-            amount,
-            data: list[7].clone(),
-        };
-
-        let mut tx = Eip1559Transaction::<N>::new(&params)?;
-
-        if len == 12 {
-            let y_parity = list[9].clone();
-            let y_parity = match y_parity[0] {
-                0 => false,
-                1 => true,
-                _ => return Err(TransactionError::Message("Invalid signature".to_string())),
-            };
-            let mut r = list[10].clone();
-            let mut s = list[11].clone();
-            pad_zeros(&mut r, 32);
-            pad_zeros(&mut s, 32);
-            tx.signature = Some(Eip1559TransactionSignature { y_parity, r, s });
-            tx.restore_sender()?;
-        }
-
-        Ok(tx)
+        todo!()
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -514,6 +404,19 @@ impl<N: EthereumNetwork> FromStr for Eip1559Transaction<N> {
             _ => tx,
         };
         Self::from_bytes(&hex::decode(tx)?)
+    }
+}
+
+impl<N: EthereumNetwork> fmt::Display for Eip1559Transaction<N> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "0x{}",
+            &hex::encode(match self.to_bytes() {
+                Ok(transaction) => transaction,
+                _ => return Err(fmt::Error),
+            })
+        )
     }
 }
 
@@ -588,4 +491,62 @@ fn restore_sender(
         .to_address(&EthereumFormat::Standard)
         .map_err(|e| TransactionError::Message(format!("{}", e)))?;
     Ok(sender)
+}
+
+#[test]
+fn test_legacy_tx() {
+    let params = EthereumTransactionParameters {
+        nonce: U256::from_dec_str("6").unwrap(),
+        gas_price: U256::from_dec_str("20000000000").unwrap(),
+        gas_limit: U256::from_dec_str("21000").unwrap(),
+        to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
+        amount: U256::from_dec_str("10000000000000000").unwrap(),
+        data: vec![],
+    };
+    let mut tx = EthereumTransaction::<Sepolia>::new(&params).unwrap();
+    let msg = tx.to_transaction_id().unwrap().txid;
+    let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
+
+    let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
+    let sk = hex::decode(sk).unwrap();
+    let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+    
+    let (sig, recid) = libsecp256k1::sign(&msg, &sk);
+    
+    let sig = sig.serialize().to_vec();
+    let recid = recid.serialize();
+
+    let _ = tx.sign(sig, recid);
+
+    println!("{}", tx);
+}
+
+#[test]
+fn test_eip1559_tx() {
+    let params = Eip1559TransactionParameters {
+        chain_id: Sepolia::CHAIN_ID,
+        nonce: U256::from_dec_str("4").unwrap(),
+        max_priority_fee_per_gas: U256::from_dec_str("100000000000").unwrap(),
+        max_fee_per_gas: U256::from_dec_str("200000000000").unwrap(),
+        gas_limit: U256::from_dec_str("21000").unwrap(),
+        to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
+        amount: U256::from_dec_str("10000000000000000").unwrap(),
+        data: vec![],
+        access_list: vec![],
+    };
+    let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
+    let msg = tx.to_transaction_id().unwrap().txid;
+    let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
+
+    let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
+    let sk = hex::decode(sk).unwrap();
+    let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+    
+    let (sig, recid) = libsecp256k1::sign(&msg, &sk);
+    let sig = sig.serialize().to_vec();
+    let recid = recid.serialize();
+
+    let _ = tx.sign(sig, recid);
+
+    println!("{}", tx);
 }
