@@ -12,7 +12,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.1.5" }
+anychain-core = { path = "../anychain-core", version = "0.1.6" }
 sp-core = "30.0.0"
 base58 = { workspace = true }
 parity-scale-codec = { version = "3.6.5" }
