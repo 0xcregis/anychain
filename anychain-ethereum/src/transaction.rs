@@ -154,9 +154,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         let mut r = adapt2(rlp.val_at::<Vec<u8>>(7))?;
         let mut s = adapt2(rlp.val_at::<Vec<u8>>(8))?;
 
-        pad_zeros(&mut r, 32);
-        pad_zeros(&mut s, 32);
-
         let params = EthereumTransactionParameters {
             nonce,
             gas_price,
@@ -169,6 +166,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         let mut tx = EthereumTransaction::<N>::new(&params)?;
 
         if !r.is_empty() && !s.is_empty() {
+            pad_zeros(&mut r, 32);
+            pad_zeros(&mut s, 32);
             let sig = EthereumTransactionSignature { v, r, s };
             tx.signature = Some(sig);
             tx.restore_sender()?;
@@ -381,9 +380,6 @@ impl<N: EthereumNetwork> Transaction for Eip1559Transaction<N> {
         let mut r = adapt2(rlp.val_at::<Vec<u8>>(10))?;
         let mut s = adapt2(rlp.val_at::<Vec<u8>>(11))?;
 
-        pad_zeros(&mut r, 32);
-        pad_zeros(&mut s, 32);
-
         let params = Eip1559TransactionParameters {
             chain_id,
             nonce,
@@ -399,6 +395,8 @@ impl<N: EthereumNetwork> Transaction for Eip1559Transaction<N> {
         let mut tx = Eip1559Transaction::<N>::new(&params)?;
 
         if !r.is_empty() && !s.is_empty() {
+            pad_zeros(&mut r, 32);
+            pad_zeros(&mut s, 32);
             let sig = Eip1559TransactionSignature { y_parity, r, s };
             tx.signature = Some(sig);
             tx.restore_sender()?;
