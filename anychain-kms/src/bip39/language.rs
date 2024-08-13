@@ -152,7 +152,9 @@ impl Language {
     }
 
     pub fn from_phrase(phrase: &str) -> Option<Self> {
-        match phrase.split_whitespace().next() {
+        let mut iter = phrase.split_whitespace();
+        iter.next(); // skip the first word, which might not be included in the bip32 chinese wordlist.
+        match iter.next() {
             Some(word) => {
                 if lazy::WORDMAP_ENGLISH.get_bits(word).is_ok() {
                     Some(Language::English)
