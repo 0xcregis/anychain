@@ -6,7 +6,7 @@ use super::MnemonicType;
 use anyhow::Error;
 // use encoding::codec::simpchinese::*;
 // use encoding::Encoding;
-use encoding_rs::GB18030;
+// use encoding_rs::GB18030;
 use std::fmt;
 use std::mem;
 use unicode_normalization::UnicodeNormalization;
@@ -265,19 +265,20 @@ impl Mnemonic {
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
-        //use GBK encoding if language is zh-cn
-        if self.lang == Language::ChineseSimplified {
-            // let mut d = GB18030_ENCODING.raw_encoder();
-            // let mut d = encoding_rs::GB18030;
-            // d.raw_feed(&self.phrase, &mut bytes);
-            let mut d = GB18030.new_encoder();
-            let mut bytes = Vec::<u8>::new();
-            let (_complete, _read, _written, _) =
-                d.encode_from_utf8(&self.phrase, &mut bytes, true);
-            bytes
-        } else {
-            self.phrase().as_bytes().to_vec()
-        }
+        // // use GBK encoding if language is zh-cn
+        // if self.lang == Language::ChineseSimplified {
+        //     // let mut d = GB18030_ENCODING.raw_encoder();
+        //     // let mut d = encoding_rs::GB18030;
+        //     // d.raw_feed(&self.phrase, &mut bytes);
+        //     let mut d = GB18030.new_encoder();
+        //     let mut bytes = Vec::<u8>::new();
+        //     let (_complete, _read, _written, _) =
+        //         d.encode_from_utf8(&self.phrase, &mut bytes, true);
+        //     bytes
+        // } else {
+        //     self.phrase().as_bytes().to_vec()
+        // }
+        self.phrase().as_bytes().to_vec()
     }
 }
 
