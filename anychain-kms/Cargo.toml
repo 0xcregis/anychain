@@ -1,7 +1,7 @@
 [package]
 name = "anychain-kms"
 description = "A Rust library providing Key Management Schema for AnyChain. Handles general security and signature algorithms."
-version = "0.1.10"
+version = "0.1.11"
 keywords = ["cryptography", "security", "signature", "algorithm"]
 
 # Workspace inherited keys
@@ -29,7 +29,6 @@ hex = { workspace = true }
 libsecp256k1 = { workspace = true }
 ed25519-dalek = { workspace = true }
 curve25519-dalek = { workspace = true }
-encoding_rs = { version = "0.8.33" }
 group = "0.13.0"
 encoding = "0.2.33"
 
