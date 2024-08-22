@@ -31,6 +31,7 @@ ed25519-dalek = { workspace = true }
 curve25519-dalek = { workspace = true }
 encoding_rs = { version = "0.8.33" }
 group = "0.13.0"
+encoding = "0.2.33"
 
 [dev-dependencies]
 hex-literal = "0.4"
