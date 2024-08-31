@@ -23,7 +23,6 @@ use thiserror::Error;
 
 /// Represents a filecoin address
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Copy, Default)]
-#[cfg_attr(feature = "testing", derive(Default))]
 #[cfg_attr(feature = "arb", derive(arbitrary::Arbitrary))]
 pub struct FilecoinAddress {
     network: Network,

@@ -134,7 +134,12 @@ impl Language {
     pub fn from_language_code(language_code: &str) -> Option<Self> {
         match &language_code.to_ascii_lowercase()[..] {
             "en" => Some(Language::English),
+            #[cfg(feature = "chinese-simplified")]
+            "zh-hans" => Some(Language::ChineseSimplified),
+            #[cfg(feature = "chinese-simplified")]
             "zh-cn" => Some(Language::ChineseSimplified),
+            #[cfg(feature = "chinese-traditional")]
+            "zh-hant" => Some(Language::ChineseTraditional),
             #[cfg(feature = "chinese-traditional")]
             "zh-tw" => Some(Language::ChineseTraditional),
             #[cfg(feature = "french")]
@@ -244,7 +249,7 @@ mod test {
         assert!(res.is_empty());
     }
 
-    fn _is_wordlist_nfkd(wl: &WordList) -> bool {
+    fn is_wordlist_nfkd(wl: &WordList) -> bool {
         for idx in 0..2047 {
             let word = wl.get_word(idx.into());
             if !unicode_normalization::is_nfkd(word) {
