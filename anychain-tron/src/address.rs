@@ -50,9 +50,17 @@ impl TronAddress {
         &self.0
     }
 
-    pub fn from_bytes(raw: &[u8]) -> &Self {
-        assert!(raw.len() == 21);
-        unsafe { std::mem::transmute(&raw[0]) }
+    pub fn from_bytes(raw: &[u8]) -> Result<Self, AddressError> {
+        if raw.len() != 21 {
+            return Err(AddressError::InvalidAddress("Invalid length".to_string()));
+        }
+
+        let mut address = [0u8; 21];
+        address.copy_from_slice(raw);
+        Ok(TronAddress(address))
+
+        // assert!(raw.len() == 21);
+        // unsafe { std::mem::transmute(&raw[0]) }
     }
 
     pub fn to_base58(&self) -> String {
@@ -246,5 +254,22 @@ mod tests {
 
         let addr = TronAddress::from_public_key(&public, &TronFormat::Standard).unwrap();
         assert_eq!(addr.to_string(), "TQHAvs2ZFTbsd93ycTfw1Wuf1e4WsPZWCp");
+    }
+
+    #[test]
+    fn test_address_from_bytes() {
+        let bytes = [
+            65, 150, 163, 186, 206, 90, 218, 207, 99, 126, 183, 204, 121, 213, 120, 127, 66, 71,
+            218, 75, 190,
+        ];
+        let addr = TronAddress::from_bytes(&bytes);
+        assert!(addr.is_ok());
+
+        let malicious_bytes: [u8; 22] = [
+            0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let addr = TronAddress::from_bytes(&malicious_bytes);
+        assert!(addr.is_err());
     }
 }
