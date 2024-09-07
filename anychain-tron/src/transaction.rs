@@ -226,10 +226,12 @@ mod tests {
     #[test]
     pub fn test_txid() {
         let transaction = build_trx_transaction();
-        println!("{}", transaction.to_transaction_id().unwrap());
+        dbg!("{}", transaction.to_transaction_id().unwrap());
         let raw = transaction.data.to_transaction_raw().unwrap();
         let raw_bytes = crypto::sha256(&raw.write_to_bytes().unwrap());
-        println!("{}", hex::encode(raw_bytes));
+        dbg!("{}", hex::encode(raw_bytes));
+
+        assert_eq!(transaction.to_transaction_id().unwrap().txid, raw_bytes);
     }
 
     #[test]
@@ -248,9 +250,10 @@ mod tests {
         let transaction = TronTransaction::new(&param).unwrap();
 
         let bytes = transaction.to_bytes().unwrap();
-        println!("{}", hex::encode(bytes));
-        println!("{}", transaction.to_transaction_id().unwrap());
-        println!("{:?}", transaction.data);
+
+        dbg!("{}", hex::encode(bytes));
+        dbg!("{}", transaction.to_transaction_id().unwrap());
+        dbg!("{:?}", transaction.data);
     }
 
     #[test]
@@ -269,7 +272,8 @@ mod tests {
     #[test]
     pub fn test_raw() {
         let raw = "0a025aa722088cb23bfcb18ea03c40facee394ad305a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a1541fa3146ab779ce02392d11209f524ee75d4088a45121541436d74fc1577266b7290b85801145d9c5287e19418c0843d709afadf94ad30900180ade204";
-        let transaction = TronTransaction::from_bytes(&hex::decode(raw).unwrap()).unwrap();
-        println!("{:?}", transaction.data);
+        let transaction = TronTransaction::from_bytes(&hex::decode(raw).unwrap());
+        assert!(transaction.is_ok());
+        dbg!("{:?}", transaction.unwrap().data);
     }
 }
