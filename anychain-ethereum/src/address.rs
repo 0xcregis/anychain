@@ -141,7 +141,10 @@ mod tests {
         let public_key = EthereumPublicKey::from_secp256k1_public_key(public_key);
         let address = public_key.to_address(&EthereumFormat::Standard).unwrap();
 
-        println!("address = {}", address);
+        assert_eq!(
+            "0x0Df2f15895AB69A7eF06519F6c4732e648719f04",
+            address.to_string()
+        );
     }
 
     mod checksum_address {
@@ -194,6 +197,9 @@ mod tests {
         )
         .unwrap();
         let address = EthereumAddress::from_public_key(&pubkey, &EthereumFormat::Standard).unwrap();
-        println!("{}", address)
+        assert_eq!(
+            "0x5a2a8410875E882aEe87bF8e5F2e1eDE8810617b",
+            address.to_string()
+        )
     }
 }

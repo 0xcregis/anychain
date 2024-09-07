@@ -29,8 +29,10 @@ impl EthereumPublicKey {
         Self(public_key)
     }
 
-    pub fn from_slice(sl: &[u8]) -> Self {
-        Self(libsecp256k1::PublicKey::parse_slice(sl, None).unwrap())
+    pub fn from_slice(sl: &[u8]) -> Result<Self, PublicKeyError> {
+        libsecp256k1::PublicKey::parse_slice(sl, None)
+            .map(Self)
+            .map_err(|e| PublicKeyError::Crate("from splice", format!("{:?}", e)))
     }
 
     /// Returns the secp256k1 public key of the public key
@@ -159,7 +161,10 @@ mod tests {
             let str = "b9b77d6ac1380a581d3efc136a21a939f5a6ce59afeb3eddf6a52b342b33f5be455b3610100ee1129d1638e99272879be60519835e2b3b7703eb4791af3daa7f";
             let public_key = EthereumPublicKey::from_str(str).unwrap();
             let address = EthereumAddress::checksum_address(&public_key);
-            println!("address:{:?}", address);
+            assert_eq!(
+                "0xDF3e1897f4b01f6b17870b98B4548BaBE14A007C",
+                address.to_string()
+            );
         }
     }
 
@@ -199,14 +204,31 @@ mod tests {
         ];
 
         let pk = EthereumPublicKey::from_slice(&raw_pk);
+        assert!(pk.is_ok());
         let pk1 = EthereumPublicKey::from_slice(&raw_pk1);
+        assert!(pk1.is_ok());
 
-        let addr = pk.to_address(&EthereumFormat::Standard).unwrap();
-        let addr1 = pk1.to_address(&EthereumFormat::Standard).unwrap();
+        let addr = pk.unwrap().to_address(&EthereumFormat::Standard).unwrap();
+        let addr1 = pk1.unwrap().to_address(&EthereumFormat::Standard).unwrap();
 
-        println!("address for {:?} is {}", raw_pk, addr);
-        println!();
-        println!("address for {:?} is {}", raw_pk1, addr1);
-        println!();
+        assert_eq!(
+            "0xE28D6881aC932066611A259a8C343E545b0b55B7",
+            addr.to_string()
+        );
+        assert_eq!(
+            "0xCd28AF3e09527D2a756F1e7c7aD7A8A9BdEB080d",
+            addr1.to_string()
+        );
+    }
+
+    #[test]
+    fn test_public_key_from_invalid_slice() {
+        let invalid_slice = [1u8; 31]; // A 31-byte slice, invalid as a public key
+        let public_key = EthereumPublicKey::from_slice(&invalid_slice);
+        assert!(public_key.is_err());
+
+        let invalid_slice = [0u8; 65]; // A 31-byte slice, invalid as a public key
+        let public_key = EthereumPublicKey::from_slice(&invalid_slice);
+        assert!(public_key.is_err());
     }
 }
