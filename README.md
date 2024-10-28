@@ -21,7 +21,6 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 * hex
 * rand
 
-
 ### Functions
 
 * Build raw unsigned transactions for different blockchains according to parameters taken from the user of this library
@@ -29,6 +28,9 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 * Build signed transactions for different blockchains by merging the raw transaction and the corresponding signature 
   taken from the user of this library
 
+### Design Doc
+
+[Design Principles for AnyChain Wallet SDK](docs/design-en.md)
 
 ### Build the source
 	
