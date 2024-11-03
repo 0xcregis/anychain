@@ -2,7 +2,7 @@
 name = "anychain-core"
 version = "0.1.7"
 description = "A core support for cryptocurrency wallets"
-categories = ["command-line-utilities", "cryptocurrencies"]
+categories = ["command-line-utilities", "cryptography::cryptocurrencies"]
 keywords = ["bitcoin", "blockchain", "ethereum", "no_std"]
 readme = "README.md"
 

@@ -3,6 +3,7 @@ name = "anychain-kms"
 description = "A Rust library providing Key Management Schema for AnyChain. Handles general security and signature algorithms."
 version = "0.1.13"
 keywords = ["cryptography", "security", "signature", "algorithm"]
+categories = ["cryptography::cryptocurrencies"]
 
 # Workspace inherited keys
 authors = { workspace = true }

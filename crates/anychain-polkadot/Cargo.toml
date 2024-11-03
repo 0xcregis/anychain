@@ -2,7 +2,8 @@
 name = "anychain-polkadot"
 description = "A Rust library for Polkadot cryptocurrency wallets, enabling seamless transactions on the Polkadot blockchain"
 version = "0.1.4"
-keywords = ["polkadot", "blockchain", "cryptocurrencies", "wallet", "transactions"]
+keywords = ["polkadot", "blockchain", "wallet", "transactions"]
+categories = ["cryptography::cryptocurrencies"]
 
 # Workspace inherited keys
 authors = { workspace = true }

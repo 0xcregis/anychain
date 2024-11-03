@@ -2,7 +2,8 @@
 name = "anychain-filecoin"
 description = "A Rust library for Filecoin-focused cryptocurrency wallets, enabling seamless transactions on the Filecoin blockchain"
 version = "0.1.9"
-keywords = ["filecoin", "blockchain", "cryptocurrencies", "wallet", "transactions"]
+keywords = ["filecoin", "blockchain", "wallet", "transactions"]
+categories = ["cryptography::cryptocurrencies"]
 
 # Workspace inherited keys
 authors = { workspace = true }

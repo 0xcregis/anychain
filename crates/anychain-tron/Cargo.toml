@@ -2,7 +2,8 @@
 name = "anychain-tron"
 description = "A Rust library for Tron-focused cryptocurrency wallets, enabling seamless transactions on the Tron blockchain"
 version = "0.2.8"
-keywords = ["tron", "blockchain", "cryptocurrencies", "wallet", "transactions"]
+keywords = ["tron", "blockchain", "wallet", "transactions"]
+categories = ["cryptography::cryptocurrencies"]
 
 # Workspace inherited keys
 authors = { workspace = true }
