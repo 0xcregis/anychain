@@ -1,15 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-    "anychain-core",
-    "anychain-bitcoin",
-    "anychain-ethereum",
-    "anychain-tron",
-    "anychain-filecoin",
-    "anychain-polkadot",
-    "anychain-ripple",
-    "anychain-neo",
-    "anychain-kms",
+    "crates/anychain-core",
+    "crates/anychain-bitcoin",
+    "crates/anychain-ethereum",
+    "crates/anychain-tron",
+    "crates/anychain-filecoin",
+    "crates/anychain-polkadot",
+    "crates/anychain-ripple",
+    "crates/anychain-neo",
+    "crates/anychain-kms",
     "examples/*",
 ]
 

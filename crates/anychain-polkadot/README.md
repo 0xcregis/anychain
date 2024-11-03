@@ -14,7 +14,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-anychain-polkadot = "0.1.1"
+anychain-polkadot = "0.1.4"
 ```
 
 Then run `cargo build` to download and compile the library.
