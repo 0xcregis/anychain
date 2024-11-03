@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anychain-core = { path = "../../anychain-core" }
-anychain-neo = { path = "../../anychain-neo" }
+anychain-core = { path = "../../crates/anychain-core" }
+anychain-neo = { path = "../../crates/anychain-neo" }
 clap = { workspace = true }

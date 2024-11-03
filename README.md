@@ -28,7 +28,15 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 * Build signed transactions for different blockchains by merging the raw transaction and the corresponding signature 
   taken from the user of this library
 
-### Design Doc
+### Architecture & Design Doc
+
+
+```mermaid
+flowchart LR
+    A[iOS/Android App] --> |Link library| B[anychain-ffi-rust];
+    B --> |Wrap| C[anychain-bitcoin C library];
+    C --> |Implement| D[anychain-core];
+```
 
 [Design Principles for AnyChain Wallet SDK](docs/design-en.md)
 
@@ -67,6 +75,7 @@ public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
 - Sui
 - Aptos
 - Sei
+- Ton
  
 ## License
 
