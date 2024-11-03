@@ -1,7 +1,7 @@
 [package]
 name = "anychain-tron"
 description = "A Rust library for Tron-focused cryptocurrency wallets, enabling seamless transactions on the Tron blockchain"
-version = "0.2.7"
+version = "0.2.8"
 keywords = ["tron", "blockchain", "cryptocurrencies", "wallet", "transactions"]
 
 # Workspace inherited keys
@@ -14,7 +14,7 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.1.6" }
+anychain-core = { path = "../anychain-core", version = "0.1.7" }
 serde = { workspace = true }
 sha3 = { workspace = true }
 sha2 = { workspace = true }
