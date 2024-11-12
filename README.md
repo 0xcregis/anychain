@@ -1,8 +1,6 @@
-# Anychain
+## Anychain
 
 [![Rust CI](https://github.com/uduncloud/anychain/actions/workflows/rust.yml/badge.svg)](https://github.com/uduncloud/anychain/actions/workflows/rust.yml)
-
-# Anychain
 
 ### What is Anychain?
 
