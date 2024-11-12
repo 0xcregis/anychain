@@ -146,15 +146,23 @@ impl Transaction for TronTransaction {
         self.to_bytes()
     }
 
-    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
-        let (raw, sig) = if let Ok(tx) = TransactionProto::parse_from_bytes(tx) {
-            let raw = tx.raw_data.unwrap();
-            let sig = tx.signature[0].clone();
-            match sig.len() == 65 {
-                true => (raw, Some(TronTransactionSignature(sig))),
-                false => (raw, None),
+    fn from_bytes(stream: &[u8]) -> Result<Self, TransactionError> {
+        let (raw, sig) = if let Ok(tx) = TransactionProto::parse_from_bytes(stream) {
+            if !tx.signature.is_empty() {
+                let raw = tx.raw_data.unwrap();
+                let sig = tx.signature[0].clone();
+                match sig.len() == 65 {
+                    true => (raw, Some(TronTransactionSignature(sig))),
+                    false => (raw, None),
+                }
+            } else if let Ok(raw) = TransactionRaw::parse_from_bytes(stream) {
+                (raw, None)
+            } else {
+                return Err(TransactionError::Message(
+                    "illegal tron transaction stream".to_string(),
+                ));
             }
-        } else if let Ok(raw) = TransactionRaw::parse_from_bytes(tx) {
+        } else if let Ok(raw) = TransactionRaw::parse_from_bytes(stream) {
             (raw, None)
         } else {
             return Err(TransactionError::Message(
