@@ -1,9 +1,36 @@
 # Anychain
 
-A Rust library for multi-chain cryptowallet, supporting transactions of crypto assets on many different
-public blockchains including Bitcoin, Ethereum, Tron, Filecoin, etc.
-
 [![Rust CI](https://github.com/uduncloud/anychain/actions/workflows/rust.yml/badge.svg)](https://github.com/uduncloud/anychain/actions/workflows/rust.yml)
+
+# Anychain
+
+## What is Anychain?
+
+Anychain is a multi-chain supported blockchain development framework designed to simplify interactions with various blockchains such as Ethereum, Bitcoin, Tron, and more. It provides a suite of tools and libraries that enable developers to easily create, manage, and operate blockchain addresses, transactions, and smart contracts.
+
+## What Can Anychain Do?
+
+- **Multi-Chain Support**: Interact with multiple blockchain platforms, allowing developers to use different blockchains within the same project.
+- **Address Management**: Easily create and verify blockchain addresses.
+- **Transaction Generation**: Generate and sign transactions, supporting various cryptocurrencies.
+- **Smart Contract Interaction**: Interact with smart contracts, call contract methods, and handle return values.
+- **Bandwidth Estimation**: Estimate the bandwidth required for transactions, helping developers optimize transaction costs.
+
+## Who Needs Anychain?
+
+- **Blockchain Developers**: Developers looking to quickly build applications that interact with multiple blockchains.
+- **Fintech Companies**: Companies that need to integrate various cryptocurrency payment and transaction functionalities.
+- **Blockchain Researchers**: Academics and researchers who want to experiment and study different blockchains.
+- **Startups**: Startups aiming to leverage blockchain technology to build innovative products.
+
+## Why Choose Anychain?
+
+- **Ease of Use**: Anychain offers a simple and intuitive API, allowing developers to get started quickly and reducing the learning curve.
+- **Flexibility**: Supports multiple blockchains, enabling developers to choose the most suitable chain based on their needs.
+- **Active Community**: Anychain has an active developer community that provides support and shares best practices.
+- **High Performance**: An optimized codebase ensures efficient transaction processing and low latency.
+
+By using Anychain, developers can focus on building applications without worrying about the complexities of the underlying blockchains.
 
 ### Features
 
