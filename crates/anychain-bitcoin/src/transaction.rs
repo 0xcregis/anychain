@@ -775,26 +775,26 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
 
         let outputs = BitcoinVector::read(&mut reader, BitcoinTransactionOutput::read)?;
 
-        if segwit_flag {
-            for input in &mut inputs {
-                let witnesses: Vec<Vec<u8>> = BitcoinVector::read(&mut reader, |s| {
-                    let (size, witness) = BitcoinVector::read_witness(s, |sr| {
-                        let mut byte = [0u8; 1];
-                        let _ = sr.read(&mut byte)?;
-                        Ok(byte[0])
-                    })?;
-                    Ok([variable_length_integer(size as u64)?, witness?].concat())
-                })?;
+        // if segwit_flag {
+        //     for input in &mut inputs {
+        //         let witnesses: Vec<Vec<u8>> = BitcoinVector::read(&mut reader, |s| {
+        //             let (size, witness) = BitcoinVector::read_witness(s, |sr| {
+        //                 let mut byte = [0u8; 1];
+        //                 let _ = sr.read(&mut byte)?;
+        //                 Ok(byte[0])
+        //             })?;
+        //             Ok([variable_length_integer(size as u64)?, witness?].concat())
+        //         })?;
 
-                if !witnesses.is_empty() {
-                    input.sighash_code =
-                        SignatureHash::from_byte(&witnesses[0][&witnesses[0].len() - 1]);
-                    input.is_signed = true;
-                }
+        //         if !witnesses.is_empty() {
+        //             input.sighash_code =
+        //                 SignatureHash::from_byte(&witnesses[0][&witnesses[0].len() - 1]);
+        //             input.is_signed = true;
+        //         }
 
-                input.witnesses = witnesses;
-            }
-        }
+        //         input.witnesses = witnesses;
+        //     }
+        // }
 
         let mut lock_time = [0u8; 4];
         let _ = reader.read(&mut lock_time)?;
