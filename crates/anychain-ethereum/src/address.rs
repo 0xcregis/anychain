@@ -85,26 +85,16 @@ impl FromStr for EthereumAddress {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
-        let regex = Regex::new(r"^0x").unwrap();
-        let address = address.to_lowercase();
-        let address = regex.replace_all(&address, "").to_string();
-
-        if address.len() != 40 {
-            let err = AddressError::InvalidByteLength(address.len());
-            return Err(err);
+        let addr = match address.starts_with("0x") {
+            true => &address[2..],
+            false => address,
+        };
+        if addr.len() != 40 {
+            return Err(AddressError::InvalidCharacterLength(addr.len()));
         }
-
-        let hash = to_hex_string(&keccak256(address.as_bytes()));
-        let mut checksum_address = "0x".to_string();
-        for c in 0..40 {
-            let ch = match &hash[c..=c] {
-                "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" => address[c..=c].to_lowercase(),
-                _ => address[c..=c].to_uppercase(),
-            };
-            checksum_address.push_str(&ch);
-        }
-
-        Ok(EthereumAddress(checksum_address))
+        let addr = addr.to_lowercase();
+        let _ = hex::decode(addr)?;
+        Ok(EthereumAddress(address.to_string()))
     }
 }
 
