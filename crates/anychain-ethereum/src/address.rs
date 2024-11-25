@@ -94,7 +94,10 @@ impl FromStr for EthereumAddress {
         }
         let addr = addr.to_lowercase();
         let _ = hex::decode(addr)?;
-        Ok(EthereumAddress(address.to_string()))
+        match address.starts_with("0x") {
+            true => Ok(EthereumAddress(address.to_string())),
+            false => Ok(EthereumAddress(format!("0x{}", address))),
+        }
     }
 }
 
