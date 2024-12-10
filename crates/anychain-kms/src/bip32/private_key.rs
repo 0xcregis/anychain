@@ -1,10 +1,9 @@
 //! Trait for deriving child keys on a given type.
 
-use crate::bip32::{PublicKey, Result};
+use crate::bip32::{Error, PublicKey, Result, XprvEd25519, XprvSecp256k1};
 
-use crate::bip32::{Error, XprvSecp256k1};
-
-use libsecp256k1;
+use curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE as G, scalar::Scalar};
+use group::GroupEncoding;
 
 /// Trait for key types which can be derived using BIP32.
 pub trait PrivateKey: Sized {
@@ -65,16 +64,51 @@ impl From<&XprvSecp256k1> for libsecp256k1::SecretKey {
     }
 }
 
+impl PrivateKey for Scalar {
+    type PublicKey = ed25519_dalek::PublicKey;
+
+    fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
+        let mut sk = [0u8; 32];
+        sk.copy_from_slice(&bytes);
+        Ok(Scalar::from_bytes_mod_order(sk))
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn derive_child(&self, tweak: Vec<u8>) -> Result<Self> {
+        let mut _tweak = [0u8; 32];
+        _tweak.copy_from_slice(&tweak);
+        let tweak = Scalar::from_bytes_mod_order(_tweak);
+        Ok(self + tweak)
+    }
+
+    fn public_key(&self) -> Self::PublicKey {
+        let pk = (G * self).to_bytes();
+        ed25519_dalek::PublicKey::from_bytes(&pk).unwrap()
+    }
+}
+
+impl From<XprvEd25519> for Scalar {
+    fn from(xprv: XprvEd25519) -> Scalar {
+        Scalar::from(&xprv)
+    }
+}
+
+impl From<&XprvEd25519> for Scalar {
+    fn from(xprv: &XprvEd25519) -> Scalar {
+        *xprv.private_key()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::{XprvEd25519, XprvSecp256k1};
     use hex_literal::hex;
 
-    //type XprvSecp256k1 = crate::bip32::ExtendedPrivateKey<k256::ecdsa::SigningKey>;
-
-    type XprvSecp256k1 = crate::bip32::ExtendedPrivateKey<libsecp256k1::SecretKey>;
-
     #[test]
-    fn secp256k1_derivation() {
+    fn test_secp256k1_derivation() {
         let seed = hex!(
             "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2
              9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
@@ -86,6 +120,22 @@ mod tests {
         assert_eq!(
             xprv,
             "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j".parse().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_ed25519_derivation() {
+        let seed = hex!(
+            "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2
+             9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
+        );
+
+        let path = "m/0/2147483647'/1/2147483646'/2";
+        let xprv = XprvEd25519::new_from_path(seed, &path.parse().unwrap()).unwrap();
+
+        assert_eq!(
+            xprv,
+            "xprvA3jRL3NoAajWVMc6JWKPgQrxx5Xt6VVpgj8y6FMcBbseE4DkZEP8cfVqJQtQvyCqZpb39KZE5r7UUGwunJg9m3wksLj5x94cJv4ahGMarGU".parse().unwrap()
         );
     }
 }

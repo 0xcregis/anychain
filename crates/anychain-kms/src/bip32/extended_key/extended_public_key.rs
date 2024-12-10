@@ -96,7 +96,12 @@ where
             attrs: self.attrs.clone(),
             key_bytes: {
                 let mut key_bytes = [0u8; KEY_SIZE + 1];
-                key_bytes.copy_from_slice(&self.to_bytes());
+                let bytes = self.to_bytes();
+                let bytes = match bytes.len() {
+                    KEY_SIZE => [vec![0u8], bytes].concat(),
+                    _ => bytes,
+                };
+                key_bytes.copy_from_slice(&bytes);
                 key_bytes
             },
         }
