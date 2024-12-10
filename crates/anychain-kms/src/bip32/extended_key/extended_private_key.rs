@@ -9,7 +9,6 @@ use core::{
     str::FromStr,
 };
 use curve25519_dalek::scalar::Scalar;
-//use hmac::{Mac, NewMac};
 use hmac::Mac;
 use subtle::{Choice, ConstantTimeEq};
 use zeroize::Zeroize;
