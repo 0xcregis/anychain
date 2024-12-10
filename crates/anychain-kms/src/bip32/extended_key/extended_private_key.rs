@@ -1,7 +1,8 @@
 //! Extended private keys
 
 use crate::bip32::{
-    ChildNumber, Depth, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPublicKey, HmacSha512, KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, XpubEd25519, XpubSecp256k1, KEY_SIZE
+    ChildNumber, Depth, Error, ExtendedKey, ExtendedKeyAttrs, ExtendedPublicKey, HmacSha512,
+    KeyFingerprint, Prefix, PrivateKey, PublicKey, Result, KEY_SIZE,
 };
 use core::{
     fmt::{self, Debug},
