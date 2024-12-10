@@ -13,7 +13,7 @@ pub use extended_key::{
     extended_public_key::ExtendedPublicKey, ExtendedKey,
 };
 pub use extended_key::{
-    extended_private_key::XprvSecp256k1,
+    extended_private_key::{XprvEd25519, XprvSecp256k1},
     extended_public_key::{XpubEd25519, XpubSecp256k1},
 };
 pub use prefix::Prefix;

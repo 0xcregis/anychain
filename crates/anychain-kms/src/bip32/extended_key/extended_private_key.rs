@@ -8,6 +8,7 @@ use core::{
     fmt::{self, Debug},
     str::FromStr,
 };
+use curve25519_dalek::scalar::Scalar;
 //use hmac::{Mac, NewMac};
 use hmac::Mac;
 use subtle::{Choice, ConstantTimeEq};
@@ -26,6 +27,9 @@ const BIP39_DOMAIN_SEPARATOR: [u8; 12] = [
 
 /// Extended private secp256k1 ECDSA signing key.
 pub type XprvSecp256k1 = ExtendedPrivateKey<libsecp256k1::SecretKey>;
+
+/// Extended private ed25519 signing key.
+pub type XprvEd25519 = ExtendedPrivateKey<Scalar>;
 
 /// Extended private keys derived using BIP32.
 ///
