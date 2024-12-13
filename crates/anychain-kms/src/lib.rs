@@ -9,15 +9,26 @@ pub mod bip39;
 pub mod crypto;
 pub mod error;
 
+use anychain_core::crypto::sha256;
+use bip32::PrivateKey;
+use curve25519_dalek::Scalar;
+use ed25519_dalek::ExpandedSecretKey;
 use error::Error;
 
-pub fn ecdsa_sign(
-    secret_key: &libsecp256k1::SecretKey,
-    bytes: &[u8],
-) -> Result<(Vec<u8>, u8), Error> {
-    let message = libsecp256k1::Message::parse_slice(bytes)?;
-    let (signature, recid) = libsecp256k1::sign(&message, secret_key);
-    Ok((signature.serialize().to_vec(), recid.into()))
+pub fn secp256k1_sign(sk: &libsecp256k1::SecretKey, msg: &[u8]) -> Result<(Vec<u8>, u8), Error> {
+    let msg = libsecp256k1::Message::parse_slice(msg)?;
+    let (sig, recid) = libsecp256k1::sign(&msg, sk);
+    Ok((sig.serialize().to_vec(), recid.into()))
+}
+
+pub fn ed25519_sign(sk: &Scalar, msg: &[u8]) -> Result<Vec<u8>, Error> {
+    let sk_bytes = PrivateKey::to_bytes(sk);
+    let nonce = sha256(&sk_bytes).to_vec();
+    let xsk = [sk_bytes, nonce].concat();
+    let xsk = ExpandedSecretKey::from_bytes(&xsk).unwrap();
+    let pk = PrivateKey::public_key(sk);
+    let sig = xsk.sign(msg, &pk).to_bytes().to_vec();
+    Ok(sig)
 }
 
 #[cfg(test)]

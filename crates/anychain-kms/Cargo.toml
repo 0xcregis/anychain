@@ -1,7 +1,7 @@
 [package]
 name = "anychain-kms"
 description = "A Rust library providing Key Management Schema for AnyChain. Handles general security and signature algorithms."
-version = "0.1.14"
+version = "0.1.15"
 keywords = ["cryptography", "security", "signature", "algorithm"]
 categories = ["cryptography::cryptocurrencies"]
 
@@ -32,6 +32,7 @@ ed25519-dalek = { workspace = true }
 curve25519-dalek = { workspace = true }
 group = "0.13.0"
 encoding = "0.2.33"
+anychain-core = { version = "0.1.7", path = "../anychain-core" }
 
 [dev-dependencies]
 hex-literal = "0.4"
