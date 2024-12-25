@@ -708,8 +708,8 @@ impl BitcoinTransactionOutput {
 /// `<https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#transaction-id>`
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BitcoinTransactionId {
-    txid: Vec<u8>,
-    wtxid: Vec<u8>,
+    pub txid: Vec<u8>,
+    pub wtxid: Vec<u8>,
 }
 
 impl TransactionId for BitcoinTransactionId {}
