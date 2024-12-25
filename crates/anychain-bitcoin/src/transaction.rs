@@ -796,18 +796,15 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
         //     }
         // }
 
-        let mut lock_time = [0u8; 4];
-        let _ = reader.read(&mut lock_time)?;
-
-        let transaction_parameters = BitcoinTransactionParameters::<N> {
+        let params = BitcoinTransactionParameters::<N> {
             version: u32::from_le_bytes(version),
             inputs,
             outputs,
-            lock_time: u32::from_le_bytes(lock_time),
+            lock_time: 0,
             segwit_flag,
         };
 
-        Ok(transaction_parameters)
+        Ok(params)
     }
 }
 
