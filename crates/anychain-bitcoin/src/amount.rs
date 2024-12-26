@@ -1,4 +1,3 @@
-use anychain_core::no_std::*;
 use anychain_core::{Amount, AmountError};
 
 use core::fmt;
@@ -7,9 +6,6 @@ use std::ops::{Add, Sub};
 
 // Number of satoshis (base unit) per BTC
 const COIN: i64 = 1_0000_0000;
-
-// Maximum number of satoshis
-const MAX_COINS: i64 = 21_000_000 * COIN;
 
 /// Represents the amount of Bitcoin in satoshis
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -72,14 +68,7 @@ impl BitcoinAmount {
     pub const ONE_BTC: BitcoinAmount = BitcoinAmount(COIN);
 
     pub fn from_satoshi(satoshis: i64) -> Result<Self, AmountError> {
-        if (-MAX_COINS..=MAX_COINS).contains(&satoshis) {
-            Ok(Self(satoshis))
-        } else {
-            Err(AmountError::AmountOutOfBounds(
-                satoshis.to_string(),
-                MAX_COINS.to_string(),
-            ))
-        }
+        Ok(Self(satoshis))
     }
 
     pub fn from_ubtc(ubtc_value: i64) -> Result<Self, AmountError> {
