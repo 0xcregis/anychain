@@ -3,13 +3,17 @@ use crate::{
     protocol::{
         account_contract::AccountCreateContract,
         balance_contract::{
-            DelegateResourceContract, FreezeBalanceV2Contract, TransferContract,
-            UnDelegateResourceContract, UnfreezeBalanceV2Contract,
+            CancelAllUnfreezeV2Contract, DelegateResourceContract, FreezeBalanceV2Contract,
+            TransferContract, UnDelegateResourceContract, UnfreezeBalanceV2Contract,
+            WithdrawBalanceContract, WithdrawExpireUnfreezeContract,
         },
         common::ResourceCode,
         smart_contract::TriggerSmartContract,
-        Tron::transaction::{contract::ContractType, Contract},
-        Tron::AccountType,
+        witness_contract::{vote_witness_contract::Vote, VoteWitnessContract},
+        Tron::{
+            transaction::{contract::ContractType, Contract},
+            AccountType,
+        },
     },
     TronAddress,
 };
@@ -49,6 +53,10 @@ impl_contract_pb_ext_for!(FreezeBalanceV2Contract);
 impl_contract_pb_ext_for!(UnfreezeBalanceV2Contract);
 impl_contract_pb_ext_for!(DelegateResourceContract);
 impl_contract_pb_ext_for!(UnDelegateResourceContract);
+impl_contract_pb_ext_for!(CancelAllUnfreezeV2Contract);
+impl_contract_pb_ext_for!(WithdrawExpireUnfreezeContract);
+impl_contract_pb_ext_for!(VoteWitnessContract);
+impl_contract_pb_ext_for!(WithdrawBalanceContract);
 
 fn to_resource_code(r: u8) -> ResourceCode {
     match r {
@@ -197,4 +205,45 @@ pub fn build_undelegate_resource_contract(
     ur_contract.resource = EnumOrUnknown::<ResourceCode>::new(to_resource_code(resource));
 
     build_contract(&ur_contract)
+}
+
+pub fn build_cancel_unfreeze_contract(owner: &str) -> Result<Contract, Error> {
+    let mut cu_contract = CancelAllUnfreezeV2Contract::new();
+    cu_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    build_contract(&cu_contract)
+}
+
+pub fn build_withdraw_unfreeze_contract(owner: &str) -> Result<Contract, Error> {
+    let mut wu_contract = WithdrawExpireUnfreezeContract::new();
+    wu_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    build_contract(&wu_contract)
+}
+
+pub fn build_vote_witness_contract(
+    owner: &str,
+    votes: Vec<(&str, i64)>,
+    support: bool,
+) -> Result<Contract, Error> {
+    let mut vw_contract = VoteWitnessContract::new();
+    vw_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    vw_contract.support = support;
+
+    vw_contract.votes = votes
+        .iter()
+        .map(|&(addr, vote_count)| {
+            let mut vote = Vote::new();
+            let addr = TronAddress::from_str(addr).unwrap().as_bytes().to_vec();
+            vote.vote_address = addr;
+            vote.vote_count = vote_count;
+            vote
+        })
+        .collect::<Vec<Vote>>();
+
+    build_contract(&vw_contract)
+}
+
+pub fn build_withdraw_vote_contract(owner: &str) -> Result<Contract, Error> {
+    let mut wb_contract = WithdrawBalanceContract::new();
+    wb_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
+    build_contract(&wb_contract)
 }
