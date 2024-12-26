@@ -1,4 +1,3 @@
-use anychain_core::no_std::*;
 use anychain_core::{Amount, AmountError};
 
 use core::fmt;
@@ -7,9 +6,6 @@ use std::ops::{Add, Sub};
 
 // Number of satoshis (base unit) per BTC
 const COIN: i64 = 1_0000_0000;
-
-// Maximum number of satoshis
-const MAX_COINS: i64 = 21_000_000 * COIN;
 
 /// Represents the amount of Bitcoin in satoshis
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -72,14 +68,7 @@ impl BitcoinAmount {
     pub const ONE_BTC: BitcoinAmount = BitcoinAmount(COIN);
 
     pub fn from_satoshi(satoshis: i64) -> Result<Self, AmountError> {
-        if (-MAX_COINS..=MAX_COINS).contains(&satoshis) {
-            Ok(Self(satoshis))
-        } else {
-            Err(AmountError::AmountOutOfBounds(
-                satoshis.to_string(),
-                MAX_COINS.to_string(),
-            ))
-        }
+        Ok(Self(satoshis))
     }
 
     pub fn from_ubtc(ubtc_value: i64) -> Result<Self, AmountError> {
@@ -311,93 +300,6 @@ mod tests {
 
     mod test_invalid {
         use super::*;
-
-        mod test_out_of_bounds {
-            use super::*;
-
-            const INVALID_TEST_AMOUNTS: [AmountDenominationTestCase; 4] = [
-                AmountDenominationTestCase {
-                    satoshi: 2100000100000000,
-                    micro_bit: 21000001000000,
-                    milli_bit: 21000001000,
-                    centi_bit: 2100000100,
-                    deci_bit: 210000010,
-                    bitcoin: 21000001,
-                },
-                AmountDenominationTestCase {
-                    satoshi: -2100000100000000,
-                    micro_bit: -21000001000000,
-                    milli_bit: -21000001000,
-                    centi_bit: -2100000100,
-                    deci_bit: -210000010,
-                    bitcoin: -21000001,
-                },
-                AmountDenominationTestCase {
-                    satoshi: 1000000000000000000,
-                    micro_bit: 10000000000000000,
-                    milli_bit: 10000000000000,
-                    centi_bit: 1000000000000,
-                    deci_bit: 100000000000,
-                    bitcoin: 10000000000,
-                },
-                AmountDenominationTestCase {
-                    satoshi: -1000000000000000000,
-                    micro_bit: -10000000000000000,
-                    milli_bit: -10000000000000,
-                    centi_bit: -1000000000000,
-                    deci_bit: -100000000000,
-                    bitcoin: -10000000000,
-                },
-            ];
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_satoshi_conversion() {
-                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
-                    test_from_satoshi(amounts.satoshi, BitcoinAmount(amounts.satoshi))
-                });
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_ubtc_conversion() {
-                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
-                    test_from_ubtc(amounts.micro_bit, BitcoinAmount(amounts.satoshi))
-                });
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_mbtc_conversion() {
-                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
-                    test_from_mbtc(amounts.milli_bit, BitcoinAmount(amounts.satoshi))
-                });
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_cbtc_conversion() {
-                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
-                    test_from_cbtc(amounts.centi_bit, BitcoinAmount(amounts.satoshi))
-                });
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_dbtc_conversion() {
-                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
-                    test_from_dbtc(amounts.deci_bit, BitcoinAmount(amounts.satoshi))
-                });
-            }
-
-            #[should_panic(expected = "AmountOutOfBounds")]
-            #[test]
-            fn test_invalid_btc_conversion() {
-                INVALID_TEST_AMOUNTS.iter().for_each(|amounts| {
-                    test_from_btc(amounts.bitcoin, BitcoinAmount(amounts.satoshi))
-                });
-            }
-        }
 
         mod test_invalid_conversion {
             use super::*;
