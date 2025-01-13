@@ -165,7 +165,7 @@ impl FromStr for TronAddress {
         } else if s == "_" || s == "0x0" || s == "/0" {
             "410000000000000000000000000000000000000000".parse()
         } else {
-            eprintln!("len={} prefix={:x}", s.len(), s.as_bytes()[0]);
+            // eprintln!("len={} prefix={:x}", s.len(), s.as_bytes()[0]);
             Err(AddressError::InvalidAddress("Invalid length".to_string()))
         }
     }
