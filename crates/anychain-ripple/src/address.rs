@@ -201,8 +201,17 @@ mod tests {
         ];
 
         addrs.iter().for_each(|&addr| {
-            let addr = RippleAddress::from_str(addr).unwrap();
-            println!("address = {}", addr);
+            let addr = RippleAddress::from_str(addr);
+            assert!(addr.is_ok());
+            dbg!("address = {}", addr.unwrap());
         });
+    }
+
+    #[test]
+    fn test_from_str_invalid_address() {
+        let addr_str = "HanzōFe8T2mkZQqzuGbFEmE8SKtadxd8n";
+        let addr = RippleAddress::from_str(addr_str);
+        assert!(addr.is_err());
+        matches!(addr.unwrap_err(), super::AddressError::InvalidAddress(_));
     }
 }
