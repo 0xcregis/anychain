@@ -30,6 +30,8 @@ use anychain_core::{
 //     map_gen(ripple_alphabet, bitcoin_alphabet);
 // }
 
+const RIPPLE_ALPHABET: &str = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz";
+
 /// Utility for mapping the bitcoin base58 alphabet to ripple base58 alphabet
 static BTC_2_XRP_BS58_MAP: [i8; 128] = [
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -100,6 +102,13 @@ impl Address for RippleAddress {
 impl FromStr for RippleAddress {
     type Err = AddressError;
     fn from_str(addr: &str) -> Result<Self, Self::Err> {
+        for c in addr.chars() {
+            if !RIPPLE_ALPHABET.contains(c) {
+                return Err(AddressError::InvalidAddress(
+                    "illegal ripple address".to_string(),
+                ));
+            }
+        }
         let s = to_btc_bs58(addr)?;
         let data = s.from_base58()?;
         if data.len() != 25 {
