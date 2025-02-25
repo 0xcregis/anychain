@@ -254,6 +254,29 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
+    // Generate a P2TR address in Bech32 format from a sha256 script hash
+    pub fn p2tr_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        if hash.len() != 32 {
+            return Err(AddressError::Message("Illegal sha256 length".to_string()));
+        }
+
+        let v = 1;
+        let version = u5::try_from_u8(v)?;
+
+        let mut data = vec![version];
+
+        data.extend_from_slice(&hash.to_vec().to_base32());
+
+        let prefix = N::to_address_prefix(BitcoinFormat::Bech32)?.prefix();
+        let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
+
+        Ok(Self {
+            address: bech32,
+            format: BitcoinFormat::Bech32,
+            _network: PhantomData,
+        })
+    }
+
     /// Generate a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let hash = hash160(&public_key.serialize());
@@ -322,6 +345,9 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         } else if script_pub_key.len() == 34 && script_pub_key[0] == 0 && script_pub_key[1] == 32 {
             // we are handling a p2wsh script
             BitcoinAddress::<N>::p2wsh_from_hash(&script_pub_key[2..])
+        } else if script_pub_key.len() == 34 && script_pub_key[0] == 81 && script_pub_key[1] == 32 {
+            // we are handling a p2tr script
+            BitcoinAddress::<N>::p2tr_from_hash(&script_pub_key[2..])
         } else if script_pub_key.len() == 22 && script_pub_key[0] == 0 && script_pub_key[1] == 20 {
             // we are handling a bech32 script
             BitcoinAddress::<N>::bech32_from_hash(&script_pub_key[2..])
