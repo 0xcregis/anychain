@@ -268,7 +268,7 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         data.extend_from_slice(&hash.to_vec().to_base32());
 
         let prefix = N::to_address_prefix(BitcoinFormat::Bech32)?.prefix();
-        let bech32 = bech32::encode(&prefix, data, Variant::Bech32)?;
+        let bech32 = bech32::encode(&prefix, data, Variant::Bech32m)?;
 
         Ok(Self {
             address: bech32,
