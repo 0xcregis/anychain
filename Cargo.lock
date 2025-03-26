@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-kms"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anychain-core",
  "anyhow",
@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-polkadot"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anychain-core",
  "base58",
