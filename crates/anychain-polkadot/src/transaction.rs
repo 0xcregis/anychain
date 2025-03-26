@@ -246,7 +246,7 @@ mod tests {
     };
     use anychain_core::Address;
     use anychain_core::{hex, Transaction};
-    use ed25519_dalek::{SecretKey, Signature, Signer};
+    use ed25519_dalek::{ExpandedSecretKey, PublicKey, SecretKey};
     use serde_json::Value;
     use std::str::FromStr;
 
@@ -327,12 +327,8 @@ mod tests {
             5, 8, 13, 17, 29,
         ];
 
-        let sk_from: SecretKey = sk_from[..ed25519_dalek::SECRET_KEY_LENGTH]
-            .try_into()
-            .unwrap();
-        let sk_to: SecretKey = sk_to[..ed25519_dalek::SECRET_KEY_LENGTH]
-            .try_into()
-            .unwrap();
+        let sk_from = ed25519_dalek::SecretKey::from_bytes(sk_from.as_slice()).unwrap();
+        let sk_to = ed25519_dalek::SecretKey::from_bytes(sk_to.as_slice()).unwrap();
 
         let sk_from = PolkadotSecretKey::Ed25519(sk_from);
         let sk_to = PolkadotSecretKey::Ed25519(sk_to);
@@ -409,11 +405,13 @@ mod tests {
             26, 232, 171, 144, 41, 109, 182, 148, 243, 20, 23, 29, 61,
         ];
 
-        let signing_key: &SecretKey = &sk[..ed25519_dalek::SECRET_KEY_LENGTH].try_into().unwrap();
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(signing_key);
-        let sig: Signature = signing_key.sign(&msg);
+        let sk = SecretKey::from_bytes(sk.as_slice()).unwrap();
+        let pk = PublicKey::from(&sk);
 
-        let signed_tx = tx.sign_ed25519(sig.to_vec()).unwrap();
+        let xsk = ExpandedSecretKey::from(&sk);
+        let sig = xsk.sign(&msg, &pk);
+
+        let signed_tx = tx.sign_ed25519(sig.to_bytes().to_vec()).unwrap();
         let signed_tx = hex::encode(signed_tx);
 
         assert_eq!(
