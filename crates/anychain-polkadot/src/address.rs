@@ -105,7 +105,7 @@ mod tests {
         let h = hex::encode(sk);
         println!("{}", h);
 
-        let sk: SecretKey = sk[..ed25519_dalek::SECRET_KEY_LENGTH].try_into().unwrap();
+        let sk = SecretKey::from_bytes(sk.as_slice()).unwrap();
         let sk = PolkadotSecretKey::Ed25519(sk);
 
         let address =
