@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use crate::format::FilecoinFormat;
 use crate::public_key::FilecoinPublicKey;
 

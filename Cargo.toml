@@ -9,6 +9,7 @@ members = [
     "crates/anychain-polkadot",
     "crates/anychain-ripple",
     "crates/anychain-neo",
+    "crates/anychain-cardano",
     "crates/anychain-kms",
     "examples/*",
 ]
@@ -68,6 +69,9 @@ once_cell = { version = "1.18.0" }
 subtle = { version = "2", default-features = false }
 p256 = "0.13.2"
 bs58 = { version = "0.4", default-features = false, features = ["check", "alloc"] }
+cml-chain = "6.2.0"
+cml-crypto = "6.2.0"
+cml-core = "6.2.0"
 
 [profile.release]
 strip = true       # Automatically strip symbols from the binary

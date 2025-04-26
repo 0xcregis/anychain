@@ -20,7 +20,7 @@ use anychain_core::{
 //     println!("{:?}", table);
 // }
 
-/// You can run this test function to generate the 2 maps below
+// /// You can run this test function to generate the 2 maps below
 // #[test]
 // fn gen_map() {
 //     let ripple_alphabet: &str = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz";
