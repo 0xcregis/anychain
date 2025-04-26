@@ -52,7 +52,6 @@ where
     pub const MAX_DEPTH: Depth = u8::MAX;
 
     /// Derive a child key from the given [`DerivationPath`].
-
     pub fn new_from_path<S>(seed: S, path: &DerivationPath) -> Result<Self>
     where
         S: AsRef<[u8]>,

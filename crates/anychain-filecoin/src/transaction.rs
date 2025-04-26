@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
 use crate::address::{FilecoinAddress, Protocol};
 use crate::amount::FilecoinAmount;
@@ -116,6 +117,7 @@ impl<'de> Deserialize<'de> for FilecoinTransactionParameters {
 }
 
 /// Signature variants for Filecoin signatures.
+#[allow(non_local_definitions)]
 #[derive(
     Clone,
     Debug,
