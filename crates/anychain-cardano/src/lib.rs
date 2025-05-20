@@ -12,5 +12,3 @@ pub use self::format::*;
 pub use self::network::*;
 pub use self::public_key::*;
 pub use self::transaction::*;
-
-

@@ -1,4 +1,3 @@
-use cml_chain::fees::LinearFee;
 use cml_chain::builders::input_builder::SingleInputBuilder;
 use cml_chain::builders::output_builder::TransactionOutputBuilder;
 use cml_chain::builders::tx_builder::{
@@ -7,6 +6,7 @@ use cml_chain::builders::tx_builder::{
 };
 use cml_chain::crypto::hash::hash_transaction;
 use cml_chain::crypto::utils::make_vkey_witness;
+use cml_chain::fees::LinearFee;
 use cml_chain::genesis::network_info::plutus_alonzo_cost_models;
 use cml_chain::plutus::ExUnitPrices;
 use cml_chain::transaction::{TransactionOutput, TransactionWitnessSet};

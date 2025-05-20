@@ -1,23 +1,23 @@
+use crate::util::create_default_tx_builder;
 use crate::{CardanoAddress, CardanoFormat, CardanoPublicKey};
 use anychain_core::{Transaction, TransactionError, TransactionId};
-use std::{fmt, str::FromStr};
 use cml_chain::{
-    utils::NetworkId,
-    transaction::{TransactionInput, TransactionOutput, TransactionWitnessSet, Transaction as SignedTransaction},
     assets::Value,
-    crypto::{Vkey, Vkeywitness},
     builders::{
         input_builder::SingleInputBuilder,
         output_builder::TransactionOutputBuilder,
-        tx_builder::{
-            ChangeSelectionAlgo,
-            choose_change_selection_algo
-        },
+        tx_builder::{choose_change_selection_algo, ChangeSelectionAlgo},
     },
+    crypto::{Vkey, Vkeywitness},
+    transaction::{
+        Transaction as SignedTransaction, TransactionInput, TransactionOutput,
+        TransactionWitnessSet,
+    },
+    utils::NetworkId,
 };
-use cml_crypto::{TransactionHash, Ed25519Signature, blake2b256};
-use cml_core::serialization::{Serialize, Deserialize, RawBytesEncoding};
-use crate::util::create_default_tx_builder;
+use cml_core::serialization::{Deserialize, RawBytesEncoding, Serialize};
+use cml_crypto::{blake2b256, Ed25519Signature, TransactionHash};
+use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct Input {
@@ -103,17 +103,14 @@ impl Transaction for CardanoTransaction {
 
             let input = TransactionInput::new(txid, input.index);
 
-            let output = TransactionOutput::new(
-                address,
-                amount,
-                None,
-                None,
-            );
+            let output = TransactionOutput::new(address, amount, None, None);
 
-            let input = SingleInputBuilder::new(input, output).payment_key()
-               .map_err(|e| TransactionError::Message(e.to_string()))?;
+            let input = SingleInputBuilder::new(input, output)
+                .payment_key()
+                .map_err(|e| TransactionError::Message(e.to_string()))?;
 
-            builder.add_input(input)
+            builder
+                .add_input(input)
                 .map_err(|e| TransactionError::Message(e.to_string()))?;
         }
 
@@ -126,7 +123,8 @@ impl Transaction for CardanoTransaction {
                 .build()
                 .map_err(|e| TransactionError::Message(e.to_string()))?;
 
-            builder.add_output(output)
+            builder
+                .add_output(output)
                 .map_err(|e| TransactionError::Message(e.to_string()))?;
         }
 
@@ -136,10 +134,13 @@ impl Transaction for CardanoTransaction {
             &mut builder,
             change_address,
             false,
-        ).map_err(|e| TransactionError::Message(e.to_string()))?;
+        )
+        .map_err(|e| TransactionError::Message(e.to_string()))?;
 
         if !check {
-            return Err(TransactionError::Message("failed to add change".to_string()));
+            return Err(TransactionError::Message(
+                "failed to add change".to_string(),
+            ));
         }
 
         let input_amount = builder
@@ -147,7 +148,7 @@ impl Transaction for CardanoTransaction {
             .map_err(|e| TransactionError::Message(e.to_string()))?
             .checked_add(&builder.get_implicit_input().unwrap())
             .map_err(|e| TransactionError::Message(e.to_string()))?;
-            
+
         let output_amount = builder
             .get_explicit_output()
             .map_err(|e| TransactionError::Message(e.to_string()))?
@@ -155,13 +156,16 @@ impl Transaction for CardanoTransaction {
             .map_err(|e| TransactionError::Message(e.to_string()))?;
 
         if input_amount != output_amount {
-            return Err(TransactionError::Message("Input and output amounts do not match".to_string()));
+            return Err(TransactionError::Message(
+                "Input and output amounts do not match".to_string(),
+            ));
         }
 
         let network = NetworkId::from(self.params.network as u64);
         builder.set_network_id(network);
 
-        let tx = builder.build(ChangeSelectionAlgo::Default, change_address)
+        let tx = builder
+            .build(ChangeSelectionAlgo::Default, change_address)
             .map_err(|e| TransactionError::Message(e.to_string()))?
             .body();
 
@@ -177,16 +181,11 @@ impl Transaction for CardanoTransaction {
                 let mut witness_set = TransactionWitnessSet::new();
                 witness_set.vkeywitnesses = Some(vec![witness].into());
 
-                let signed_tx = SignedTransaction::new(
-                    tx,
-                    witness_set,
-                    true,
-                    None,
-                );
+                let signed_tx = SignedTransaction::new(tx, witness_set, true, None);
 
                 Ok(signed_tx.to_cbor_bytes())
             }
-            None =>  Ok(tx.to_cbor_bytes())
+            None => Ok(tx.to_cbor_bytes()),
         }
     }
 
@@ -203,7 +202,5 @@ impl Transaction for CardanoTransaction {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test() {
-
-    }
+    fn test() {}
 }
