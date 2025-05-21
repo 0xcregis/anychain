@@ -1,53 +1,62 @@
 use {
     crate::{address::CardanoAddress, format::CardanoFormat},
-    anychain_core::{Address, AddressError, PublicKey, PublicKeyError},
-    cml_crypto::{Bip32PrivateKey, Bip32PublicKey},
+    anychain_core::{AddressError, PublicKey, PublicKeyError},
+    cml_chain::{
+        address::{EnterpriseAddress, RewardAddress},
+        certs::StakeCredential,
+    },
+    cml_crypto::{blake2b224, Ed25519KeyHash},
     core::{fmt, str::FromStr},
+    curve25519_dalek::{constants::ED25519_BASEPOINT_TABLE as G, Scalar},
+    group::GroupEncoding,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CardanoPublicKey(pub Bip32PublicKey);
+pub struct CardanoPublicKey(pub ed25519_dalek::PublicKey);
 
 impl PublicKey for CardanoPublicKey {
-    type SecretKey = Bip32PrivateKey;
+    type SecretKey = Scalar;
     type Address = CardanoAddress;
     type Format = CardanoFormat;
 
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
-        Self(secret_key.to_public())
+        let pk = secret_key * G;
+        let pk = pk.to_bytes();
+        let pk = ed25519_dalek::PublicKey::from_bytes(&pk).unwrap();
+        Self(pk)
     }
 
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError> {
-        Self::Address::from_public_key(self, format)
+        let bytes = self.0.as_bytes();
+        let hash = blake2b224(bytes);
+        let hash = Ed25519KeyHash::from(hash);
+        let cred = StakeCredential::new_pub_key(hash);
+
+        match format {
+            CardanoFormat::Enterprise(network) => {
+                let address =
+                    EnterpriseAddress::new(network.info().network_id(), cred).to_address();
+                Ok(CardanoAddress(address))
+            }
+            CardanoFormat::Reward(network) => {
+                let address = RewardAddress::new(network.info().network_id(), cred).to_address();
+                Ok(CardanoAddress(address))
+            }
+            _ => Err(AddressError::Message("unsupported format".to_string())),
+        }
     }
 }
 
 impl FromStr for CardanoPublicKey {
     type Err = PublicKeyError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Bip32PublicKey::from_bech32(s)
-            .map_err(|error| PublicKeyError::Crate("bech32", format!("{:?}", error)))
-            .map(Self)
+    fn from_str(_: &str) -> Result<Self, Self::Err> {
+        todo!()
     }
 }
 
 impl fmt::Display for CardanoPublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.to_bech32())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_public_key_from_str() {
-        let pubkey_str = "xpub1gyuwtxy45wmzjsetlrx82mhg86c98zvnwvl7yvaxwt5g5f7aau9usq4e9gwraq2qh5j2ywml0smhflslxfsj0hjqnmzspclprkp5tkcmfgu4v";
-        let pubkey_res = CardanoPublicKey::from_str(pubkey_str);
-        assert!(pubkey_res.is_ok());
-        let pubkey = pubkey_res.unwrap();
-        assert_eq!(pubkey.to_string(), pubkey_str);
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
     }
 }

@@ -111,10 +111,6 @@ mod tx_builder {
         create_linear_fee(1000, 2)
     }
 
-    fn create_tx_builder_with_fee(linear_fee: LinearFee) -> TransactionBuilder {
-        create_tx_builder(linear_fee, 1, 1, 1)
-    }
-
     fn create_tx_builder_full(
         linear_fee: LinearFee,
         pool_deposit: u64,
@@ -156,9 +152,14 @@ mod tx_builder {
         )
     }
 
+    fn create_tx_builder_with_fee(linear_fee: LinearFee) -> TransactionBuilder {
+        create_tx_builder(linear_fee, 1, 1, 1)
+    }
+
     fn create_default_tx_builder() -> TransactionBuilder {
         create_tx_builder_with_fee(create_default_linear_fee())
     }
+
     pub fn build_tx_with_change(params: &CardanoTransactionParameters) -> Vec<u8> {
         let mut tx_builder = create_default_tx_builder();
 
@@ -175,7 +176,9 @@ mod tx_builder {
             .payment_key()
             .unwrap()
         };
+
         tx_builder.add_input(input).unwrap();
+
         tx_builder
             .add_output(
                 TransactionOutputBuilder::new()
@@ -191,13 +194,16 @@ mod tx_builder {
         tx_builder.set_ttl(params.ttl + 200);
 
         let change_addr = params.send_address.clone();
+
         let added_change = choose_change_selection_algo(ChangeSelectionAlgo::Default)(
             &mut tx_builder,
             &change_addr,
             false,
         );
+
         assert!(added_change.is_ok());
         assert!(added_change.unwrap());
+
         assert_eq!(
             tx_builder
                 .get_explicit_input()
@@ -216,16 +222,19 @@ mod tx_builder {
 
         // TODO: set network id
         tx_builder.set_network_id(NetworkId::testnet());
+
         let final_tx = tx_builder.build(ChangeSelectionAlgo::Default, &change_addr);
+
         assert!(final_tx.is_ok());
+
         let final_tx_builder = final_tx.unwrap();
         let body = final_tx_builder.body();
-        dbg!(&body);
 
         let mut witness_set = TransactionWitnessSet::new();
 
         let alice_private_key =
             cml_crypto::PrivateKey::from_bech32(&params.sender_private_key).unwrap();
+
         witness_set.vkeywitnesses = Some(
             vec![make_vkey_witness(
                 &hash_transaction(&body),

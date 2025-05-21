@@ -1,27 +1,19 @@
 use {
     crate::{format::CardanoFormat, public_key::CardanoPublicKey},
-    anychain_core::{Address, AddressError},
-    cml_chain::{
-        address::{BaseAddress, EnterpriseAddress, RewardAddress},
-        byron::AddressContent,
-        certs::StakeCredential,
-    },
-    cml_core::serialization::ToBytes,
-    cml_crypto::{Bip32PrivateKey, Bip32PublicKey},
+    anychain_core::{Address, AddressError, PublicKey},
     core::{
         fmt::{Display, Formatter, Result as FmtResult},
         str::FromStr,
     },
+    curve25519_dalek::Scalar,
     std::hash::Hash,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CardanoAddress(pub cml_chain::address::Address);
 
-impl CardanoAddress {}
-
 impl Address for CardanoAddress {
-    type SecretKey = Bip32PrivateKey;
+    type SecretKey = Scalar;
     type Format = CardanoFormat;
     type PublicKey = CardanoPublicKey;
 
@@ -29,71 +21,14 @@ impl Address for CardanoAddress {
         secret_key: &Self::SecretKey,
         format: &Self::Format,
     ) -> Result<Self, AddressError> {
-        match format {
-            CardanoFormat::Base(network) => {
-                // Derive spend and stake keys
-                let spend = derive_key(secret_key, 0, 0, 0);
-                let stake = derive_key(secret_key, 0, 2, 0);
-
-                // Create base address
-                let spend_cred = StakeCredential::new_pub_key(spend.to_raw_key().hash());
-                let stake_cred = StakeCredential::new_pub_key(stake.to_raw_key().hash());
-
-                let address = BaseAddress::new(network.info().network_id(), spend_cred, stake_cred)
-                    .to_address();
-
-                Ok(Self(address))
-            }
-            CardanoFormat::Enterprise(network) => {
-                // Derive spend key
-                let spend = derive_key(secret_key, 0, 0, 0);
-                let spend_cred = StakeCredential::new_pub_key(spend.to_raw_key().hash());
-
-                let address =
-                    EnterpriseAddress::new(network.info().network_id(), spend_cred).to_address();
-                Ok(Self(address))
-            }
-            CardanoFormat::Reward(network) => {
-                // Derive stake key
-                let stake = derive_key(secret_key, 0, 2, 0);
-                let stake_cred = StakeCredential::new_pub_key(stake.to_raw_key().hash());
-
-                let address =
-                    RewardAddress::new(network.info().network_id(), stake_cred).to_address();
-                Ok(Self(address))
-            }
-            CardanoFormat::Byron(network) => {
-                let byron_key = secret_key
-                    .derive(harden(44))
-                    .derive(harden(1815))
-                    .derive(harden(0))
-                    .derive(0)
-                    .derive(0)
-                    .to_public();
-
-                let byron_addr = AddressContent::icarus_from_key(
-                    byron_key,
-                    network.info().protocol_magic().into(),
-                );
-                // round-trip from generic address type and back
-                let generic_addr = cml_chain::address::Address::from_raw_bytes(
-                    &byron_addr.to_address().to_bytes(),
-                )
-                .unwrap();
-                Ok(Self(generic_addr))
-            }
-        }
+        Self::PublicKey::from_secret_key(secret_key).to_address(format)
     }
 
     fn from_public_key(
-        _public_key: &Self::PublicKey,
-        _: &Self::Format,
+        public_key: &Self::PublicKey,
+        format: &Self::Format,
     ) -> Result<Self, AddressError> {
-        todo!()
-    }
-
-    fn is_valid(address: &str) -> bool {
-        cml_chain::address::Address::is_valid(address)
+        public_key.to_address(format)
     }
 }
 
@@ -113,72 +48,33 @@ impl Display for CardanoAddress {
     }
 }
 
-fn derive_key(
-    private_key: &Bip32PrivateKey,
-    account: u32,
-    chain: u32,
-    index: u32,
-) -> Bip32PublicKey {
-    private_key
-        .derive(harden(1852))
-        .derive(harden(1815))
-        .derive(harden(account))
-        .derive(chain)
-        .derive(index)
-        .to_public()
-}
-
-fn harden(index: u32) -> u32 {
-    index | 0x80_00_00_00
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::network::CardanoNetwork;
-
-    static PRIVATE_KEY_ALICE: &str = "xprv1pzvlzlh4c7x9uxr0tw90hy7mpazk9eq3kv7mfzmjytxfff9zuf0ls7vzzu5qcdzjq8v8mqnsu0d3p8ks90wfl8egpa545tgk5ycvmakgq2uj58p7s9qt6f9z8dlhcdm5lc0nycf8meqfa3gqu0s3mq69mv5se9za";
-    static BASE_ADDR_ALICE: &str = "addr_test1qp5tjpeph2su74qrg60se276u6zvd90umxmctufxr0jf8gr7dsy677qxztemp72yqgu3xv35w2fts5c5k2c9szlrn5fqttkd5z";
-    static BASE_ADDR_ALICE_MAINNET: &str = "addr1q95tjpeph2su74qrg60se276u6zvd90umxmctufxr0jf8gr7dsy677qxztemp72yqgu3xv35w2fts5c5k2c9szlrn5fqgatdca";
-    static BASE_ADDR_BOB: &str = "addr_test1qz68r5889sfly48tvr3kmlcf2uc8dxvyk598mkt8qd200z8r8yuyp7vaas4ezh9pdn5vu3wzlntj0h6qdnt4mrmqu0pqt62yar";
-    //
-    #[test]
-    fn test_from_secret_key() {
-        let bip32_private_key = Bip32PrivateKey::from_bech32(PRIVATE_KEY_ALICE).unwrap();
-
-        let format = CardanoFormat::Base(CardanoNetwork::Preprod);
-        let address_alice = CardanoAddress::from_secret_key(&bip32_private_key, &format);
-        assert!(address_alice.is_ok());
-        let address_alice = address_alice.unwrap();
-        assert_eq!(address_alice.to_string(), BASE_ADDR_ALICE);
-
-        let format = CardanoFormat::Base(CardanoNetwork::Mainnet);
-        let address_alice = CardanoAddress::from_secret_key(&bip32_private_key, &format);
-        assert!(address_alice.is_ok());
-        let address_alice = address_alice.unwrap();
-        assert_eq!(address_alice.to_string(), BASE_ADDR_ALICE_MAINNET);
-
-        let format = CardanoFormat::Enterprise(CardanoNetwork::Mainnet);
-        let address_alice = CardanoAddress::from_secret_key(&bip32_private_key, &format);
-        assert!(address_alice.is_ok());
-        let address_alice = address_alice.unwrap();
-        assert_eq!(
-            "addr1v95tjpeph2su74qrg60se276u6zvd90umxmctufxr0jf8gqcl79cr",
-            address_alice.to_string()
-        );
-    }
-    #[test]
-    fn test_is_valid_address() {
-        assert!(CardanoAddress::is_valid(BASE_ADDR_ALICE));
-        assert!(CardanoAddress::is_valid(BASE_ADDR_BOB));
-        assert!(!CardanoAddress::is_valid("addr_test1_foo"));
-    }
+    use super::CardanoAddress;
+    use crate::{format::CardanoFormat, network::CardanoNetwork};
+    use anychain_core::Address;
+    use curve25519_dalek::Scalar;
 
     #[test]
-    fn test_from_address() {
-        let address_alice = CardanoAddress::from_str(BASE_ADDR_ALICE);
-        assert!(address_alice.is_ok());
-        let address_bob = CardanoAddress::from_str(BASE_ADDR_ALICE);
-        assert!(address_bob.is_ok());
+    fn test() {
+        let sk = [
+            104u8, 78, 102, 228, 174, 250, 35, 99, 180, 223, 45, 40, 124, 22, 12, 130, 70, 82, 183,
+            48, 195, 95, 207, 80, 47, 5, 201, 222, 157, 148, 168, 13,
+        ];
+        let sk = Scalar::from_bytes_mod_order(sk);
+
+        let sk_to = [
+            189, 149, 70, 173, 231, 111, 65, 210, 164, 15, 24, 21, 180, 45, 148, 78, 252, 149, 36,
+            168, 70, 107, 84, 229, 47, 5, 213, 243, 253, 249, 19, 11u8,
+        ];
+        let sk_to = Scalar::from_bytes_mod_order(sk_to);
+
+        let format = CardanoNetwork::Preprod;
+        let format = CardanoFormat::Enterprise(format);
+
+        let from = CardanoAddress::from_secret_key(&sk, &format).unwrap();
+        let to = CardanoAddress::from_secret_key(&sk_to, &format).unwrap();
+
+        println!("from: {}\nto: {}\n", from, to);
     }
 }
