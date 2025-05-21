@@ -15,7 +15,7 @@ use cml_chain::{
     },
     utils::NetworkId,
 };
-use cml_core::serialization::{Deserialize, RawBytesEncoding, Serialize};
+use cml_core::serialization::{RawBytesEncoding, Serialize};
 use cml_crypto::{blake2b256, Ed25519Signature, TransactionHash};
 use std::{fmt, str::FromStr};
 
@@ -99,7 +99,7 @@ impl Transaction for CardanoTransaction {
             let txid = TransactionHash::from_hex(&input.txid)
                 .map_err(|e| TransactionError::Message(e.to_string()))?;
             let address = input.address.0.clone();
-            let amount = Value::from(input.index);
+            let amount = Value::from(input.amount);
 
             let input = TransactionInput::new(txid, input.index);
 
@@ -201,6 +201,93 @@ impl Transaction for CardanoTransaction {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+    use anychain_core::{PublicKey, Transaction};
+    use blockfrost::{BlockFrostSettings, BlockfrostAPI, Pagination};
+    use curve25519_dalek::Scalar;
+    use tokio::runtime::Runtime;
+    use crate::{CardanoAddress, CardanoPublicKey};
+    use super::{CardanoTransaction, CardanoTransactionParameters, Input, Output};
+    use anychain_kms::ed25519_sign;
+
     #[test]
-    fn test() {}
+    fn test() {
+        let api = BlockfrostAPI::new(
+        "preprodwYU86nDDxOQKRAkTvp660AQu2pxLfh9l",
+        BlockFrostSettings::new(),
+        );
+
+        let sk = [104u8, 78, 102, 228, 174, 250, 35, 99, 180, 223, 45, 40, 124, 22, 12, 130, 70, 82, 183, 48, 195, 95, 207, 80, 47, 5, 201, 222, 157, 148, 168, 13];
+        let sk = Scalar::from_bytes_mod_order(sk);
+        let pk = CardanoPublicKey::from_secret_key(&sk).0;
+        let pk = pk.to_bytes().to_vec();
+        
+        let from = "addr_test1vrxhpfe4dxarnwpdhckjqu2ncc9q90ne8ewszgaree9secczx006l";
+
+        let utxos = Runtime::new().unwrap().block_on(async {
+            api.addresses_utxos(
+                from,
+                Pagination::all()
+            ).await.unwrap()
+        });
+
+        let mut inputs = vec![];
+
+        for utxo in utxos {
+            let txid = utxo.tx_hash;
+            let index = utxo.output_index as u64;
+            let address = CardanoAddress::from_str(&utxo.address).unwrap();
+            let amount: u64 = utxo.amount
+                .iter()
+                .find(|u| u.unit == "lovelace")
+                .unwrap()
+                .quantity
+                .parse()
+                .unwrap();
+
+            inputs.push(Input {
+                txid,
+                index,
+                address,
+                amount
+            });
+        }
+
+        let to = "addr_test1vz9v4d75kzw7t8nnfnn7ua9c85khelnq2y7fp3p6646szucc5xk6n";
+        let to = CardanoAddress::from_str(to).unwrap();
+        let amount = 1000000u64;
+
+        let outputs = vec![Output {
+            address: to,
+            amount
+        }];
+        
+        let slot = Runtime::new().unwrap().block_on(async {
+            api.blocks_latest().await.unwrap().slot.unwrap() as u64
+        });
+
+        let network = 0u8; // 0 indicates testnet, 1 indicates mainnet
+
+        let params = CardanoTransactionParameters {
+            inputs,
+            outputs,
+            slot,
+            network,
+            public_key: pk
+        };
+
+        let mut tx = CardanoTransaction::new(&params).unwrap();
+        let msg = tx.to_transaction_id().unwrap().0.to_vec();
+        let sig = ed25519_sign(&sk, &msg).unwrap();
+
+        let tx = tx.sign(sig, 0).unwrap();
+
+        println!("tx: {:?}", tx);
+        
+        let res = Runtime::new().unwrap().block_on(async {
+            api.transactions_submit(tx).await.unwrap()
+        });
+
+        println!("res: {}", res);
+    }
 }

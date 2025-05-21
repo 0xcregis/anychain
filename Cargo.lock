@@ -192,6 +192,7 @@ name = "anychain-cardano"
 version = "0.1.0"
 dependencies = [
  "anychain-core",
+ "anychain-kms",
  "bip39",
  "blockfrost",
  "cml-chain",

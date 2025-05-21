@@ -18,6 +18,7 @@ path = "examples/transfer-ada.rs"
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.7" }
+anychain-kms = { path = "../anychain-kms", version = "0.1.17" }
 serde = { workspace = true }
 ed25519-dalek = { workspace = true }
 curve25519-dalek = { workspace = true }
