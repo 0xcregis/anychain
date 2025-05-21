@@ -1,19 +1,8 @@
-use cml_chain::builders::input_builder::SingleInputBuilder;
-use cml_chain::builders::output_builder::TransactionOutputBuilder;
-use cml_chain::builders::tx_builder::{
-    choose_change_selection_algo, ChangeSelectionAlgo, TransactionBuilder,
-    TransactionBuilderConfigBuilder,
-};
-use cml_chain::crypto::hash::hash_transaction;
-use cml_chain::crypto::utils::make_vkey_witness;
+use cml_chain::builders::tx_builder::{TransactionBuilder, TransactionBuilderConfigBuilder};
 use cml_chain::fees::LinearFee;
 use cml_chain::genesis::network_info::plutus_alonzo_cost_models;
 use cml_chain::plutus::ExUnitPrices;
-use cml_chain::transaction::{TransactionOutput, TransactionWitnessSet};
-use cml_chain::utils::NetworkId;
-use cml_chain::{SubCoin, Value};
-use cml_core::serialization::Serialize;
-use cml_crypto::{Ed25519Signature, RawBytesEncoding};
+use cml_chain::SubCoin;
 
 const MAX_VALUE_SIZE: u32 = 4000;
 const MAX_TX_SIZE: u32 = 8000;

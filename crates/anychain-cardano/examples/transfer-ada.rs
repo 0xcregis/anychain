@@ -99,7 +99,6 @@ mod tx_builder {
     use cml_chain::utils::NetworkId;
     use cml_chain::{SubCoin, Value};
     use cml_core::serialization::Serialize;
-    use cml_crypto::{Ed25519Signature, RawBytesEncoding};
 
     const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000;
