@@ -1,6 +1,7 @@
 use crate::util::create_default_tx_builder;
 use crate::{CardanoAddress, CardanoFormat, CardanoPublicKey};
 use anychain_core::{Transaction, TransactionError, TransactionId};
+use cml_chain::Deserialize;
 use cml_chain::{
     assets::Value,
     builders::{
@@ -23,8 +24,8 @@ use std::{fmt, str::FromStr};
 pub struct Input {
     pub txid: String,
     pub index: u64,
-    pub address: CardanoAddress,
-    pub amount: u64,
+    pub address: Option<CardanoAddress>,
+    pub amount: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -93,13 +94,14 @@ impl Transaction for CardanoTransaction {
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
         let mut builder = create_default_tx_builder();
-        let change_address = &self.params.inputs[0].address.0;
+        let change_address = self.params.inputs[0].address.clone();
+        let change_address = &change_address.unwrap().0;
 
         for input in &self.params.inputs {
             let txid = TransactionHash::from_hex(&input.txid)
                 .map_err(|e| TransactionError::Message(e.to_string()))?;
-            let address = input.address.0.clone();
-            let amount = Value::from(input.amount);
+            let address = input.address.clone().unwrap().0.clone();
+            let amount = Value::from(input.amount.unwrap());
 
             let input = TransactionInput::new(txid, input.index);
 
@@ -189,8 +191,42 @@ impl Transaction for CardanoTransaction {
         }
     }
 
-    fn from_bytes(_tx: &[u8]) -> Result<Self, TransactionError> {
-        todo!()
+    fn from_bytes(stream: &[u8]) -> Result<Self, TransactionError> {
+        let signed_tx = SignedTransaction::from_cbor_bytes(stream)
+            .map_err(|e| TransactionError::Message(e.to_string()))?;
+        let tx = signed_tx.body;
+
+        let mut inputs = vec![];
+        let mut outputs = vec![];
+
+        for input in tx.inputs {
+            let txid = input.transaction_id.to_hex();
+            let index = input.index;
+
+            inputs.push(Input {
+               txid,
+               index,
+               address: None,
+               amount: None,
+            });
+        }
+
+        for output in tx.outputs {
+            let address = CardanoAddress(output.address().clone());
+            let amount = output.amount().coin;
+
+            outputs.push(Output { address, amount });
+        }
+
+        let network_id = tx.network_id.unwrap().network as u8;
+
+        Self::new(&CardanoTransactionParameters {
+            inputs,
+            outputs,
+            slot: 0,
+            network: network_id,
+            public_key: vec![],
+        })
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -249,8 +285,8 @@ mod tests {
             inputs.push(Input {
                 txid,
                 index,
-                address,
-                amount,
+                address: Some(address),
+                amount: Some(amount),
             });
         }
 
@@ -283,7 +319,9 @@ mod tests {
 
         let tx = tx.sign(sig, 0).unwrap();
 
-        println!("tx: {:?}", tx);
+        let tx = CardanoTransaction::from_bytes(&tx).unwrap();
+
+        println!("{:?}", tx);
 
         // let res = Runtime::new()
         //     .unwrap()
