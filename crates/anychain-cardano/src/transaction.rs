@@ -204,10 +204,10 @@ impl Transaction for CardanoTransaction {
             let index = input.index;
 
             inputs.push(Input {
-               txid,
-               index,
-               address: None,
-               amount: None,
+                txid,
+                index,
+                address: None,
+                amount: None,
             });
         }
 
