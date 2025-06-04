@@ -5,9 +5,8 @@ use cml_chain::Deserialize;
 use cml_chain::{
     assets::Value,
     builders::{
-        input_builder::SingleInputBuilder,
-        output_builder::TransactionOutputBuilder,
-        tx_builder::{choose_change_selection_algo, ChangeSelectionAlgo},
+        input_builder::SingleInputBuilder, output_builder::TransactionOutputBuilder,
+        tx_builder::ChangeSelectionAlgo,
     },
     crypto::{Vkey, Vkeywitness},
     transaction::{
@@ -130,41 +129,21 @@ impl Transaction for CardanoTransaction {
                 .map_err(|e| TransactionError::Message(e.to_string()))?;
         }
 
-        builder.set_ttl(self.params.slot + 200);
-
-        let check = choose_change_selection_algo(ChangeSelectionAlgo::Default)(
-            &mut builder,
-            change_address,
-            false,
-        )
-        .map_err(|e| TransactionError::Message(e.to_string()))?;
-
-        if !check {
-            return Err(TransactionError::Message(
-                "failed to add change".to_string(),
-            ));
-        }
-
         let input_amount = builder
             .get_explicit_input()
-            .map_err(|e| TransactionError::Message(e.to_string()))?
-            .checked_add(&builder.get_implicit_input().unwrap())
             .map_err(|e| TransactionError::Message(e.to_string()))?;
 
         let output_amount = builder
             .get_explicit_output()
-            .map_err(|e| TransactionError::Message(e.to_string()))?
-            .checked_add(&Value::from(builder.get_fee_if_set().unwrap()))
             .map_err(|e| TransactionError::Message(e.to_string()))?;
 
-        if input_amount != output_amount {
-            return Err(TransactionError::Message(
-                "Input and output amounts do not match".to_string(),
-            ));
-        }
+        let fee = input_amount.coin - output_amount.coin;
+        builder.set_fee(fee);
 
         let network = NetworkId::from(self.params.network as u64);
         builder.set_network_id(network);
+
+        builder.set_ttl(self.params.slot + 200);
 
         let tx = builder
             .build(ChangeSelectionAlgo::Default, change_address)
