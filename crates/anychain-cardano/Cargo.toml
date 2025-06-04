@@ -1,7 +1,7 @@
 [package]
 name = "anychain-cardano"
 description = "A Rust library for Cardano-focused cryptocurrency wallets, enabling seamless transactions on the Solana blockchain"
-version = "0.1.1"
+version = "0.1.2"
 keywords = ["cardano", "ada", "blockchain", "wallet", "transactions"]
 categories = ["cryptography::cryptocurrencies"]
 
