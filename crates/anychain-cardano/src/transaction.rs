@@ -168,16 +168,17 @@ impl Transaction for CardanoTransaction {
                         .map_err(|e| TransactionError::Message(e.to_string()))?;
                     let rs = Ed25519Signature::from_raw_bytes(rs)
                         .map_err(|e| TransactionError::Message(e.to_string()))?;
+
                     let witness = Vkeywitness::new(pk, rs);
+
                     witnesses.push(witness);
                 }
 
                 witness_set.vkeywitnesses = Some(witnesses.into());
 
-                let signed_tx =
-                    SignedTransaction::new(tx, witness_set, true, None).to_canonical_cbor_bytes();
+                let signed_tx = SignedTransaction::new(tx, witness_set, true, None);
 
-                Ok(signed_tx)
+                Ok(signed_tx.to_cbor_bytes())
             }
             None => Ok(tx.to_cbor_bytes()),
         }
