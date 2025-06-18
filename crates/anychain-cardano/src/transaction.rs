@@ -157,7 +157,6 @@ impl Transaction for CardanoTransaction {
 
         match &self.signatures {
             Some(sigs) => {
-                let mut witness_set = TransactionWitnessSet::new();
                 let mut witnesses = vec![];
 
                 for sig in sigs {
@@ -174,6 +173,7 @@ impl Transaction for CardanoTransaction {
                     witnesses.push(witness);
                 }
 
+                let mut witness_set = TransactionWitnessSet::new();
                 witness_set.vkeywitnesses = Some(witnesses.into());
 
                 let signed_tx = SignedTransaction::new(tx, witness_set, true, None);
