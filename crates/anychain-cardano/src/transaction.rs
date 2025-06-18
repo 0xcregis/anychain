@@ -39,13 +39,18 @@ pub struct CardanoTransactionParameters {
     pub outputs: Vec<Output>,
     pub slot: u64,
     pub network: u8,
+}
+
+#[derive(Debug, Clone)]
+pub struct CardanoSignature {
     pub public_key: Vec<u8>,
+    pub rs: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CardanoTransaction {
     pub params: CardanoTransactionParameters,
-    pub signature: Option<Vec<u8>>,
+    pub signatures: Option<Vec<CardanoSignature>>,
 }
 
 impl FromStr for CardanoTransaction {
@@ -66,6 +71,13 @@ impl fmt::Display for CardanoTransactionId {
 
 impl TransactionId for CardanoTransactionId {}
 
+impl CardanoTransaction {
+    pub fn sign(&mut self, sigs: Vec<CardanoSignature>) -> Result<Vec<u8>, TransactionError> {
+        self.signatures = Some(sigs);
+        self.to_bytes()
+    }
+}
+
 impl Transaction for CardanoTransaction {
     type Address = CardanoAddress;
     type Format = CardanoFormat;
@@ -76,19 +88,12 @@ impl Transaction for CardanoTransaction {
     fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         Ok(CardanoTransaction {
             params: params.clone(),
-            signature: None,
+            signatures: None,
         })
     }
 
-    fn sign(&mut self, rs: Vec<u8>, _: u8) -> Result<Vec<u8>, TransactionError> {
-        if rs.len() != 64 {
-            return Err(TransactionError::Message(format!(
-                "Invalid signature length {}",
-                rs.len(),
-            )));
-        }
-        self.signature = Some(rs);
-        self.to_bytes()
+    fn sign(&mut self, _: Vec<u8>, _: u8) -> Result<Vec<u8>, TransactionError> {
+        todo!()
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
@@ -150,21 +155,33 @@ impl Transaction for CardanoTransaction {
             .map_err(|e| TransactionError::Message(e.to_string()))?
             .body();
 
-        match &self.signature {
-            Some(sig) => {
-                let pk = &self.params.public_key;
-                let pk = Vkey::from_raw_bytes(pk)
-                    .map_err(|e| TransactionError::Message(e.to_string()))?;
-                let sig = Ed25519Signature::from_raw_bytes(sig)
-                    .map_err(|e| TransactionError::Message(e.to_string()))?;
-                let witness = Vkeywitness::new(pk, sig);
-
+        match &self.signatures {
+            Some(sigs) => {
                 let mut witness_set = TransactionWitnessSet::new();
-                witness_set.vkeywitnesses = Some(vec![witness].into());
+                let mut witnesses = vec![];
+                
+                for sig in sigs {
+                    let pk = sig.public_key.as_slice();
+                    let rs = sig.rs.as_slice();
 
-                let signed_tx = SignedTransaction::new(tx, witness_set, true, None);
+                    let pk = Vkey::from_raw_bytes(pk)
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+                    let rs = Ed25519Signature::from_raw_bytes(rs)
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+                    let witness = Vkeywitness::new(pk, rs);
+                    witnesses.push(witness);
+                }
 
-                Ok(signed_tx.to_cbor_bytes())
+                witness_set.vkeywitnesses = Some(witnesses.into());
+                
+                let signed_tx = SignedTransaction::new(
+                    tx,
+                    witness_set,
+                    true,
+                    None
+                ).to_canonical_cbor_bytes();
+
+                Ok(signed_tx)
             }
             None => Ok(tx.to_cbor_bytes()),
         }
@@ -204,7 +221,6 @@ impl Transaction for CardanoTransaction {
             outputs,
             slot: 0,
             network: network_id,
-            public_key: vec![],
         })
     }
 
@@ -217,7 +233,7 @@ impl Transaction for CardanoTransaction {
 #[cfg(test)]
 mod tests {
     use super::{CardanoTransaction, CardanoTransactionParameters, Input, Output};
-    use crate::{CardanoAddress, CardanoPublicKey};
+    use crate::{CardanoAddress, CardanoPublicKey, CardanoSignature};
     use anychain_core::{PublicKey, Transaction};
     use anychain_kms::ed25519_sign;
     use blockfrost::{BlockFrostSettings, BlockfrostAPI, Pagination};
@@ -289,14 +305,18 @@ mod tests {
             outputs,
             slot,
             network,
-            public_key: pk,
         };
 
         let mut tx = CardanoTransaction::new(&params).unwrap();
         let msg = tx.to_transaction_id().unwrap().0.to_vec();
         let sig = ed25519_sign(&sk, &msg).unwrap();
 
-        let tx = tx.sign(sig, 0).unwrap();
+        let sig = CardanoSignature {
+            public_key: pk,
+            rs: sig,
+        };
+
+        let tx = tx.sign(vec![sig]).unwrap();
 
         let tx = CardanoTransaction::from_bytes(&tx).unwrap();
 
