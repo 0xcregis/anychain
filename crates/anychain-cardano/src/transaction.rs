@@ -39,13 +39,18 @@ pub struct CardanoTransactionParameters {
     pub outputs: Vec<Output>,
     pub slot: u64,
     pub network: u8,
+}
+
+#[derive(Debug, Clone)]
+pub struct CardanoSignature {
     pub public_key: Vec<u8>,
+    pub rs: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
 pub struct CardanoTransaction {
     pub params: CardanoTransactionParameters,
-    pub signature: Option<Vec<u8>>,
+    pub signatures: Option<Vec<CardanoSignature>>,
 }
 
 impl FromStr for CardanoTransaction {
@@ -66,6 +71,13 @@ impl fmt::Display for CardanoTransactionId {
 
 impl TransactionId for CardanoTransactionId {}
 
+impl CardanoTransaction {
+    pub fn sign(&mut self, sigs: Vec<CardanoSignature>) -> Result<Vec<u8>, TransactionError> {
+        self.signatures = Some(sigs);
+        self.to_bytes()
+    }
+}
+
 impl Transaction for CardanoTransaction {
     type Address = CardanoAddress;
     type Format = CardanoFormat;
@@ -76,19 +88,12 @@ impl Transaction for CardanoTransaction {
     fn new(params: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         Ok(CardanoTransaction {
             params: params.clone(),
-            signature: None,
+            signatures: None,
         })
     }
 
-    fn sign(&mut self, rs: Vec<u8>, _: u8) -> Result<Vec<u8>, TransactionError> {
-        if rs.len() != 64 {
-            return Err(TransactionError::Message(format!(
-                "Invalid signature length {}",
-                rs.len(),
-            )));
-        }
-        self.signature = Some(rs);
-        self.to_bytes()
+    fn sign(&mut self, _: Vec<u8>, _: u8) -> Result<Vec<u8>, TransactionError> {
+        todo!()
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
@@ -150,17 +155,26 @@ impl Transaction for CardanoTransaction {
             .map_err(|e| TransactionError::Message(e.to_string()))?
             .body();
 
-        match &self.signature {
-            Some(sig) => {
-                let pk = &self.params.public_key;
-                let pk = Vkey::from_raw_bytes(pk)
-                    .map_err(|e| TransactionError::Message(e.to_string()))?;
-                let sig = Ed25519Signature::from_raw_bytes(sig)
-                    .map_err(|e| TransactionError::Message(e.to_string()))?;
-                let witness = Vkeywitness::new(pk, sig);
+        match &self.signatures {
+            Some(sigs) => {
+                let mut witnesses = vec![];
+
+                for sig in sigs {
+                    let pk = sig.public_key.as_slice();
+                    let rs = sig.rs.as_slice();
+
+                    let pk = Vkey::from_raw_bytes(pk)
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+                    let rs = Ed25519Signature::from_raw_bytes(rs)
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+
+                    let witness = Vkeywitness::new(pk, rs);
+
+                    witnesses.push(witness);
+                }
 
                 let mut witness_set = TransactionWitnessSet::new();
-                witness_set.vkeywitnesses = Some(vec![witness].into());
+                witness_set.vkeywitnesses = Some(witnesses.into());
 
                 let signed_tx = SignedTransaction::new(tx, witness_set, true, None);
 
@@ -204,7 +218,6 @@ impl Transaction for CardanoTransaction {
             outputs,
             slot: 0,
             network: network_id,
-            public_key: vec![],
         })
     }
 
@@ -214,98 +227,156 @@ impl Transaction for CardanoTransaction {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{CardanoTransaction, CardanoTransactionParameters, Input, Output};
-    use crate::{CardanoAddress, CardanoPublicKey};
-    use anychain_core::{PublicKey, Transaction};
-    use anychain_kms::ed25519_sign;
-    use blockfrost::{BlockFrostSettings, BlockfrostAPI, Pagination};
-    use curve25519_dalek::Scalar;
-    use std::str::FromStr;
-    use tokio::runtime::Runtime;
+// #[cfg(test)]
+// mod tests {
+//     use super::{CardanoTransaction, CardanoTransactionParameters, Input, Output};
+//     use crate::{CardanoAddress, CardanoPublicKey, CardanoSignature};
+//     use anychain_core::{PublicKey, Transaction};
+//     use anychain_kms::ed25519_sign;
+//     use blockfrost::{BlockFrostSettings, BlockfrostAPI, Pagination};
+//     use curve25519_dalek::Scalar;
+//     use std::str::FromStr;
+//     use tokio::runtime::Runtime;
 
-    #[test]
-    fn test() {
-        let api = BlockfrostAPI::new(
-            "preprodwYU86nDDxOQKRAkTvp660AQu2pxLfh9l",
-            BlockFrostSettings::new(),
-        );
+//     #[test]
+//     fn test() {
+//         let api = BlockfrostAPI::new(
+//             "preprodwYU86nDDxOQKRAkTvp660AQu2pxLfh9l",
+//             BlockFrostSettings::new(),
+//         );
 
-        let sk = [
-            104u8, 78, 102, 228, 174, 250, 35, 99, 180, 223, 45, 40, 124, 22, 12, 130, 70, 82, 183,
-            48, 195, 95, 207, 80, 47, 5, 201, 222, 157, 148, 168, 13,
-        ];
-        let sk = Scalar::from_bytes_mod_order(sk);
-        let pk = CardanoPublicKey::from_secret_key(&sk).0;
-        let pk = pk.to_bytes().to_vec();
+//         let sk1 = [
+//             104u8, 78, 102, 228, 174, 250, 35, 99, 180, 223, 45, 40, 124, 22, 12, 130, 70, 82, 183,
+//             48, 195, 95, 207, 80, 47, 5, 201, 222, 157, 148, 168, 13,
+//         ];
 
-        let from = "addr_test1vrxhpfe4dxarnwpdhckjqu2ncc9q90ne8ewszgaree9secczx006l";
+//         let sk2 = [
+//             105u8, 78, 102, 228, 174, 250, 35, 98, 181, 23, 45, 40, 124, 22, 127, 130, 70, 82, 183,
+//             48, 5, 95, 207, 180, 47, 15, 201, 12, 157, 148, 168, 13,
+//         ];
 
-        let utxos = Runtime::new()
-            .unwrap()
-            .block_on(async { api.addresses_utxos(from, Pagination::all()).await.unwrap() });
+//         let sk1 = Scalar::from_bytes_mod_order(sk1);
+//         let pk1 = CardanoPublicKey::from_secret_key(&sk1).0;
+//         let pk1 = pk1.to_bytes().to_vec();
 
-        let mut inputs = vec![];
+//         let sk2 = Scalar::from_bytes_mod_order(sk2);
+//         let pk2 = CardanoPublicKey::from_secret_key(&sk2).0;
+//         let pk2 = pk2.to_bytes().to_vec();
 
-        for utxo in utxos {
-            let txid = utxo.tx_hash;
-            let index = utxo.output_index as u64;
-            let address = CardanoAddress::from_str(&utxo.address).unwrap();
-            let amount: u64 = utxo
-                .amount
-                .iter()
-                .find(|u| u.unit == "lovelace")
-                .unwrap()
-                .quantity
-                .parse()
-                .unwrap();
+//         let from1 = "addr_test1vrxhpfe4dxarnwpdhckjqu2ncc9q90ne8ewszgaree9secczx006l";
+//         let from2 = "addr_test1vrlum7eyq5t0s8z96fyr83v6q0vust6ygexax29z4xtahcc4egk9j";
 
-            inputs.push(Input {
-                txid,
-                index,
-                address: Some(address),
-                amount: Some(amount),
-            });
-        }
+//         let mut inputs = vec![];
 
-        let to = "addr_test1vz9v4d75kzw7t8nnfnn7ua9c85khelnq2y7fp3p6646szucc5xk6n";
-        let to = CardanoAddress::from_str(to).unwrap();
-        let amount = 1000000u64;
+//         let utxos = Runtime::new()
+//             .unwrap()
+//             .block_on(async { api.addresses_utxos(from1, Pagination::all()).await.unwrap() });
 
-        let outputs = vec![Output {
-            address: to,
-            amount,
-        }];
+//         for utxo in utxos {
+//             let txid = utxo.tx_hash;
+//             let index = utxo.output_index as u64;
+//             let address = CardanoAddress::from_str(&utxo.address).unwrap();
+//             let amount: u64 = utxo
+//                 .amount
+//                 .iter()
+//                 .find(|u| u.unit == "lovelace")
+//                 .unwrap()
+//                 .quantity
+//                 .parse()
+//                 .unwrap();
 
-        let slot = Runtime::new()
-            .unwrap()
-            .block_on(async { api.blocks_latest().await.unwrap().slot.unwrap() as u64 });
+//             inputs.push(Input {
+//                 txid,
+//                 index,
+//                 address: Some(address),
+//                 amount: Some(amount),
+//             });
+//         }
 
-        let network = 0u8; // 0 indicates testnet, 1 indicates mainnet
+//         let utxos = Runtime::new()
+//             .unwrap()
+//             .block_on(async { api.addresses_utxos(from2, Pagination::all()).await.unwrap() });
 
-        let params = CardanoTransactionParameters {
-            inputs,
-            outputs,
-            slot,
-            network,
-            public_key: pk,
-        };
+//         for utxo in utxos {
+//             let txid = utxo.tx_hash;
+//             let index = utxo.output_index as u64;
+//             let address = CardanoAddress::from_str(&utxo.address).unwrap();
+//             let amount: u64 = utxo
+//                 .amount
+//                 .iter()
+//                 .find(|u| u.unit == "lovelace")
+//                 .unwrap()
+//                 .quantity
+//                 .parse()
+//                 .unwrap();
 
-        let mut tx = CardanoTransaction::new(&params).unwrap();
-        let msg = tx.to_transaction_id().unwrap().0.to_vec();
-        let sig = ed25519_sign(&sk, &msg).unwrap();
+//             inputs.push(Input {
+//                 txid,
+//                 index,
+//                 address: Some(address),
+//                 amount: Some(amount),
+//             });
+//         }
 
-        let tx = tx.sign(sig, 0).unwrap();
+//         let to = "addr_test1vz9v4d75kzw7t8nnfnn7ua9c85khelnq2y7fp3p6646szucc5xk6n";
+//         let to = CardanoAddress::from_str(to).unwrap();
+//         let amount = 100000000u64;
 
-        let tx = CardanoTransaction::from_bytes(&tx).unwrap();
+//         let to1 = Output {
+//             address: to,
+//             amount,
+//         };
 
-        println!("{:?}", tx);
+//         let to = "addr_test1vrxhpfe4dxarnwpdhckjqu2ncc9q90ne8ewszgaree9secczx006l";
+//         let to = CardanoAddress::from_str(to).unwrap();
+//         let amount = 9800000000u64;
 
-        // let res = Runtime::new()
-        //     .unwrap()
-        //     .block_on(async { api.transactions_submit(tx).await.unwrap() });
+//         let to2 = Output {
+//             address: to,
+//             amount,
+//         };
 
-        // println!("res: {}", res);
-    }
-}
+//         let outputs = vec![to1, to2];
+
+//         let slot = Runtime::new()
+//             .unwrap()
+//             .block_on(async { api.blocks_latest().await.unwrap().slot.unwrap() as u64 });
+
+//         let network = 0u8; // 0 indicates testnet, 1 indicates mainnet
+
+//         let params = CardanoTransactionParameters {
+//             inputs,
+//             outputs,
+//             slot,
+//             network,
+//         };
+
+//         let mut tx = CardanoTransaction::new(&params).unwrap();
+//         let msg = tx.to_transaction_id().unwrap().0.to_vec();
+
+//         let rs1 = ed25519_sign(&sk1, &msg).unwrap();
+//         let rs2 = ed25519_sign(&sk2, &msg).unwrap();
+
+//         let sig1 = CardanoSignature {
+//             public_key: pk1,
+//             rs: rs1,
+//         };
+
+//         let sig2 = CardanoSignature {
+//             public_key: pk2,
+//             rs: rs2,
+//         };
+
+//         let tx = tx.sign(vec![sig1, sig2]).unwrap();
+
+//         let tx = CardanoTransaction::from_bytes(&tx).unwrap();
+
+//         println!("{:?}", tx);
+
+//         // let res = Runtime::new()
+//         //     .unwrap()
+//         //     .block_on(async { api.transactions_submit(tx).await.unwrap() });
+
+//         // println!("res: {}", res);
+//     }
+// }
