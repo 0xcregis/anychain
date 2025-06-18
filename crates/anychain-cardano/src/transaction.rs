@@ -159,7 +159,7 @@ impl Transaction for CardanoTransaction {
             Some(sigs) => {
                 let mut witness_set = TransactionWitnessSet::new();
                 let mut witnesses = vec![];
-                
+
                 for sig in sigs {
                     let pk = sig.public_key.as_slice();
                     let rs = sig.rs.as_slice();
@@ -173,13 +173,9 @@ impl Transaction for CardanoTransaction {
                 }
 
                 witness_set.vkeywitnesses = Some(witnesses.into());
-                
-                let signed_tx = SignedTransaction::new(
-                    tx,
-                    witness_set,
-                    true,
-                    None
-                ).to_canonical_cbor_bytes();
+
+                let signed_tx =
+                    SignedTransaction::new(tx, witness_set, true, None).to_canonical_cbor_bytes();
 
                 Ok(signed_tx)
             }
