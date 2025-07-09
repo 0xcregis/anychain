@@ -1,7 +1,7 @@
 [package]
 name = "anychain-ripple"
 description = "A Rust library for interacting with the Ripple blockchain. It provides core functionalities such as transaction signing and serialization, address generation, and network communication."
-version = "0.1.11"
+version = "0.1.12"
 keywords = ["ripple", "blockchain", "wallet", "transactions"]
 categories = ["cryptography::cryptocurrencies"]
 
@@ -15,7 +15,7 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.1.7" }
+anychain-core = { path = "../anychain-core", version = "0.1.8" }
 base58 = { workspace = true }
 libsecp256k1 = { workspace = true }
 

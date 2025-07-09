@@ -10,7 +10,7 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.1.4" }
+anychain-core = { path = "../anychain-core", version = "0.1.8" }
 p256 = { workspace  = true }
 base58 = { workspace = true }
 base64 = { workspace = true }
