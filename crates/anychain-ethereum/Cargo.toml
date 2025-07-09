@@ -25,3 +25,6 @@ ethereum-types = { workspace = true }
 [features]
 default = ["std"]
 std = ["anychain-core/std"]
+
+[lints]
+workspace = true

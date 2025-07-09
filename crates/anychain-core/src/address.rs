@@ -74,13 +74,13 @@ pub enum AddressError {
 
 impl From<crate::no_std::io::Error> for AddressError {
     fn from(error: crate::no_std::io::Error) -> Self {
-        AddressError::Crate("crate::no_std::io", format!("{:?}", error))
+        AddressError::Crate("crate::no_std::io", format!("{error:?}"))
     }
 }
 
 impl From<crate::no_std::FromUtf8Error> for AddressError {
     fn from(error: crate::no_std::FromUtf8Error) -> Self {
-        AddressError::Crate("crate::no_std", format!("{:?}", error))
+        AddressError::Crate("crate::no_std", format!("{error:?}"))
     }
 }
 
@@ -98,30 +98,30 @@ impl From<PublicKeyError> for AddressError {
 
 impl From<base58::FromBase58Error> for AddressError {
     fn from(error: base58::FromBase58Error) -> Self {
-        AddressError::Crate("base58", format!("{:?}", error))
+        AddressError::Crate("base58", format!("{error:?}"))
     }
 }
 
 impl From<bech32::Error> for AddressError {
     fn from(error: bech32::Error) -> Self {
-        AddressError::Crate("bech32", format!("{:?}", error))
+        AddressError::Crate("bech32", format!("{error:?}"))
     }
 }
 
 impl From<core::str::Utf8Error> for AddressError {
     fn from(error: core::str::Utf8Error) -> Self {
-        AddressError::Crate("core::str", format!("{:?}", error))
+        AddressError::Crate("core::str", format!("{error:?}"))
     }
 }
 
 impl From<hex::FromHexError> for AddressError {
     fn from(error: hex::FromHexError) -> Self {
-        AddressError::Crate("hex", format!("{:?}", error))
+        AddressError::Crate("hex", format!("{error:?}"))
     }
 }
 
 impl From<rand_core::Error> for AddressError {
     fn from(error: rand_core::Error) -> Self {
-        AddressError::Crate("rand", format!("{:?}", error))
+        AddressError::Crate("rand", format!("{error:?}"))
     }
 }

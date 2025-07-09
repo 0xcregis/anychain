@@ -38,3 +38,6 @@ tokio = { version = "1.0", features = ["full"] }
 [features]
 default = ["std"]
 std = ["anychain-core/std"]
+
+[lints]
+workspace = true

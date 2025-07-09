@@ -11,3 +11,6 @@ anychain-bitcoin = { path = "../../crates/anychain-bitcoin" }
 clap = { workspace = true }
 serde_json = { workspace = true }
 libsecp256k1 = { workspace = true }
+
+[lints]
+workspace = true

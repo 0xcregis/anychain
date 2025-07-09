@@ -49,3 +49,6 @@ japanese = []
 korean = []
 spanish = []
 default = ["std", "chinese-simplified", "chinese-traditional", "french", "italian", "japanese", "korean", "spanish"]
+
+[lints]
+workspace = true
