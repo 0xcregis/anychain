@@ -1,7 +1,7 @@
 [package]
 name = "anychain-cardano"
 description = "A Rust library for Cardano-focused cryptocurrency wallets, enabling seamless transactions on the Solana blockchain"
-version = "0.1.3"
+version = "0.1.4"
 keywords = ["cardano", "ada", "blockchain", "wallet", "transactions"]
 categories = ["cryptography::cryptocurrencies"]
 
@@ -17,7 +17,7 @@ name = "transfer-ada"
 path = "examples/transfer-ada.rs"
 
 [dependencies]
-anychain-core = { path = "../anychain-core", version = "0.1.7" }
+anychain-core = { path = "../anychain-core", version = "0.1.8" }
 anychain-kms = { path = "../anychain-kms", version = "0.1.17" }
 serde = { workspace = true }
 ed25519-dalek = { workspace = true }
