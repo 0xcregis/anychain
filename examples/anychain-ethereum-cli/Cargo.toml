@@ -12,3 +12,6 @@ clap = { workspace = true }
 rlp = { workspace = true }
 primitive-types = { workspace = true }
 libsecp256k1 = { workspace = true }
+
+[lints]
+workspace = true

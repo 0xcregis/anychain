@@ -46,25 +46,25 @@ pub enum PublicKeyError {
 
 impl From<crate::no_std::io::Error> for PublicKeyError {
     fn from(error: crate::no_std::io::Error) -> Self {
-        PublicKeyError::Crate("crate::no_std::io", format!("{:?}", error))
+        PublicKeyError::Crate("crate::no_std::io", format!("{error:?}"))
     }
 }
 
 impl From<base58::FromBase58Error> for PublicKeyError {
     fn from(error: base58::FromBase58Error) -> Self {
-        PublicKeyError::Crate("base58", format!("{:?}", error))
+        PublicKeyError::Crate("base58", format!("{error:?}"))
     }
 }
 
 impl From<bech32::Error> for PublicKeyError {
     fn from(error: bech32::Error) -> Self {
-        PublicKeyError::Crate("bech32", format!("{:?}", error))
+        PublicKeyError::Crate("bech32", format!("{error:?}"))
     }
 }
 
 impl From<hex::FromHexError> for PublicKeyError {
     fn from(error: hex::FromHexError) -> Self {
-        PublicKeyError::Crate("hex", format!("{:?}", error))
+        PublicKeyError::Crate("hex", format!("{error:?}"))
     }
 }
 

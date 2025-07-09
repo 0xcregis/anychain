@@ -162,5 +162,5 @@ pub fn to_basic_unit_u64(value: &str, mut denomination: u64) -> String {
 #[test]
 fn test() {
     let s = to_basic_unit("0.0001037910", 7);
-    println!("s = {}", s);
+    println!("s = {s}");
 }

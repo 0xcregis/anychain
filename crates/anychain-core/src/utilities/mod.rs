@@ -6,7 +6,7 @@ pub mod crypto;
 pub fn to_hex_string(bytes: &[u8]) -> String {
     bytes
         .iter()
-        .map(|b| format!("{:02X}", b))
+        .map(|b| format!("{b:02X}"))
         .collect::<Vec<String>>()
         .join("")
 }

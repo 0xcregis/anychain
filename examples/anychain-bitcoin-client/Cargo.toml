@@ -9,3 +9,7 @@ edition = "2021"
 anychain-core = { path = "../../crates/anychain-core" }
 anychain-bitcoin = { path = "../../crates/anychain-bitcoin" }
 libsecp256k1 = { workspace = true }
+
+
+[lints]
+workspace = true

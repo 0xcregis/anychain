@@ -156,7 +156,7 @@ pub enum TransactionError {
 
 impl From<crate::no_std::io::Error> for TransactionError {
     fn from(error: crate::no_std::io::Error) -> Self {
-        TransactionError::Crate("crate::no_std::io", format!("{:?}", error))
+        TransactionError::Crate("crate::no_std::io", format!("{error:?}"))
     }
 }
 
@@ -174,31 +174,31 @@ impl From<()> for TransactionError {
 
 impl From<base58::FromBase58Error> for TransactionError {
     fn from(error: base58::FromBase58Error) -> Self {
-        TransactionError::Crate("base58", format!("{:?}", error))
+        TransactionError::Crate("base58", format!("{error:?}"))
     }
 }
 
 impl From<bech32::Error> for TransactionError {
     fn from(error: bech32::Error) -> Self {
-        TransactionError::Crate("bech32", format!("{:?}", error))
+        TransactionError::Crate("bech32", format!("{error:?}"))
     }
 }
 
 impl From<core::num::ParseIntError> for TransactionError {
     fn from(error: core::num::ParseIntError) -> Self {
-        TransactionError::Crate("core::num", format!("{:?}", error))
+        TransactionError::Crate("core::num", format!("{error:?}"))
     }
 }
 
 impl From<core::str::ParseBoolError> for TransactionError {
     fn from(error: core::str::ParseBoolError) -> Self {
-        TransactionError::Crate("core::str", format!("{:?}", error))
+        TransactionError::Crate("core::str", format!("{error:?}"))
     }
 }
 
 impl From<hex::FromHexError> for TransactionError {
     fn from(error: hex::FromHexError) -> Self {
-        TransactionError::Crate("hex", format!("{:?}", error))
+        TransactionError::Crate("hex", format!("{error:?}"))
     }
 }
 
@@ -216,7 +216,7 @@ impl From<hex::FromHexError> for TransactionError {
 
 impl From<serde_json::error::Error> for TransactionError {
     fn from(error: serde_json::error::Error) -> Self {
-        TransactionError::Crate("serde_json", format!("{:?}", error))
+        TransactionError::Crate("serde_json", format!("{error:?}"))
     }
 }
 
