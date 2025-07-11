@@ -21,6 +21,10 @@ serde_json = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
 ethereum-types = { workspace = true }
+alloy = "1.0.20"
+
+[dev-dependencies]
+anychain-kms = { path = "../anychain-kms" }
 
 [features]
 default = ["std"]
