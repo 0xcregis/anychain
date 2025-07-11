@@ -792,8 +792,3 @@ impl<N: EthereumNetwork> fmt::Display for Eip7702Transaction<N> {
         )
     }
 }
-
-#[test]
-fn test() {
-    println!("haha");
-}
