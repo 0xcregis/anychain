@@ -1,13 +1,18 @@
 use crate::util::{adapt2, pad_zeros, restore_sender, trim_leading_zeros};
 use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey};
+use alloy::primitives::Keccak256;
 use anychain_core::{
-    hex, utilities::crypto::keccak256, Transaction, TransactionError, TransactionId,
+    hex, utilities::crypto::keccak256, Transaction, TransactionError, TransactionId, PublicKey,
 };
 use core::{fmt, marker::PhantomData, str::FromStr};
 use ethabi::{ethereum_types::H160, Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::U256;
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use serde_json::{json, Value};
+
+use anychain_kms::bip39::{Mnemonic, Language, Seed};
+use anychain_kms::bip32::{XprvSecp256k1, Prefix, XpubSecp256k1, DerivationPath};
+use anychain_kms::secp256k1_sign;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransactionParameters {
@@ -533,14 +538,36 @@ pub fn decode_transfer(data: Vec<u8>) -> Result<Value, TransactionError> {
 
 
 
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Authorization {
     pub chain_id: u32,
     pub address: EthereumAddress,
-    pub contract_address: Option<EthereumAddress>,
+    pub nonce: U256,
     pub y_parity: bool,
     pub r: Vec<u8>,
     pub s: Vec<u8>,
+}
+
+impl Authorization {
+    pub fn digest(&self) -> Vec<u8> {
+        let mut rlp = RlpStream::new();
+        rlp.begin_list(3);
+        rlp.append(&self.chain_id);
+        rlp.append(&self.address.to_bytes().unwrap());
+        rlp.append(&self.nonce);
+
+        let mut hasher = Keccak256::new();
+        hasher.update([5u8]);
+        hasher.update(rlp.out().as_ref());
+        hasher.finalize().to_vec()
+    }
+
+    pub fn sign(&mut self, sig: (Vec<u8>, u8)) {
+        self.y_parity = sig.1 == 1;
+        self.r = sig.0[..32].to_vec();
+        self.s = sig.0[32..].to_vec();
+    }
 }
 
 impl Encodable for Authorization {
@@ -548,10 +575,7 @@ impl Encodable for Authorization {
         s.begin_list(6);
         s.append(&self.chain_id);
         s.append(&self.address.to_bytes().unwrap());
-        match &self.contract_address {
-            Some(address) => s.append(&address.to_bytes().unwrap()),
-            None => s.append(&""),
-        };
+        s.append(&self.nonce);
         s.append(&self.y_parity);
         s.append(&trim_leading_zeros(&self.r));
         s.append(&trim_leading_zeros(&self.s));
@@ -560,21 +584,17 @@ impl Encodable for Authorization {
 
 impl Decodable for Authorization {
     fn decode(rlp: &rlp::Rlp) -> Result<Self, DecoderError> {
-        let chain_id = rlp.val_at(0)?;
-        let address = hex::encode(rlp.val_at::<Vec<u8>>(1)?);
+        let chain_id = rlp.val_at::<u32>(0)?;
+        let address = rlp.val_at::<Vec<u8>>(1)?;
+        let address = hex::encode(address);
         let address = EthereumAddress::from_str(&address).unwrap();
-        let contract_bytes = rlp.val_at::<Vec<u8>>(2)?;
-        let contract_address = if contract_bytes.is_empty() {
-            None
-        } else {
-            Some(EthereumAddress::from_str(&hex::encode(contract_bytes)).unwrap())
-        };
+        let nonce = rlp.val_at::<U256>(2)?;
         let y_parity = rlp.val_at(3)?;
         let mut r = rlp.val_at(4)?;
         let mut s = rlp.val_at(5)?;
         pad_zeros(&mut r, 32);
         pad_zeros(&mut s, 32);
-        Ok(Self { chain_id, address, contract_address, y_parity, r, s })
+        Ok(Self { chain_id, address, nonce, y_parity, r, s })
     }
 }
 
@@ -790,5 +810,171 @@ impl<N: EthereumNetwork> fmt::Display for Eip7702Transaction<N> {
                 _ => return Err(fmt::Error),
             })
         )
+    }
+}
+
+pub fn encode_call(func_name: &str) -> Vec<u8> {
+    #[allow(deprecated)]
+    let func = Function {
+        name: func_name.to_string(),
+        inputs: vec![],
+        outputs: vec![],
+        constant: None,
+        state_mutability: StateMutability::Payable,
+    };
+
+    let tokens = vec![];
+
+    func.encode_input(&tokens).unwrap()
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::Sepolia;
+    use super::*;
+
+    pub fn parse_mnemonic(phrase: String) -> Value {
+        if let Some(lang) = Language::from_phrase(&phrase) {
+            Mnemonic::validate(&phrase, lang).unwrap();
+            let phrase = Mnemonic::from_phrase(&phrase, lang).unwrap();
+            let seed = Seed::new(&phrase, "");
+            let seed = seed.as_bytes();
+            let xprv = XprvSecp256k1::new(seed).unwrap();
+            let xpub = xprv.public_key().to_string(Prefix::XPUB);
+            let xprv = xprv.to_string(Prefix::XPRV).to_string();
+            let data = json!({
+                "xprv": xprv,
+                "xpub": xpub,
+            });
+            data
+        } else {
+            Value::Null
+        }
+    }
+
+    pub fn create_sk(
+        xprv: String,
+        index: u32,
+    ) -> libsecp256k1::SecretKey{
+        let path = format!("m/44/60/0/{}", index);
+
+        let xprv = XprvSecp256k1::from_str(&xprv).unwrap();
+        let derive_path = DerivationPath::from_str(&path).unwrap();
+        let sk = xprv.derive_from_path(&derive_path).unwrap();
+        let sk = sk.private_key();
+
+        *sk
+    }
+
+    pub fn create_address(
+        xpub: String,
+        index: u32,
+    ) -> EthereumAddress {
+        let path = format!("m/44/60/0/{}", index);
+
+        let xpub = XpubSecp256k1::from_str(&xpub).unwrap();
+        let derive_path = DerivationPath::from_str(&path).unwrap();
+        let pubkey = *xpub.derive_from_path(&derive_path).unwrap().public_key();
+        
+        let address = EthereumPublicKey::from_secp256k1_public_key(pubkey)
+            .to_address(&EthereumFormat::Standard).unwrap();
+
+        address
+    }
+
+    #[test]
+    fn test() {
+        let phrase = "armor moon bonus rhythm add raccoon truly noodle admit lesson filter bitter lend exotic long".to_string();
+        let wallet = parse_mnemonic(phrase);
+        
+        let xprv = wallet["xprv"].as_str().unwrap().to_string();
+        let xpub = wallet["xpub"].as_str().unwrap().to_string();
+
+        let contract = EthereumAddress::from_str("0x7A92E41604F97b25453d168E95BDf39aA96Fcfa8").unwrap();
+        let s = EthereumAddress::from_str("0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B").unwrap();
+
+        let mut auth_list = vec![];
+
+        for i in 0..3 {
+            let sk = create_sk(xprv.clone(), i);
+            let address = create_address(xpub.clone(), i);
+
+            println!("address = {}", address);
+
+            let nonce = if i == 0 { U256::from(11) } else { U256::from(4) };
+
+            let mut auth = Authorization {
+                chain_id: Sepolia::CHAIN_ID,
+                address: contract.clone(),
+                nonce,
+                y_parity: false,
+                r: vec![0; 32],
+                s: vec![0; 32],
+            };
+
+            auth.sign(secp256k1_sign(&sk, &auth.digest()).unwrap());
+            auth_list.push((sk, address, auth));
+        };
+
+        let params = Eip7702TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce: U256::from(10),
+            max_priority_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            max_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            gas_limit: U256::from(210000),
+            to: s,
+            amount: U256::from(0),
+            data: encode_call("increment"),
+            access_list: vec![],
+            authorizations: auth_list.iter().map(|(_, _, auth)| auth.clone()).collect(),
+        };
+
+        let mut tx = Eip7702Transaction::<Sepolia>::new(&params).unwrap();
+
+        let msg = tx.to_transaction_id().unwrap().txid;
+
+        let (sig, recid) = secp256k1_sign(&auth_list[0].0, &msg).unwrap();
+        let tx = tx.sign(sig, recid).unwrap();
+
+        let tx = hex::encode(tx);
+
+        println!("Transaction: {}", tx);
+    }
+
+    #[test]
+    fn test1() {
+        let phrase = "armor moon bonus rhythm add raccoon truly noodle admit lesson filter bitter lend exotic long".to_string();
+        let wallet = parse_mnemonic(phrase);
+        
+        let xprv = wallet["xprv"].as_str().unwrap().to_string();
+        let xpub = wallet["xpub"].as_str().unwrap().to_string();
+
+        let data = encode_call("increment");
+
+        let sk = create_sk(xprv, 0);
+
+        let params = Eip1559TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce: U256::from(8),
+            max_priority_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            max_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            gas_limit: U256::from(210000),
+            to: EthereumAddress::from_str("0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B").unwrap(),
+            amount: U256::from(0),
+            data,
+            access_list: vec![],
+        };
+
+        let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
+
+        let msg = tx.to_transaction_id().unwrap().txid;
+
+        let (sig, recid) = secp256k1_sign(&sk, &msg).unwrap();
+        let tx = tx.sign(sig, recid).unwrap();
+
+        let tx = hex::encode(tx);
+
+        println!("Transaction: {}", tx);
     }
 }
