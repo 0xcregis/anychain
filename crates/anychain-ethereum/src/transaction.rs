@@ -820,21 +820,6 @@ impl<N: EthereumNetwork> fmt::Display for Eip7702Transaction<N> {
     }
 }
 
-pub fn encode_call(func_name: &str) -> Vec<u8> {
-    #[allow(deprecated)]
-    let func = Function {
-        name: func_name.to_string(),
-        inputs: vec![],
-        outputs: vec![],
-        constant: None,
-        state_mutability: StateMutability::Payable,
-    };
-
-    let tokens = vec![];
-
-    func.encode_input(&tokens).unwrap()
-}
-
 pub struct Transfer {
     pub token: Option<EthereumAddress>,
     pub to: EthereumAddress,
