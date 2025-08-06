@@ -21,6 +21,9 @@ pub use self::polygon::*;
 pub mod mumbai;
 pub use self::mumbai::*;
 
+pub mod amoy;
+pub use self::amoy::*;
+
 pub mod avalanche;
 pub use self::avalanche::*;
 
