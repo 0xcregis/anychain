@@ -966,25 +966,15 @@ impl One2ManyTransfer {
     }
 
     pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
-        // let sk = create_sk(self.xprv.clone(), self.path.clone());
-        // encode_one_2_many_transfers("execute", &self.transfers, &sk)
-        encode_test("test")
+        let sk = create_sk(self.xprv.clone(), self.path.clone());
+        encode_one_2_many_transfers("execute", &self.transfers, &sk)
     }
 
     pub fn to_token(&self) -> Token {
-        let sk = create_sk(self.xprv.clone(), self.path.clone());
-        
         let address = create_address(self.xprv.clone(), self.path.clone());
-        // let address = EthereumAddress::from_str(&self.contract).unwrap();
-        
         let to = Token::Address(H160::from_slice(&address.to_bytes().unwrap()));
         let amount = Token::Uint(U256::zero());
-        
-        let data = Token::Bytes(
-            encode_one_2_many_transfers("execute", &self.transfers, &sk).unwrap()
-        );
-        // let data = Token::Bytes(encode_test("test").unwrap());
-        
+        let data = Token::Bytes(self.data().unwrap());
         Token::Tuple(vec![to, amount, data])
     }
 }
@@ -1080,24 +1070,6 @@ pub fn encode_one_2_many_transfers(
     let s = Token::FixedBytes(s);
 
     let tokens = vec![calls, v, r, s];
-
-    func.encode_input(&tokens)
-        .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
-}
-
-pub fn encode_test(
-    func_name: &str,
-) -> Result<Vec<u8>, TransactionError> {
-    #[allow(deprecated)]
-    let func = Function {
-        name: func_name.to_string(),
-        inputs: vec![],
-        outputs: vec![],
-        constant: None,
-        state_mutability: StateMutability::Payable,
-    };
-
-    let tokens = vec![];
 
     func.encode_input(&tokens)
         .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
