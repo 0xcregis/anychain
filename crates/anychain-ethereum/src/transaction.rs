@@ -1,6 +1,5 @@
 use crate::util::{adapt2, pad_zeros, restore_sender, trim_leading_zeros};
 use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey, Sepolia};
-use anychain_core::address;
 use anychain_core::{
     hex, utilities::crypto::keccak256, PublicKey, Transaction, TransactionError, TransactionId,
 };
