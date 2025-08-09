@@ -877,10 +877,6 @@ impl Many2ManyTransfer {
         }
     }
 
-    pub fn add_transfer(&mut self, transfer: One2ManyTransfer) {
-        self.transfers.push(transfer);
-    }
-
     pub fn to_tx(&self) -> Result<Vec<u8>, TransactionError> {
         let params = Eip7702TransactionParameters {
             chain_id: Sepolia::CHAIN_ID,
@@ -935,10 +931,6 @@ impl One2ManyTransfer {
             contract,
             transfers,
         }
-    }
-
-    pub fn add_transfer(&mut self, transfer: One2OneTransfer) {
-        self.transfers.push(transfer);
     }
 
     pub fn authorization(&self) -> Result<Authorization, TransactionError> {
