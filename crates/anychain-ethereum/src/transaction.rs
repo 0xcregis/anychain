@@ -1,5 +1,6 @@
 use crate::util::{adapt2, pad_zeros, restore_sender, trim_leading_zeros};
-use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey};
+use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey, Sepolia};
+use anychain_core::address;
 use anychain_core::{
     hex, utilities::crypto::keccak256, PublicKey, Transaction, TransactionError, TransactionId,
 };
@@ -9,7 +10,7 @@ use ethereum_types::U256;
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
 use serde_json::{json, Value};
 
-use anychain_kms::bip32::{DerivationPath, Prefix, XprvSecp256k1, XpubSecp256k1};
+use anychain_kms::bip32::{DerivationPath, Prefix, XprvSecp256k1};
 use anychain_kms::bip39::{Language, Mnemonic, Seed};
 use anychain_kms::secp256k1_sign;
 
@@ -817,17 +818,189 @@ impl<N: EthereumNetwork> fmt::Display for Eip7702Transaction<N> {
     }
 }
 
-pub struct Transfer {
+pub fn parse_mnemonic(phrase: String) -> Value {
+    if let Some(lang) = Language::from_phrase(&phrase) {
+        Mnemonic::validate(&phrase, lang).unwrap();
+        let phrase = Mnemonic::from_phrase(&phrase, lang).unwrap();
+        let seed = Seed::new(&phrase, "");
+        let seed = seed.as_bytes();
+        let xprv = XprvSecp256k1::new(seed).unwrap();
+        let xpub = xprv.public_key().to_string(Prefix::XPUB);
+        let xprv = xprv.to_string(Prefix::XPRV).to_string();
+        let data = json!({
+            "xprv": xprv,
+            "xpub": xpub,
+        });
+        data
+    } else {
+        Value::Null
+    }
+}
+
+pub fn create_sk(xprv: String, path: String) -> libsecp256k1::SecretKey {
+    let xprv = XprvSecp256k1::from_str(&xprv).unwrap();
+    let derive_path = DerivationPath::from_str(&path).unwrap();
+    let xprv = xprv.derive_from_path(&derive_path).unwrap();
+    let sk = xprv.private_key();
+    *sk
+}
+
+pub fn create_address(xprv: String, path: String) -> EthereumAddress {
+    let xprv = XprvSecp256k1::from_str(&xprv).unwrap();
+    let derive_path = DerivationPath::from_str(&path).unwrap();
+    let xprv = xprv.derive_from_path(&derive_path).unwrap();
+    let xpub = xprv.public_key();
+    let pk = *xpub.public_key();
+
+    let address = EthereumPublicKey::from_secp256k1_public_key(pk)
+        .to_address(&EthereumFormat::Standard)
+        .unwrap();
+
+    address
+}
+
+pub struct Many2ManyTransfer {
+    pub xprv: String,
+    pub path: String, // fee payer
+    pub nonce: u64, // fee payer nonce
+    pub contract: String, // caller contract address
+    pub transfers: Vec<One2ManyTransfer>,
+}
+
+impl Many2ManyTransfer {
+    pub fn new(xprv: String, path: String, nonce: u64, contract: String, transfers: Vec<One2ManyTransfer>) -> Self {
+        Self {
+            xprv,
+            path,
+            nonce,
+            contract,
+            transfers,
+        }
+    }
+
+    pub fn add_transfer(&mut self, transfer: One2ManyTransfer) {
+        self.transfers.push(transfer);
+    }
+
+    pub fn to_tx(&self) -> Result<Vec<u8>, TransactionError> {
+        let params = Eip7702TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce: U256::from(self.nonce),
+            max_priority_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            max_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            gas_limit: U256::from(2100000),
+            to: EthereumAddress::from_str(&self.contract).unwrap(),
+            amount: U256::zero(),
+            data: self.data()?,
+            access_list: vec![],
+            authorizations: self.authorizations()?,
+        };
+
+        let mut tx = Eip7702Transaction::<Sepolia>::new(&params)?;
+        let msg = tx.to_transaction_id()?.txid;
+
+        let sk = create_sk(self.xprv.clone(), self.path.clone());
+        let (rs, recid) = secp256k1_sign(&sk, &msg)
+            .map_err(|e| TransactionError::Message(format!("{}", e)))?;
+
+        tx.sign(rs, recid)
+    }
+
+    pub fn authorizations(&self) -> Result<Vec<Authorization>, TransactionError> {
+        self.transfers
+            .iter()
+            .map(|transfer| transfer.authorization())
+            .collect::<Result<Vec<Authorization>, TransactionError>>()
+            .map_err(|e| TransactionError::Message(format!("{}", e)))
+    }
+
+    pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
+        encode_many_2_many_transfers("execute", &self.transfers)
+    }
+}
+
+pub struct One2ManyTransfer {
+    pub xprv: String,
+    pub path: String, // from address path
+    pub nonce: u64, // from address nonce
+    pub contract: String, // batch transfer contract
+    pub transfers: Vec<One2OneTransfer>,
+}
+
+impl One2ManyTransfer {
+    pub fn new(xprv: String, path: String, nonce: u64, contract: String, transfers: Vec<One2OneTransfer>) -> Self {
+        Self {
+            xprv,
+            path,
+            nonce,
+            contract,
+            transfers,
+        }
+    }
+
+    pub fn add_transfer(&mut self, transfer: One2OneTransfer) {
+        self.transfers.push(transfer);
+    }
+
+    pub fn authorization(&self) -> Result<Authorization, TransactionError> {
+        let sk = create_sk(self.xprv.clone(), self.path.clone());
+        
+        let address = EthereumAddress::from_str(&self.contract)?;
+        let nonce = U256::from(self.nonce);
+        let chain_id = Sepolia::CHAIN_ID;
+
+        let mut auth = Authorization {
+            chain_id,
+            address,
+            nonce,
+            y_parity: false,
+            r: vec![],
+            s: vec![],
+        };
+
+        let msg = auth.digest();
+        let (rs, recid) = secp256k1_sign(&sk, &msg)
+            .map_err(|e| TransactionError::Message(format!("{}", e)))?;
+
+        auth.sign((rs, recid));
+        Ok(auth)
+    }
+
+    pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
+        // let sk = create_sk(self.xprv.clone(), self.path.clone());
+        // encode_one_2_many_transfers("execute", &self.transfers, &sk)
+        encode_test("test")
+    }
+
+    pub fn to_token(&self) -> Token {
+        let sk = create_sk(self.xprv.clone(), self.path.clone());
+        
+        let address = create_address(self.xprv.clone(), self.path.clone());
+        // let address = EthereumAddress::from_str(&self.contract).unwrap();
+        
+        let to = Token::Address(H160::from_slice(&address.to_bytes().unwrap()));
+        let amount = Token::Uint(U256::zero());
+        
+        let data = Token::Bytes(
+            encode_one_2_many_transfers("execute", &self.transfers, &sk).unwrap()
+        );
+        // let data = Token::Bytes(encode_test("test").unwrap());
+        
+        Token::Tuple(vec![to, amount, data])
+    }
+}
+
+pub struct One2OneTransfer {
     pub token: Option<EthereumAddress>,
     pub to: EthereumAddress,
     pub amount: U256,
 }
 
-impl Transfer {
-    pub fn new(token: Option<EthereumAddress>, to: EthereumAddress, amount: &str) -> Self {
+impl One2OneTransfer {
+    pub fn new(token: Option<String>, to: String, amount: &str) -> Self {
         Self {
-            token,
-            to,
+            token: token.map(|t| EthereumAddress::from_str(&t).unwrap()),
+            to: EthereumAddress::from_str(&to).unwrap(),
             amount: U256::from_dec_str(amount).unwrap(),
         }
     }
@@ -850,11 +1023,11 @@ impl Transfer {
     }
 }
 
-pub fn encode_transfers(
+pub fn encode_one_2_many_transfers(
     func_name: &str,
-    transfers: &[Transfer],
+    transfers: &[One2OneTransfer],
     sk: &libsecp256k1::SecretKey,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, TransactionError> {
     let param_calls = Param {
         name: "calls".to_string(),
         kind: ParamType::Array(Box::new(ParamType::Tuple(vec![
@@ -909,135 +1082,154 @@ pub fn encode_transfers(
 
     let tokens = vec![calls, v, r, s];
 
-    func.encode_input(&tokens).unwrap()
+    func.encode_input(&tokens)
+        .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::Sepolia;
+pub fn encode_test(
+    func_name: &str,
+) -> Result<Vec<u8>, TransactionError> {
+    #[allow(deprecated)]
+    let func = Function {
+        name: func_name.to_string(),
+        inputs: vec![],
+        outputs: vec![],
+        constant: None,
+        state_mutability: StateMutability::Payable,
+    };
 
-//     pub fn parse_mnemonic(phrase: String) -> Value {
-//         if let Some(lang) = Language::from_phrase(&phrase) {
-//             Mnemonic::validate(&phrase, lang).unwrap();
-//             let phrase = Mnemonic::from_phrase(&phrase, lang).unwrap();
-//             let seed = Seed::new(&phrase, "");
-//             let seed = seed.as_bytes();
-//             let xprv = XprvSecp256k1::new(seed).unwrap();
-//             let xpub = xprv.public_key().to_string(Prefix::XPUB);
-//             let xprv = xprv.to_string(Prefix::XPRV).to_string();
-//             let data = json!({
-//                 "xprv": xprv,
-//                 "xpub": xpub,
-//             });
-//             data
-//         } else {
-//             Value::Null
-//         }
-//     }
+    let tokens = vec![];
 
-//     pub fn create_sk(xprv: String, index: u32) -> libsecp256k1::SecretKey {
-//         let path = format!("m/44/60/0/{}", index);
+    func.encode_input(&tokens)
+        .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
+}
 
-//         let xprv = XprvSecp256k1::from_str(&xprv).unwrap();
-//         let derive_path = DerivationPath::from_str(&path).unwrap();
-//         let sk = xprv.derive_from_path(&derive_path).unwrap();
-//         let sk = sk.private_key();
+pub fn encode_many_2_many_transfers(
+    func_name: &str,
+    transfers: &[One2ManyTransfer],
+) -> Result<Vec<u8>, TransactionError> {
+    let param_calls = Param {
+        name: "calls".to_string(),
+        kind: ParamType::Array(Box::new(ParamType::Tuple(vec![
+            ParamType::Address,
+            ParamType::Uint(256),
+            ParamType::Bytes,
+        ]))),
+        internal_type: None,
+    };
 
-//         *sk
-//     }
+    #[allow(deprecated)]
+    let func = Function {
+        name: func_name.to_string(),
+        inputs: vec![param_calls],
+        outputs: vec![],
+        constant: None,
+        state_mutability: StateMutability::Payable,
+    };
 
-//     pub fn create_address(xpub: String, index: u32) -> EthereumAddress {
-//         let path = format!("m/44/60/0/{}", index);
+    let calls = Token::Array(
+        transfers
+            .iter()
+            .map(|t| t.to_token())
+            .collect::<Vec<Token>>(),
+    );
 
-//         let xpub = XpubSecp256k1::from_str(&xpub).unwrap();
-//         let derive_path = DerivationPath::from_str(&path).unwrap();
-//         let pubkey = *xpub.derive_from_path(&derive_path).unwrap().public_key();
+    let tokens = vec![calls];
 
-//         let address = EthereumPublicKey::from_secp256k1_public_key(pubkey)
-//             .to_address(&EthereumFormat::Standard)
-//             .unwrap();
+    func.encode_input(&tokens)
+        .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
+}
 
-//         address
-//     }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test() {
-//         let phrase = "armor moon bonus rhythm add raccoon truly noodle admit lesson filter bitter lend exotic long".to_string();
-//         let wallet = parse_mnemonic(phrase);
+    #[test]
+    fn test() {
+        let phrase = "armor moon bonus rhythm add raccoon truly noodle admit lesson filter bitter lend exotic long".to_string();
+        let wallet = parse_mnemonic(phrase);
 
-//         let xprv = wallet["xprv"].as_str().unwrap().to_string();
-//         let _xpub = wallet["xpub"].as_str().unwrap().to_string();
+        let xprv = wallet["xprv"].as_str().unwrap().to_string();
 
-//         let batch_contract =
-//             EthereumAddress::from_str("0x3EF380Be645F5519Cf13d533BD89fDC810Ff5bE8").unwrap();
-//         let usdc_contract =
-//             EthereumAddress::from_str("0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238").unwrap();
+        let delegate = "m/44/60/0/1".to_string();
+        let from1 = "m/44/60/0/0".to_string();
+        let from2 = "m/44/60/0/2".to_string();
+        let to1 = "m/44/60/0/3".to_string();
+        let to2 = "m/44/60/0/4".to_string();
+        let to3 = "m/44/60/0/5".to_string();
+        let to4 = "m/44/60/0/6".to_string();
 
-//         let _delegate =
-//             EthereumAddress::from_str("0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af").unwrap();
-//         let from = EthereumAddress::from_str("0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B").unwrap();
+        let _delegate = create_address(xprv.clone(), delegate.clone()).to_string();
+        let _from1 = create_address(xprv.clone(), from1.clone()).to_string();
+        let _from2 = create_address(xprv.clone(), from2.clone()).to_string();
+        let _to1 = create_address(xprv.clone(), to1.clone()).to_string();
+        let _to2 = create_address(xprv.clone(), to2.clone()).to_string();
+        let _to3 = create_address(xprv.clone(), to3.clone()).to_string();
+        let _to4 = create_address(xprv.clone(), to4.clone()).to_string();
 
-//         let to1 = EthereumAddress::from_str("0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E").unwrap();
-//         let to2 = EthereumAddress::from_str("0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C").unwrap();
+        println!("Delegate: {}", _delegate);
+        println!("From1: {}", _from1);
+        println!("From2: {}", _from2);
+        println!("To1: {}", _to1);
+        println!("To2: {}", _to2);
+        println!("To3: {}", _to3);
+        println!("To4: {}", _to4);
 
-//         let chain_id = Sepolia::CHAIN_ID;
-//         let nonce_from = 29;
-//         let nonce_delegate = 15;
+        let batch_contract = "0xDd3DD560cF6d4e935c70be889c1feD658F9baa73".to_string();
+        let caller_contract = "0xAd56A1f86aa0777c21bc13FFd829F4D6e6CebE00".to_string();
+        let usdc_contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
+        
+        let to1 = create_address(xprv.clone(), to1).to_string();
+        let to2 = create_address(xprv.clone(), to2).to_string();
+        let to3 = create_address(xprv.clone(), to3).to_string();
+        let to4 = create_address(xprv.clone(), to4).to_string();
 
-//         let max_priority_fee_per_gas = U256::from_dec_str("10000000000").unwrap();
-//         let max_fee_per_gas = U256::from_dec_str("10000000000").unwrap();
-//         let gas_limit = U256::from(210000);
+        // let transfer1 = One2OneTransfer::new(None, to1.clone(), "10000000000000000");
+        // let transfer2 = One2OneTransfer::new(None, to2.clone(), "10000000000000000");
+        // let transfer3 = One2OneTransfer::new(None, to3.clone(), "10000000000000000");
+        // let transfer4 = One2OneTransfer::new(None, to4.clone(), "10000000000000000");
 
-//         let transfers = vec![
-//             Transfer::new(Some(usdc_contract.clone()), to1, "1000000"),
-//             Transfer::new(Some(usdc_contract), to2, "1000000"),
-//         ];
+        let transfer1 = One2OneTransfer::new(Some(usdc_contract.clone()), to1, "1000000");
+        let transfer2 = One2OneTransfer::new(Some(usdc_contract.clone()), to2, "1000000");
+        let transfer3 = One2OneTransfer::new(Some(usdc_contract.clone()), to3, "1000000");
+        let transfer4 = One2OneTransfer::new(Some(usdc_contract.clone()), to4, "1000000");
 
-//         let sk_from = create_sk(xprv.clone(), 0);
-//         let sk_delegate = create_sk(xprv, 3);
+        let one2many1 = One2ManyTransfer::new(
+            xprv.clone(),
+            from1,
+            63,
+            batch_contract.clone(),
+            vec![transfer1, transfer2],
+        );
 
-//         let data = encode_transfers("execute", &transfers, &sk_from);
-//         // let data = encode_test("test");
+        let one2many2 = One2ManyTransfer::new(
+            xprv.clone(),
+            from2,
+            34,
+            batch_contract.clone(),
+            vec![transfer3, transfer4],
+        );
 
-//         let mut auth = Authorization {
-//             chain_id,
-//             address: batch_contract,
-//             nonce: U256::from(nonce_from),
-//             y_parity: false,
-//             r: vec![0; 32],
-//             s: vec![0; 32],
-//         };
+        let many2many = Many2ManyTransfer::new(
+            xprv,
+            delegate,
+            36,
+            caller_contract,
+            vec![one2many1, one2many2],
+        );
 
-//         auth.sign(secp256k1_sign(&sk_from, &auth.digest()).unwrap());
+        let tx = many2many.to_tx().unwrap();
 
-//         let params = Eip7702TransactionParameters {
-//             chain_id,
-//             nonce: U256::from(nonce_delegate),
-//             max_priority_fee_per_gas,
-//             max_fee_per_gas,
-//             gas_limit,
-//             to: from,
-//             amount: U256::from(0),
-//             data,
-//             access_list: vec![],
-//             authorizations: vec![auth],
-//         };
+        let tx = hex::encode(tx);
 
-//         let mut tx = Eip7702Transaction::<Sepolia>::new(&params).unwrap();
+        println!("Transaction: {}", tx);
+    }
+}
 
-//         let msg = tx.to_transaction_id().unwrap().txid;
-
-//         let (sig, recid) = secp256k1_sign(&sk_delegate, &msg).unwrap();
-//         let tx = tx.sign(sig, recid).unwrap();
-
-//         let tx = hex::encode(tx);
-
-//         println!("Transaction: {}", tx);
-//     }
-// }
-
-// from = 0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B
-// to1 = 0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E
-// to2 = 0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C
-// delegate = 0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af
+// Delegate: 0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B
+// From1: 0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E
+// From2: 0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C
+// To1: 0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af
+// To2: 0xf04e36C86e94093C2cb79FaD024962382568EFec
+// To3: 0x4a4763eFA2e89b88B3Aeef1282d150aC84188F06
+// To4: 0xE87C78EA9Faa78A6924E228eAe24b59AB53e1c9e
