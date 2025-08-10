@@ -910,7 +910,7 @@ impl Many2ManyTransfer {
     }
 
     pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
-        encode_many_2_many_transfers("execute", &self.transfers)
+        encode_many_2_many_transfers("schedule", &self.transfers)
     }
 }
 
@@ -918,16 +918,25 @@ pub struct One2ManyTransfer {
     pub xprv: String,
     pub path: String, // from address path
     pub nonce: u64, // from address nonce
+    pub nonce_contract: u64, // nonce of contract bound to from address
     pub contract: String, // batch transfer contract
     pub transfers: Vec<One2OneTransfer>,
 }
 
 impl One2ManyTransfer {
-    pub fn new(xprv: String, path: String, nonce: u64, contract: String, transfers: Vec<One2OneTransfer>) -> Self {
+    pub fn new(
+        xprv: String,
+        path: String,
+        nonce: u64,
+        nonce_contract: u64,
+        contract: String,
+        transfers: Vec<One2OneTransfer>
+    ) -> Self {
         Self {
             xprv,
             path,
             nonce,
+            nonce_contract,
             contract,
             transfers,
         }
@@ -959,7 +968,12 @@ impl One2ManyTransfer {
 
     pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
         let sk = create_sk(self.xprv.clone(), self.path.clone());
-        encode_one_2_many_transfers("execute", &self.transfers, &sk)
+        encode_one_2_many_transfers(
+            "execute_batch_transfer",
+            self.nonce_contract,
+            &self.transfers,
+            &sk,
+        )
     }
 
     pub fn to_token(&self) -> Token {
@@ -1006,6 +1020,7 @@ impl One2OneTransfer {
 
 pub fn encode_one_2_many_transfers(
     func_name: &str,
+    nonce: u64,
     transfers: &[One2OneTransfer],
     sk: &libsecp256k1::SecretKey,
 ) -> Result<Vec<u8>, TransactionError> {
@@ -1049,6 +1064,8 @@ pub fn encode_one_2_many_transfers(
             .map(|t| t.to_token())
             .collect::<Vec<Token>>(),
     );
+
+    let nonce = Token::Uint(U256::from(nonce));
 
     let stream = encode(&[calls.clone()]);
     let hash = keccak256(&stream).to_vec();
@@ -1114,10 +1131,10 @@ mod tests {
 
         let xprv = wallet["xprv"].as_str().unwrap().to_string();
 
-        let delegate = "m/44/60/0/1".to_string();
-        let from1 = "m/44/60/0/0".to_string();
-        let from2 = "m/44/60/0/2".to_string();
-        let to1 = "m/44/60/0/3".to_string();
+        let delegate = "m/44/60/0/3".to_string();
+        let from1 = "m/44/60/0/2".to_string();
+        let from2 = "m/44/60/0/1".to_string();
+        let to1 = "m/44/60/0/0".to_string();
         let to2 = "m/44/60/0/4".to_string();
         let to3 = "m/44/60/0/5".to_string();
         let to4 = "m/44/60/0/6".to_string();
@@ -1138,29 +1155,21 @@ mod tests {
         println!("To3: {}", _to3);
         println!("To4: {}", _to4);
 
-        let batch_contract = "0xDd3DD560cF6d4e935c70be889c1feD658F9baa73".to_string();
-        let caller_contract = "0xAd56A1f86aa0777c21bc13FFd829F4D6e6CebE00".to_string();
+        let batch_contract = "0x2C99222a3ea2E576f90F066d1B09917e01393143".to_string();
+        let scheduler_contract = "0x985699C4a4F6BEA85cF5BF2eB4F2519a7d3a2694".to_string();
         let usdc_contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
-        
-        let to1 = create_address(xprv.clone(), to1).to_string();
-        let to2 = create_address(xprv.clone(), to2).to_string();
-        let to3 = create_address(xprv.clone(), to3).to_string();
-        let to4 = create_address(xprv.clone(), to4).to_string();
 
-        // let transfer1 = One2OneTransfer::new(None, to1.clone(), "10000000000000000");
-        // let transfer2 = One2OneTransfer::new(None, to2.clone(), "10000000000000000");
-        // let transfer3 = One2OneTransfer::new(None, to3.clone(), "10000000000000000");
-        // let transfer4 = One2OneTransfer::new(None, to4.clone(), "10000000000000000");
+        let transfer1 = One2OneTransfer::new(Some(usdc_contract.clone()), _to1, "100000");
+        let transfer2 = One2OneTransfer::new(Some(usdc_contract.clone()), _to2, "100000");
+        let transfer3 = One2OneTransfer::new(Some(usdc_contract.clone()), _to3, "100000");
+        let transfer4 = One2OneTransfer::new(Some(usdc_contract.clone()), _to4, "100000");
 
-        let transfer1 = One2OneTransfer::new(Some(usdc_contract.clone()), to1, "1000000");
-        let transfer2 = One2OneTransfer::new(Some(usdc_contract.clone()), to2, "1000000");
-        let transfer3 = One2OneTransfer::new(Some(usdc_contract.clone()), to3, "1000000");
-        let transfer4 = One2OneTransfer::new(Some(usdc_contract.clone()), to4, "1000000");
 
         let one2many1 = One2ManyTransfer::new(
             xprv.clone(),
             from1,
-            63,
+            41,
+            0,
             batch_contract.clone(),
             vec![transfer1, transfer2],
         );
@@ -1168,7 +1177,8 @@ mod tests {
         let one2many2 = One2ManyTransfer::new(
             xprv.clone(),
             from2,
-            34,
+            44,
+            0,
             batch_contract.clone(),
             vec![transfer3, transfer4],
         );
@@ -1176,8 +1186,8 @@ mod tests {
         let many2many = Many2ManyTransfer::new(
             xprv,
             delegate,
-            36,
-            caller_contract,
+            20,
+            scheduler_contract,
             vec![one2many1, one2many2],
         );
 
@@ -1189,10 +1199,10 @@ mod tests {
     }
 }
 
-// Delegate: 0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B
-// From1: 0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E
-// From2: 0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C
-// To1: 0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af
+// Delegate: 0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af
+// From1: 0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C
+// From2: 0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E
+// To1: 0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B
 // To2: 0xf04e36C86e94093C2cb79FaD024962382568EFec
 // To3: 0x4a4763eFA2e89b88B3Aeef1282d150aC84188F06
 // To4: 0xE87C78EA9Faa78A6924E228eAe24b59AB53e1c9e
