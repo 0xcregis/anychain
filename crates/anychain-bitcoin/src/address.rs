@@ -352,9 +352,9 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
             // we are handling a bech32 script
             BitcoinAddress::<N>::bech32_from_hash(&script_pub_key[2..])
         } else {
-            return Err(AddressError::Message(
+            Err(AddressError::Message(
                 "Illegal utxo script public key".to_string(),
-            ));
+            ))
         }
     }
 }
