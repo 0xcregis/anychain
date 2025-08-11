@@ -1,21 +1,49 @@
 use super::EthereumNetwork;
 
+#[derive(Copy, Clone, Debug)]
 pub struct Sepolia; // ETH testnet
-pub struct Goerli; // ETH testnet
-pub struct Kotti; // ETC testnet
-pub struct Mumbai; // Polygon testnet
-pub struct Amoy; // Polygon testnet
-pub struct ArbitrumGoerli;
-pub struct AvalancheTestnet;
-pub struct BaseGoerli;
-pub struct BinanceSmartChainTestnet;
-pub struct HuobiEcoTestnet;
-pub struct OkexTestnet;
-pub struct OpBnbTestnet;
-pub struct OptimismGoerli;
-pub struct LineaSepolia;
-pub struct XlayerTestnet;
 
+#[derive(Copy, Clone, Debug)]
+pub struct Goerli; // ETH testnet
+
+#[derive(Copy, Clone, Debug)]
+pub struct Kotti; // ETC testnet
+
+#[derive(Copy, Clone, Debug)]
+pub struct Mumbai; // Polygon testnet
+
+#[derive(Copy, Clone, Debug)]
+pub struct Amoy; // Polygon testnet
+
+#[derive(Copy, Clone, Debug)]
+pub struct ArbitrumGoerli;
+
+#[derive(Copy, Clone, Debug)]
+pub struct AvalancheTestnet;
+
+#[derive(Copy, Clone, Debug)]
+pub struct BaseGoerli;
+
+#[derive(Copy, Clone, Debug)]
+pub struct BinanceSmartChainTestnet;
+
+#[derive(Copy, Clone, Debug)]
+pub struct HuobiEcoTestnet;
+
+#[derive(Copy, Clone, Debug)]
+pub struct OkexTestnet;
+
+#[derive(Copy, Clone, Debug)]
+pub struct OpBnbTestnet;
+
+#[derive(Copy, Clone, Debug)]
+pub struct OptimismGoerli;
+
+#[derive(Copy, Clone, Debug)]
+pub struct LineaSepolia;
+
+#[derive(Copy, Clone, Debug)]
+pub struct XlayerTestnet;
 
 // ETH testnet
 impl EthereumNetwork for Sepolia {

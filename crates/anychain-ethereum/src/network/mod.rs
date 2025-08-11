@@ -1,7 +1,4 @@
-use anychain_core::Network;
-
-/// The interface for an Ethereum network.
-pub trait EthereumNetwork: Network {
+pub trait EthereumNetwork: Copy + Clone + Send + Sync + 'static {
     const CHAIN_ID: u32;
     const NETWORK_ID: u32;
 }

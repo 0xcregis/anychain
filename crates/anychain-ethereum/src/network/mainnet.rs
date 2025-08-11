@@ -1,19 +1,58 @@
 use super::EthereumNetwork;
 
+#[derive(Copy, Clone, Debug)]
 pub struct Ethereum;
+
+#[derive(Copy, Clone, Debug)]
 pub struct EthereumClassic;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Polygon;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Arbitrum;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Avalanche;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Base;
+
+#[derive(Copy, Clone, Debug)]
 pub struct BinanceSmartChain;
+
+#[derive(Copy, Clone, Debug)]
 pub struct HuobiEco;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Okex;
+
+#[derive(Copy, Clone, Debug)]
 pub struct OpBnb;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Optimism;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Linea;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Xlayer;
 
+impl EthereumNetwork for Ethereum {
+    const CHAIN_ID: u32 = 1;
+    const NETWORK_ID: u32 = 1;
+}
+
+impl EthereumNetwork for EthereumClassic {
+    const CHAIN_ID: u32 = 61;
+    const NETWORK_ID: u32 = 61;
+}
+
+impl EthereumNetwork for Polygon {
+    const CHAIN_ID: u32 = 137;
+    const NETWORK_ID: u32 = 137;
+}
 
 impl EthereumNetwork for Arbitrum {
     const CHAIN_ID: u32 = 42161;
@@ -35,16 +74,6 @@ impl EthereumNetwork for BinanceSmartChain {
     const NETWORK_ID: u32 = 56;
 }
 
-impl EthereumNetwork for EthereumClassic {
-    const CHAIN_ID: u32 = 61;
-    const NETWORK_ID: u32 = 61;
-}
-
-impl EthereumNetwork for Ethereum {
-    const CHAIN_ID: u32 = 1;
-    const NETWORK_ID: u32 = 1;
-}
-
 impl EthereumNetwork for HuobiEco {
     const CHAIN_ID: u32 = 128;
     const NETWORK_ID: u32 = 128;
@@ -63,11 +92,6 @@ impl EthereumNetwork for OpBnb {
 impl EthereumNetwork for Optimism {
     const CHAIN_ID: u32 = 10;
     const NETWORK_ID: u32 = 10;
-}
-
-impl EthereumNetwork for Polygon {
-    const CHAIN_ID: u32 = 137;
-    const NETWORK_ID: u32 = 137;
 }
 
 impl EthereumNetwork for Linea {

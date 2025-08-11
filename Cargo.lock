@@ -224,7 +224,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-ethereum"
-version = "0.1.23"
+version = "0.1.24"
 dependencies = [
  "anychain-core",
  "ethabi",
