@@ -1,6 +1,7 @@
+use anychain_core::Network;
+
 /// The interface for an Ethereum network.
-#[derive(Clone, Send, Sync)]
-pub trait EthereumNetwork {
+pub trait EthereumNetwork: Network {
     const CHAIN_ID: u32;
     const NETWORK_ID: u32;
 }
