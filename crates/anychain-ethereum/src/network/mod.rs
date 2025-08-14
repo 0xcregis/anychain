@@ -1,6 +1,5 @@
 pub trait EthereumNetwork: Copy + Clone + Send + Sync + 'static {
     const CHAIN_ID: u32;
-    const NETWORK_ID: u32;
 }
 
 pub mod mainnet;
