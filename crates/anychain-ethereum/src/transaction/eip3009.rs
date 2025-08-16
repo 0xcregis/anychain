@@ -42,11 +42,12 @@ impl<N: EthereumNetwork> EIP712TypedData for EIP712Domain<N> {
         _chain_id.to_big_endian(chain_id.as_mut_slice());
         let chain_id = chain_id.to_vec();
         
-        let address = self
+        let contract = self
             .verifying_contract
             .to_bytes()
             .map_err(|e| TransactionError::Message(e.to_string()))?;
-        Ok([name, version, chain_id, address].concat())
+        
+        Ok([name, version, chain_id, contract].concat())
     }
 }
 
