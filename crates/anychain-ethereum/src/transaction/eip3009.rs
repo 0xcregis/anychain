@@ -75,7 +75,7 @@ pub struct TransferWithAuthorizationParameters<N: EthereumNetwork> {
     amount: U256,
     valid_after: U256,
     valid_before: U256,
-    nonce: Vec<u8>, // hex encoded 32 bytes
+    nonce: Vec<u8>, // 32-byte hash
     v: u8,
     r: Vec<u8>,
     s: Vec<u8>,
