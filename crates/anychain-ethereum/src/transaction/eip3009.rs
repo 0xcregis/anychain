@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 use core::str::FromStr;
 
-use crate::Ethereum;
 use crate::EthereumAddress;
 use crate::EthereumNetwork;
 use anychain_core::{crypto::keccak256, hex, TransactionError};
@@ -273,37 +272,43 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
     }
 }
 
-#[test]
-fn test() {
-    let name = "USDC".to_string();
-    let contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
-    let version = "2".to_string();
+#[cfg(test)]
+mod tests {
+    use crate::Sepolia;
+    use super::*;
+    
+    #[test]
+    fn test() {
+        let name = "USDC".to_string();
+        let contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
+        let version = "2".to_string();
 
-    let from = "0xCFfe787aBF02d047D32c7a4f7B321EbE6050F0af".to_string();
-    let to = "0xcebb21825b6401efe118f1325e42c54597658c2c".to_string();
-    let amount = "9931591".to_string();
-    let valid_after = "1754464386".to_string();
-    let valid_before = "1754472244".to_string();
-    let nonce = "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string();
+        let from = "0xCFfe787aBF02d047D32c7a4f7B321EbE6050F0af".to_string();
+        let to = "0xcebb21825b6401efe118f1325e42c54597658c2c".to_string();
+        let amount = "9931591".to_string();
+        let valid_after = "1754464386".to_string();
+        let valid_before = "1754472244".to_string();
+        let nonce = "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string();
 
-    let mut params = TransferWithAuthorizationParameters::<Ethereum>::new(
-        name,
-        version,
-        contract,
-        from,
-        to,
-        amount,
-        valid_after,
-        valid_before,
-        nonce,
-    )
-    .unwrap();
+        let mut params = TransferWithAuthorizationParameters::<Sepolia>::new(
+            name,
+            version,
+            contract,
+            from,
+            to,
+            amount,
+            valid_after,
+            valid_before,
+            nonce,
+        )
+        .unwrap();
 
-    let digest = params.digest().unwrap();
-    let digest = hex::encode(digest);
+        let digest = params.digest().unwrap();
+        let digest = hex::encode(digest);
 
-    let data = params.sign(0, vec![0], vec![0]).unwrap();
-    let data = hex::encode(data);
+        let data = params.sign(0, vec![0], vec![0]).unwrap();
+        let data = hex::encode(data);
 
-    println!("Digest: {}\nData: {}", digest, data);
+        println!("Digest: {}\nData: {}", digest, data);
+    }
 }
