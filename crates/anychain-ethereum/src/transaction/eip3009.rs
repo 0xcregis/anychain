@@ -18,7 +18,7 @@ trait EIP712TypedData {
     }
 }
 
-pub struct EIP712Domain<N: EthereumNetwork> {
+struct EIP712Domain<N: EthereumNetwork> {
     name: String,
     version: String,
     verifying_contract: EthereumAddress,
