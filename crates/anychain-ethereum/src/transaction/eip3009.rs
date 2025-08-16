@@ -1,8 +1,7 @@
 use core::marker::PhantomData;
 use core::str::FromStr;
 
-use crate::EthereumAddress;
-use crate::EthereumNetwork;
+use crate::{EthereumAddress, EthereumNetwork};
 use anychain_core::{crypto::keccak256, hex, TransactionError};
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::{H160, U256};
