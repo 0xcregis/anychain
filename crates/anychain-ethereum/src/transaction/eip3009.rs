@@ -37,7 +37,9 @@ impl<N: EthereumNetwork> EIP712TypedData for EIP712Domain<N> {
         let name = keccak256(self.name.as_bytes()).to_vec();
         let version = keccak256(self.version.as_bytes()).to_vec();
 
-        let chain_id: [u8; 4] = N::CHAIN_ID.to_be_bytes();
+        let _chain_id = U256::from(N::CHAIN_ID);
+        let mut chain_id = [0u8; 32];
+        _chain_id.to_big_endian(chain_id.as_mut_slice());
         let chain_id = chain_id.to_vec();
         
         let address = self
