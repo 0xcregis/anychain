@@ -1,6 +1,9 @@
+use core::marker::PhantomData;
 use core::str::FromStr;
 
+use crate::Ethereum;
 use crate::EthereumAddress;
+use crate::EthereumNetwork;
 use anychain_core::{crypto::keccak256, hex, TransactionError};
 use ethabi::{Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::{H160, U256};
@@ -16,14 +19,14 @@ trait EIP712TypedData {
     }
 }
 
-pub struct EIP712Domain {
+pub struct EIP712Domain<N: EthereumNetwork> {
     name: String,
     version: String,
-    chain_id: U256,
     verifying_contract: EthereumAddress,
+    _network: PhantomData<N>,
 }
 
-impl EIP712TypedData for EIP712Domain {
+impl<N: EthereumNetwork> EIP712TypedData for EIP712Domain<N> {
     fn type_hash(&self) -> Result<Vec<u8>, TransactionError> {
         let stream =
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
@@ -34,9 +37,10 @@ impl EIP712TypedData for EIP712Domain {
     fn encode(&self) -> Result<Vec<u8>, TransactionError> {
         let name = keccak256(self.name.as_bytes()).to_vec();
         let version = keccak256(self.version.as_bytes()).to_vec();
-        let mut chain_id = [0u8; 32];
-        self.chain_id.to_big_endian(chain_id.as_mut_slice());
+
+        let chain_id: [u8; 4] = N::CHAIN_ID.to_be_bytes();
         let chain_id = chain_id.to_vec();
+        
         let address = self
             .verifying_contract
             .to_bytes()
@@ -45,28 +49,25 @@ impl EIP712TypedData for EIP712Domain {
     }
 }
 
-impl EIP712Domain {
+impl<N: EthereumNetwork> EIP712Domain<N> {
     fn new(
         name: String,
         version: String,
-        chain_id: String,
         contract: String,
     ) -> Result<Self, TransactionError> {
-        let chain_id =
-            U256::from_dec_str(&chain_id).map_err(|e| TransactionError::Message(e.to_string()))?;
         let verifying_contract = EthereumAddress::from_str(&contract)?;
 
         Ok(Self {
             name,
             version,
-            chain_id,
             verifying_contract,
+            _network: PhantomData
         })
     }
 }
 
-pub struct TransferWithAuthorizationParameters {
-    domain: Option<EIP712Domain>,
+pub struct TransferWithAuthorizationParameters<N: EthereumNetwork> {
+    domain: Option<EIP712Domain<N>>,
     from: EthereumAddress,
     to: EthereumAddress,
     amount: U256,
@@ -78,7 +79,7 @@ pub struct TransferWithAuthorizationParameters {
     s: Vec<u8>,
 }
 
-impl EIP712TypedData for TransferWithAuthorizationParameters {
+impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters<N> {
     fn type_hash(&self) -> Result<Vec<u8>, TransactionError> {
         let stream = "TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)".as_bytes();
         Ok(keccak256(stream).to_vec())
@@ -112,11 +113,10 @@ impl EIP712TypedData for TransferWithAuthorizationParameters {
     }
 }
 
-impl TransferWithAuthorizationParameters {
+impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
     pub fn new(
         name: String,
         version: String,
-        chain_id: String,
         contract: String,
         from: String,
         to: String,
@@ -125,7 +125,7 @@ impl TransferWithAuthorizationParameters {
         valid_before: String,
         nonce: String,
     ) -> Result<Self, TransactionError> {
-        let domain = Some(EIP712Domain::new(name, version, chain_id, contract)?);
+        let domain = Some(EIP712Domain::<N>::new(name, version, contract)?);
         let from = EthereumAddress::from_str(&from)
             .map_err(|e| TransactionError::Message(e.to_string()))?;
         let to =
@@ -275,7 +275,6 @@ impl TransferWithAuthorizationParameters {
 
 #[test]
 fn test() {
-    let chain_id = "11155111".to_string();
     let name = "USDC".to_string();
     let contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
     let version = "2".to_string();
@@ -287,10 +286,9 @@ fn test() {
     let valid_before = "1754472244".to_string();
     let nonce = "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string();
 
-    let mut params = TransferWithAuthorizationParameters::new(
+    let mut params = TransferWithAuthorizationParameters::<Ethereum>::new(
         name,
         version,
-        chain_id,
         contract,
         from,
         to,
