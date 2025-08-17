@@ -227,6 +227,7 @@ name = "anychain-ethereum"
 version = "0.1.25"
 dependencies = [
  "anychain-core",
+ "anychain-kms",
  "ethabi",
  "ethereum-types",
  "libsecp256k1",

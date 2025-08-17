@@ -3,17 +3,14 @@ use core::str::FromStr;
 
 use crate::{EthereumAddress, EthereumNetwork};
 use anychain_core::{crypto::keccak256, hex, TransactionError};
-use ethabi::{Function, Param, ParamType, StateMutability, Token};
+use ethabi::{Function, Param, ParamType, StateMutability, Token, encode};
 use ethereum_types::{H160, U256};
 
 trait EIP712TypedData {
     fn type_hash(&self) -> Result<Vec<u8>, TransactionError>;
     fn encode(&self) -> Result<Vec<u8>, TransactionError>;
     fn hash_struct(&self) -> Result<Vec<u8>, TransactionError> {
-        let hash = self.type_hash()?;
-        let data = self.encode()?;
-        let stream = [hash, data].concat();
-        Ok(keccak256(stream.as_ref()).to_vec())
+        Ok(keccak256(&self.encode()?).to_vec())
     }
 }
 
@@ -33,20 +30,23 @@ impl<N: EthereumNetwork> EIP712TypedData for EIP712Domain<N> {
     }
 
     fn encode(&self) -> Result<Vec<u8>, TransactionError> {
+        let type_hash = self.type_hash()?;
         let name = keccak256(self.name.as_bytes()).to_vec();
         let version = keccak256(self.version.as_bytes()).to_vec();
-
-        let _chain_id = U256::from(N::CHAIN_ID);
-        let mut chain_id = [0u8; 32];
-        _chain_id.to_big_endian(chain_id.as_mut_slice());
-        let chain_id = chain_id.to_vec();
-        
+        let chain_id = U256::from(N::CHAIN_ID);
         let contract = self
             .verifying_contract
             .to_bytes()
             .map_err(|e| TransactionError::Message(e.to_string()))?;
-        
-        Ok([name, version, chain_id, contract].concat())
+        let contract = H160::from_slice(&contract);
+
+        let type_hash = Token::FixedBytes(type_hash);
+        let name = Token::FixedBytes(name);
+        let version = Token::FixedBytes(version);
+        let chain_id = Token::Uint(chain_id);
+        let contract = Token::Address(contract);
+
+        Ok(encode(&[type_hash, name, version, chain_id, contract]))
     }
 }
 
@@ -87,6 +87,8 @@ impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters
     }
 
     fn encode(&self) -> Result<Vec<u8>, TransactionError> {
+        let type_hash = self.type_hash()?;
+        
         let from = self
             .from
             .to_bytes()
@@ -95,22 +97,21 @@ impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters
             .to
             .to_bytes()
             .map_err(|e| TransactionError::Message(e.to_string()))?;
+        
+        let from = H160::from_slice(&from);
+        let to = H160::from_slice(&to);
 
-        let mut amount = [0u8; 32];
-        let mut valid_after = [0u8; 32];
-        let mut valid_before = [0u8; 32];
+        let type_hash = Token::FixedBytes(type_hash);
+        
+        let from = Token::Address(from);
+        let to = Token::Address(to);
+        let amount = Token::Uint(self.amount);
 
-        self.amount.to_big_endian(amount.as_mut_slice());
-        self.valid_after.to_big_endian(valid_after.as_mut_slice());
-        self.valid_before.to_big_endian(valid_before.as_mut_slice());
+        let valid_after = Token::Uint(self.valid_after);
+        let valid_before = Token::Uint(self.valid_before);
+        let nonce = Token::FixedBytes(self.nonce.clone());
 
-        let amount = amount.to_vec();
-        let valid_after = valid_after.to_vec();
-        let valid_before = valid_before.to_vec();
-
-        let nonce = self.nonce.clone();
-
-        Ok([from, to, amount, valid_after, valid_before, nonce].concat())
+        Ok(encode(&[type_hash, from, to, amount, valid_after, valid_before, nonce]))
     }
 }
 
@@ -171,9 +172,9 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
             let domain_separator = domain.hash_struct()?;
             let hash_params = self.hash_struct()?;
             let stream = [
-                vec![25],
-                /* 0x19 */ vec![1],
-                /* 0x01 */ domain_separator,
+                vec![25], /* 0x19 */
+                vec![1], /* 0x01 */
+                domain_separator,
                 hash_params,
             ]
             .concat();
@@ -184,11 +185,9 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
     }
 
     fn to_data(&self) -> Result<Vec<u8>, TransactionError> {
-        let func_name = "transferWithAuthorization".to_string();
-
         #[allow(deprecated)]
         let func = Function {
-            name: func_name,
+            name: "transferWithAuthorization".to_string(),
             inputs: vec![
                 Param {
                     name: "from".to_string(),

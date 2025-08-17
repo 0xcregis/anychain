@@ -531,72 +531,128 @@ pub fn decode_transfer(data: Vec<u8>) -> Result<Value, TransactionError> {
     }
 }
 
-// mod tests {
-//     use super::*;
-//     use crate::Sepolia;
+mod tests {
+    use std::time::SystemTime;
 
-//     #[test]
-//     fn test_legacy_tx() {
-//         let params = EthereumTransactionParameters {
-//             nonce: U256::from_dec_str("6").unwrap(),
-//             gas_price: U256::from_dec_str("20000000000").unwrap(),
-//             gas_limit: U256::from_dec_str("21000").unwrap(),
-//             to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
-//             amount: U256::from_dec_str("10000000000000000").unwrap(),
-//             data: vec![],
-//         };
-//         let mut tx = EthereumTransaction::<Sepolia>::new(&params).unwrap();
-//         let msg = tx.to_transaction_id().unwrap().txid;
-//         let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
+    use super::*;
+    use crate::{eip3009::TransferWithAuthorizationParameters, Sepolia};
+    use anychain_kms::secp256k1_sign;
 
-//         let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
-//         let sk = hex::decode(sk).unwrap();
-//         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+    #[test]
+    fn test_legacy_tx() {
+        let params = EthereumTransactionParameters {
+            nonce: U256::from_dec_str("6").unwrap(),
+            gas_price: U256::from_dec_str("20000000000").unwrap(),
+            gas_limit: U256::from_dec_str("21000").unwrap(),
+            to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
+            amount: U256::from_dec_str("10000000000000000").unwrap(),
+            data: vec![],
+        };
+        let mut tx = EthereumTransaction::<Sepolia>::new(&params).unwrap();
+        let msg = tx.to_transaction_id().unwrap().txid;
+        let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
 
-//         let (sig, recid) = libsecp256k1::sign(&msg, &sk);
+        let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
+        let sk = hex::decode(sk).unwrap();
+        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
-//         let sig = sig.serialize().to_vec();
-//         let recid = recid.serialize();
+        let (sig, recid) = libsecp256k1::sign(&msg, &sk);
 
-//         let _ = tx.sign(sig, recid);
+        let sig = sig.serialize().to_vec();
+        let recid = recid.serialize();
 
-//         println!("{}", tx);
-//     }
+        let _ = tx.sign(sig, recid);
 
-//     #[test]
-//     fn test_eip1559_tx() {
-//         let params = Eip1559TransactionParameters {
-//             chain_id: Sepolia::CHAIN_ID,
-//             nonce: U256::from_dec_str("4").unwrap(),
-//             max_priority_fee_per_gas: U256::from_dec_str("100000000000").unwrap(),
-//             max_fee_per_gas: U256::from_dec_str("200000000000").unwrap(),
-//             gas_limit: U256::from_dec_str("21000").unwrap(),
-//             to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
-//             amount: U256::from_dec_str("10000000000000000").unwrap(),
-//             data: vec![],
-//             access_list: vec![],
-//         };
-//         let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
-//         let msg = tx.to_transaction_id().unwrap().txid;
-//         let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
+        println!("{}", tx);
+    }
 
-//         let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
-//         let sk = hex::decode(sk).unwrap();
-//         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+    #[test]
+    fn test_eip1559_tx() {
+        let params = Eip1559TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce: U256::from_dec_str("4").unwrap(),
+            max_priority_fee_per_gas: U256::from_dec_str("100000000000").unwrap(),
+            max_fee_per_gas: U256::from_dec_str("200000000000").unwrap(),
+            gas_limit: U256::from_dec_str("21000").unwrap(),
+            to: EthereumAddress::from_str("0xf7a63003b8ef116939804b4c2dd49290a39c4d97").unwrap(),
+            amount: U256::from_dec_str("10000000000000000").unwrap(),
+            data: vec![],
+            access_list: vec![],
+        };
+        let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
+        let msg = tx.to_transaction_id().unwrap().txid;
+        let msg = libsecp256k1::Message::parse_slice(&msg).unwrap();
 
-//         let (sig, recid) = libsecp256k1::sign(&msg, &sk);
-//         let sig = sig.serialize().to_vec();
-//         let recid = recid.serialize();
+        let sk = "08d586ed207046d6476f92fd4852be3830a9d651fc148d6fa5a6f15b77ba5df0";
+        let sk = hex::decode(sk).unwrap();
+        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
-//         let _ = tx.sign(sig, recid);
+        let (sig, recid) = libsecp256k1::sign(&msg, &sk);
+        let sig = sig.serialize().to_vec();
+        let recid = recid.serialize();
 
-//         println!("{}", tx);
-//     }
+        let _ = tx.sign(sig, recid);
 
-//     #[test]
-//     fn test() {
-//         let tx = "0x02f87683aa36a70485174876e800852e90edd00082520894f7a63003b8ef116939804b4c2dd49290a39c4d97872386f26fc1000080c001a077233c9ef0d1a3211f844865172aa31ef716b98f4d82e7c86c2cd7050455e243a0678fdd0f3dd4e0bce65642e24368fa22bb34a8b4542c6bcac55e943c051dbb56";
-//         let tx = Eip1559Transaction::<Sepolia>::from_str(tx).unwrap();
-//         println!("{}", tx);
-//     }
-// }
+        println!("{}", tx);
+    }
+
+    #[test]
+    fn test_eip3009_tx() {
+        let sk = "3d98c2d5a7f737693b470114816000645419af49bd21258cc99142f6ef5fd60a".to_string();
+        let sk = hex::decode(sk).unwrap();
+        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+
+        let from = "0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af".to_string();
+        let to = "0xf7a63003b8ef116939804b4c2dd49290a39c4d97".to_string();
+        let usdc = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
+        let amount = "100000".to_string();
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut transfer = TransferWithAuthorizationParameters::<Sepolia>::new(
+            "USDC".to_string(),
+            "2".to_string(),
+            usdc.clone(),
+            from,
+            to,
+            amount,
+            now.to_string(),
+            (now + 100).to_string(),
+            "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string(),
+        ).unwrap();
+
+        let digest = transfer.digest().unwrap();
+        let (rs, recid) = secp256k1_sign(&sk, &digest).unwrap();
+        let data = transfer.sign(recid, rs[..32].to_vec(), rs[32..].to_vec()).unwrap();
+
+        let nonce = U256::from(22);
+        let max_priority_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
+        let max_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
+        let gas_limit = U256::from(210000);
+        let to = EthereumAddress::from_str(&usdc).unwrap();
+        let amount = U256::from(0);
+
+        let params = Eip1559TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce,
+            max_priority_fee_per_gas,
+            max_fee_per_gas,
+            gas_limit,
+            to,
+            amount,
+            data,
+            access_list: vec![],
+        };
+
+        let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
+        let txid = tx.to_transaction_id().unwrap().txid;
+        let (rs, recid) = secp256k1_sign(&sk, &txid).unwrap();
+        let tx = tx.sign(rs, recid).unwrap();
+        let tx = hex::encode(tx);
+
+        println!("Tx: {}", tx);
+    }
+}

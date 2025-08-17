@@ -14,6 +14,7 @@ repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
+anychain-kms = { path = "../anychain-kms" }
 regex = { workspace = true }
 rlp = { workspace = true }
 serde = { workspace = true }
