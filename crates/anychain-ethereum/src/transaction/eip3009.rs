@@ -3,7 +3,7 @@ use core::str::FromStr;
 
 use crate::{EthereumAddress, EthereumNetwork};
 use anychain_core::{crypto::keccak256, hex, TransactionError};
-use ethabi::{Function, Param, ParamType, StateMutability, Token, encode};
+use ethabi::{encode, Function, Param, ParamType, StateMutability, Token};
 use ethereum_types::{H160, U256};
 
 trait EIP712TypedData {
@@ -51,18 +51,14 @@ impl<N: EthereumNetwork> EIP712TypedData for EIP712Domain<N> {
 }
 
 impl<N: EthereumNetwork> EIP712Domain<N> {
-    fn new(
-        name: String,
-        version: String,
-        contract: String,
-    ) -> Result<Self, TransactionError> {
+    fn new(name: String, version: String, contract: String) -> Result<Self, TransactionError> {
         let verifying_contract = EthereumAddress::from_str(&contract)?;
 
         Ok(Self {
             name,
             version,
             verifying_contract,
-            _network: PhantomData
+            _network: PhantomData,
         })
     }
 }
@@ -88,7 +84,7 @@ impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters
 
     fn encode(&self) -> Result<Vec<u8>, TransactionError> {
         let type_hash = self.type_hash()?;
-        
+
         let from = self
             .from
             .to_bytes()
@@ -97,12 +93,12 @@ impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters
             .to
             .to_bytes()
             .map_err(|e| TransactionError::Message(e.to_string()))?;
-        
+
         let from = H160::from_slice(&from);
         let to = H160::from_slice(&to);
 
         let type_hash = Token::FixedBytes(type_hash);
-        
+
         let from = Token::Address(from);
         let to = Token::Address(to);
         let amount = Token::Uint(self.amount);
@@ -111,7 +107,15 @@ impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters
         let valid_before = Token::Uint(self.valid_before);
         let nonce = Token::FixedBytes(self.nonce.clone());
 
-        Ok(encode(&[type_hash, from, to, amount, valid_after, valid_before, nonce]))
+        Ok(encode(&[
+            type_hash,
+            from,
+            to,
+            amount,
+            valid_after,
+            valid_before,
+            nonce,
+        ]))
     }
 }
 
@@ -173,7 +177,7 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
             let hash_params = self.hash_struct()?;
             let stream = [
                 vec![25], /* 0x19 */
-                vec![1], /* 0x01 */
+                vec![1],  /* 0x01 */
                 domain_separator,
                 hash_params,
             ]
@@ -275,9 +279,9 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
 
 #[cfg(test)]
 mod tests {
-    use crate::Sepolia;
     use super::*;
-    
+    use crate::Sepolia;
+
     #[test]
     fn test() {
         let name = "USDC".to_string();
@@ -289,7 +293,8 @@ mod tests {
         let amount = "9931591".to_string();
         let valid_after = "1754464386".to_string();
         let valid_before = "1754472244".to_string();
-        let nonce = "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string();
+        let nonce =
+            "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string();
 
         let mut params = TransferWithAuthorizationParameters::<Sepolia>::new(
             name,

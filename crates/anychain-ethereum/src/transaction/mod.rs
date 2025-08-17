@@ -622,11 +622,14 @@ mod tests {
             now.to_string(),
             (now + 100).to_string(),
             "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let digest = transfer.digest().unwrap();
         let (rs, recid) = secp256k1_sign(&sk, &digest).unwrap();
-        let data = transfer.sign(recid, rs[..32].to_vec(), rs[32..].to_vec()).unwrap();
+        let data = transfer
+            .sign(recid, rs[..32].to_vec(), rs[32..].to_vec())
+            .unwrap();
 
         let nonce = U256::from(22);
         let max_priority_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
