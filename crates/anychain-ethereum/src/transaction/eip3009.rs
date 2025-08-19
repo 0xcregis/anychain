@@ -120,6 +120,7 @@ impl<N: EthereumNetwork> EIP712TypedData for TransferWithAuthorizationParameters
 }
 
 impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         version: String,
@@ -143,11 +144,11 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
         let valid_before = U256::from_dec_str(&valid_before)
             .map_err(|e| TransactionError::Message(e.to_string()))?;
 
-        let nonce = if nonce.starts_with("0x") {
-            &nonce[2..]
-        } else {
-            &nonce
+        let nonce = match nonce.strip_prefix("0x") {
+            Some(nonce) => nonce,
+            None => &nonce,
         };
+
         let nonce = hex::decode(nonce)?;
 
         Ok(Self {
@@ -280,41 +281,74 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Sepolia;
+    use crate::{
+        eip3009::TransferWithAuthorizationParameters, Eip1559Transaction,
+        Eip1559TransactionParameters, Sepolia,
+    };
+    use anychain_core::Transaction;
+    use anychain_kms::secp256k1_sign;
+    use std::time::SystemTime;
 
     #[test]
-    fn test() {
-        let name = "USDC".to_string();
-        let contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
-        let version = "2".to_string();
+    fn test_eip3009_tx() {
+        let sk = "3d98c2d5a7f737693b470114816000645419af49bd21258cc99142f6ef5fd60a".to_string();
+        let sk = hex::decode(sk).unwrap();
+        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
-        let from = "0xCFfe787aBF02d047D32c7a4f7B321EbE6050F0af".to_string();
-        let to = "0xcebb21825b6401efe118f1325e42c54597658c2c".to_string();
-        let amount = "9931591".to_string();
-        let valid_after = "1754464386".to_string();
-        let valid_before = "1754472244".to_string();
-        let nonce =
-            "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string();
+        let from = "0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af".to_string();
+        let to = "0xf7a63003b8ef116939804b4c2dd49290a39c4d97".to_string();
+        let usdc = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
+        let amount = "100000".to_string();
 
-        let mut params = TransferWithAuthorizationParameters::<Sepolia>::new(
-            name,
-            version,
-            contract,
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut transfer = TransferWithAuthorizationParameters::<Sepolia>::new(
+            "USDC".to_string(),
+            "2".to_string(),
+            usdc.clone(),
             from,
             to,
             amount,
-            valid_after,
-            valid_before,
-            nonce,
+            now.to_string(),
+            (now + 100).to_string(),
+            "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string(),
         )
         .unwrap();
 
-        let digest = params.digest().unwrap();
-        let digest = hex::encode(digest);
+        let digest = transfer.digest().unwrap();
+        let (rs, recid) = secp256k1_sign(&sk, &digest).unwrap();
+        let data = transfer
+            .sign(recid, rs[..32].to_vec(), rs[32..].to_vec())
+            .unwrap();
 
-        let data = params.sign(0, vec![0], vec![0]).unwrap();
-        let data = hex::encode(data);
+        let nonce = U256::from(22);
+        let max_priority_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
+        let max_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
+        let gas_limit = U256::from(210000);
+        let to = EthereumAddress::from_str(&usdc).unwrap();
+        let amount = U256::from(0);
 
-        println!("Digest: {}\nData: {}", digest, data);
+        let params = Eip1559TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce,
+            max_priority_fee_per_gas,
+            max_fee_per_gas,
+            gas_limit,
+            to,
+            amount,
+            data,
+            access_list: vec![],
+        };
+
+        let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
+        let txid = tx.to_transaction_id().unwrap().txid;
+        let (rs, recid) = secp256k1_sign(&sk, &txid).unwrap();
+        let tx = tx.sign(rs, recid).unwrap();
+        let tx = hex::encode(tx);
+
+        println!("Tx: {}", tx);
     }
 }
