@@ -1,7 +1,7 @@
 [package]
 name = "anychain-ethereum"
 description = "A Rust library for Ethereum-focused cryptocurrency wallets, enabling seamless transactions on the Ethereum blockchain"
-version = "0.1.25"
+version = "0.1.26"
 keywords = ["blockchain", "crypto", "ethereum", "wallet"]
 categories = ["cryptography::cryptocurrencies"]
 
@@ -14,6 +14,7 @@ repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
+anychain-kms = { path = "../anychain-kms" }
 regex = { workspace = true }
 rlp = { workspace = true }
 serde = { workspace = true }

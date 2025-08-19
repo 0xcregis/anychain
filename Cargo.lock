@@ -224,9 +224,10 @@ dependencies = [
 
 [[package]]
 name = "anychain-ethereum"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "anychain-core",
+ "anychain-kms",
  "ethabi",
  "ethereum-types",
  "libsecp256k1",
