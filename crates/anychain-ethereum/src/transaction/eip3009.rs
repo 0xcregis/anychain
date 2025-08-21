@@ -305,6 +305,12 @@ mod tests {
             .unwrap()
             .as_secs();
 
+        use rand::RngCore;
+
+        let mut nonce = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut nonce);
+        let nonce = hex::encode(nonce);
+
         let mut transfer = TransferWithAuthorizationParameters::<Sepolia>::new(
             "USDC".to_string(),
             "2".to_string(),
@@ -314,7 +320,7 @@ mod tests {
             amount,
             now.to_string(),
             (now + 100).to_string(),
-            "0xc16e8459b9c3ecfbbc20c34444c72ce016cdb109fa5a982b0dd223e15e8f96de".to_string(),
+            nonce,
         )
         .unwrap();
 
@@ -324,9 +330,9 @@ mod tests {
             .sign(recid, rs[..32].to_vec(), rs[32..].to_vec())
             .unwrap();
 
-        let nonce = U256::from(22);
-        let max_priority_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
-        let max_fee_per_gas = U256::from_dec_str("50000000000").unwrap();
+        let nonce = U256::from(58);
+        let max_priority_fee_per_gas = U256::from_dec_str("1000000000").unwrap();
+        let max_fee_per_gas = U256::from_dec_str("1000000000").unwrap();
         let gas_limit = U256::from(210000);
         let to = EthereumAddress::from_str(&usdc).unwrap();
         let amount = U256::from(0);

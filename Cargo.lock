@@ -231,6 +231,7 @@ dependencies = [
  "ethabi",
  "ethereum-types",
  "libsecp256k1",
+ "rand 0.8.5",
  "regex",
  "rlp",
  "serde",

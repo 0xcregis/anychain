@@ -22,6 +22,7 @@ serde_json = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
 ethereum-types = { workspace = true }
+rand.workspace = true
 
 [features]
 default = ["std"]

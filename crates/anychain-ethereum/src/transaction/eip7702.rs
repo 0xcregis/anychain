@@ -611,9 +611,7 @@ mod tests {
     use ethereum_types::U256;
 
     use crate::{
-        create_address, create_sk, parse_mnemonic, Eip1559Transaction,
-        Eip1559TransactionParameters, EthereumAddress, EthereumNetwork, Many2ManyTransfer,
-        One2ManyTransfer, One2OneTransfer, Sepolia,
+        create_address, create_sk, parse_mnemonic, Authorization, Eip1559Transaction, Eip1559TransactionParameters, Eip7702Transaction, Eip7702TransactionParameters, EthereumAddress, EthereumNetwork, Many2ManyTransfer, One2ManyTransfer, One2OneTransfer, Sepolia
     };
 
     #[test]
@@ -744,6 +742,51 @@ mod tests {
         let msg = tx.to_transaction_id().unwrap().txid;
         let (rs, recid) = secp256k1_sign(&sk_delegate, &msg).unwrap();
         let tx = tx.sign(rs, recid).unwrap();
+        let tx = hex::encode(tx);
+
+        println!("Tx: {}", tx);
+    }
+
+    #[test]
+    fn test_decouple() {
+        let sk = "3d98c2d5a7f737693b470114816000645419af49bd21258cc99142f6ef5fd60a".to_string();
+        let sk = hex::decode(sk).unwrap();
+        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
+
+        let null = "0x0000000000000000000000000000000000000000";
+        let null = EthereumAddress::from_str(null).unwrap();
+
+        let mut auth = Authorization {
+            chain_id: Sepolia::CHAIN_ID,
+            address: null,
+            nonce: U256::from(57),
+            y_parity: false,
+            r: vec![],
+            s: vec![],
+        };
+
+        let digest = auth.digest();
+        let (rs, recid) = secp256k1_sign(&sk, &digest).unwrap();
+        auth.sign((rs, recid));
+
+        let params = Eip7702TransactionParameters {
+            chain_id: Sepolia::CHAIN_ID,
+            nonce: U256::from(56),
+            max_priority_fee_per_gas: U256::from_dec_str("1000000000").unwrap(),
+            max_fee_per_gas: U256::from_dec_str("1000000000").unwrap(),
+            gas_limit: U256::from(2100000),
+            to: EthereumAddress::from_str("0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af").unwrap(),
+            amount: U256::zero(),
+            data: vec![],
+            access_list: vec![],
+            authorizations: vec![auth],
+        };
+
+        let mut tx = Eip7702Transaction::<Sepolia>::new(&params).unwrap();
+        let txid = tx.to_transaction_id().unwrap().txid;
+        let (rs, recid) = secp256k1_sign(&sk, &txid).unwrap();
+        let tx = tx.sign(rs, recid).unwrap();
+
         let tx = hex::encode(tx);
 
         println!("Tx: {}", tx);
