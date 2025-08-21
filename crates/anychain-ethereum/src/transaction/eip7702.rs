@@ -364,8 +364,8 @@ impl Many2ManyTransfer {
         let params = Eip7702TransactionParameters {
             chain_id: Sepolia::CHAIN_ID,
             nonce: U256::from(self.nonce),
-            max_priority_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
-            max_fee_per_gas: U256::from_dec_str("10000000000").unwrap(),
+            max_priority_fee_per_gas: U256::from_dec_str("1000000000").unwrap(),
+            max_fee_per_gas: U256::from_dec_str("1000000000").unwrap(),
             gas_limit: U256::from(2100000),
             to: EthereumAddress::from_str(&self.contract).unwrap(),
             amount: U256::zero(),
@@ -550,7 +550,7 @@ pub fn encode_one_2_many_transfers(
 
     let nonce = Token::Uint(U256::from(nonce));
 
-    let stream = encode(std::slice::from_ref(&calls));
+    let stream = encode(&[nonce, calls.clone()]);
     let hash = keccak256(&stream).to_vec();
     let (rs, recid) = secp256k1_sign(sk, &hash).unwrap();
     let v = recid + 27;
@@ -603,30 +603,6 @@ pub fn encode_many_2_many_transfers(
         .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
 }
 
-pub fn encode_set_nonce(func_name: &str, nonce: u32) -> Result<Vec<u8>, TransactionError> {
-    let param = Param {
-        name: "nonce".to_string(),
-        kind: ParamType::Uint(256),
-        internal_type: None,
-    };
-
-    #[allow(deprecated)]
-    let func = Function {
-        name: func_name.to_string(),
-        inputs: vec![param],
-        outputs: vec![],
-        constant: None,
-        state_mutability: StateMutability::NonPayable,
-    };
-
-    let nonce = Token::Uint(U256::from(nonce));
-
-    let tokens = vec![nonce];
-
-    func.encode_input(&tokens)
-        .map_err(|e| TransactionError::Message(format!("Failed to encode transfers: {}", e)))
-}
-
 #[cfg(test)]
 mod tests {
     use anychain_core::{hex, Transaction};
@@ -635,7 +611,7 @@ mod tests {
     use ethereum_types::U256;
 
     use crate::{
-        create_address, create_sk, encode_set_nonce, parse_mnemonic, Eip1559Transaction,
+        create_address, create_sk, parse_mnemonic, Eip1559Transaction,
         Eip1559TransactionParameters, EthereumAddress, EthereumNetwork, Many2ManyTransfer,
         One2ManyTransfer, One2OneTransfer, Sepolia,
     };
@@ -680,85 +656,53 @@ mod tests {
         println!("To3: {}", _to3);
         println!("To4: {}", _to4);
 
-        let batch_contract = "0xC768bfD53509e6FDE213000A105eB293019D310F".to_string();
-        let scheduler_contract = "0xeb4dbC89ED5a2b316D84A375bE7326bf2C231Cda".to_string();
+        // Delegate: 0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af
+        // From1: 0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C
+        // From2: 0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E
+        // To1: 0xBed74Ed65aE59eEa3339Daa215ea1d3B162F4E8B
+        // To2: 0xf04e36C86e94093C2cb79FaD024962382568EFec
+        // To3: 0x4a4763eFA2e89b88B3Aeef1282d150aC84188F06
+        // To4: 0xE87C78EA9Faa78A6924E228eAe24b59AB53e1c9e
+
+        let batch_contract = "0x2e266E955208dB2B5db982a84d324Ff3E4fF0130".to_string();
+        let scheduler_contract = "0x4B8e5032238B6FAc4E329717aA0A0460e2698560".to_string();
         let usdc_contract = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238".to_string();
 
-        let transfer1 = One2OneTransfer::new(Some(usdc_contract.clone()), _to1, "100000");
-        let transfer2 = One2OneTransfer::new(Some(usdc_contract.clone()), _to2, "100000");
-        let transfer3 = One2OneTransfer::new(Some(usdc_contract.clone()), _to3, "100000");
-        let transfer4 = One2OneTransfer::new(Some(usdc_contract.clone()), _to4, "100000");
+        let transfer1 = One2OneTransfer::new(Some(usdc_contract.clone()), _to1, "20000");
+        // let transfer2 = One2OneTransfer::new(Some(usdc_contract.clone()), _to2, "100000");
+        // let transfer3 = One2OneTransfer::new(Some(usdc_contract.clone()), _to3, "100000");
+        // let transfer4 = One2OneTransfer::new(Some(usdc_contract.clone()), _to4, "100000");
 
         let one2many1 = One2ManyTransfer::new(
             xprv.clone(),
-            from1,
-            50,
-            0,
+            delegate.clone(),
+            38,
+            2,
             batch_contract.clone(),
-            vec![transfer1, transfer2],
+            vec![transfer1/* , transfer2*/],
         );
 
-        let one2many2 = One2ManyTransfer::new(
-            xprv.clone(),
-            from2,
-            53,
-            0,
-            batch_contract.clone(),
-            vec![transfer3, transfer4],
-        );
+        // let one2many2 = One2ManyTransfer::new(
+        //     xprv.clone(),
+        //     from2,
+        //     53,
+        //     0,
+        //     batch_contract.clone(),
+        //     vec![transfer3, transfer4],
+        // );
 
         let many2many = Many2ManyTransfer::new(
             xprv,
             delegate,
-            31,
+            37,
             scheduler_contract,
-            vec![one2many1, one2many2],
+            vec![one2many1/* , one2many2*/],
         );
 
         let tx = many2many.to_tx().unwrap();
         let tx = hex::encode(tx);
 
         println!("Transaction: {}", tx);
-    }
-
-    #[test]
-    fn test_set_nonce() {
-        let xprv = "xprv9s21ZrQH143K4AQzoQF6p3riRHUPG7VMQpYdCkcc548CYYT76Ay2nTFDXAfrMq7MT6NMePhuYP2uTGhTXjZZ1AZrGPZ4MyysX8ffTx9VwXU".to_string();
-        let from1 = "m/44/60/0/2".to_string();
-        let from2 = "m/44/60/0/1".to_string();
-
-        let sk_from1 = create_sk(xprv.clone(), from1);
-        let sk_from2 = create_sk(xprv.clone(), from2);
-
-        let data = encode_set_nonce("set_nonce", 0).unwrap();
-
-        let chain_id = Sepolia::CHAIN_ID;
-        let nonce = U256::from(54);
-        let max_priority_fee_per_gas = U256::from("5000000000");
-        let max_fee_per_gas = U256::from("5000000000");
-        let gas_limit = U256::from("31000");
-        let to = EthereumAddress::from_str("0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E").unwrap();
-        let amount = U256::zero();
-
-        let params = Eip1559TransactionParameters {
-            chain_id,
-            nonce,
-            max_priority_fee_per_gas,
-            max_fee_per_gas,
-            gas_limit,
-            to,
-            amount,
-            data,
-            access_list: vec![],
-        };
-
-        let mut tx = Eip1559Transaction::<Sepolia>::new(&params).unwrap();
-        let msg = tx.to_transaction_id().unwrap().txid;
-        let (rs, recid) = secp256k1_sign(&sk_from2, &msg).unwrap();
-        let tx = tx.sign(rs, recid).unwrap();
-        let tx = hex::encode(tx);
-
-        println!("Tx: {}", tx);
     }
 
     #[test]
@@ -777,12 +721,12 @@ mod tests {
         let sk_to2 = create_sk(xprv.clone(), to2.clone());
 
         let chain_id = Sepolia::CHAIN_ID;
-        let nonce = U256::from(32);
+        let nonce = U256::from(34);
         let max_priority_fee_per_gas = U256::from("200000000");
         let max_fee_per_gas = U256::from("200000000");
         let gas_limit = U256::from("21000");
-        let to = EthereumAddress::from_str("0x6f5ce2e6F2C8D2a6f91FbDeAc835074363c24a6E").unwrap();
-        let amount = U256::from_dec_str("23000000000000000").unwrap();
+        let to = EthereumAddress::from_str("0xd62eFebf27BC254a441692BCcB7Ce1097E2e4D3a").unwrap();
+        let amount = U256::from_dec_str("10000000000000000").unwrap();
 
         let params = Eip1559TransactionParameters {
             chain_id,
