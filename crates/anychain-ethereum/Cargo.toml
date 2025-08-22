@@ -1,7 +1,7 @@
 [package]
 name = "anychain-ethereum"
 description = "A Rust library for Ethereum-focused cryptocurrency wallets, enabling seamless transactions on the Ethereum blockchain"
-version = "0.1.26"
+version = "0.1.27"
 keywords = ["blockchain", "crypto", "ethereum", "wallet"]
 categories = ["cryptography::cryptocurrencies"]
 
@@ -22,6 +22,7 @@ serde_json = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
 ethereum-types = { workspace = true }
+rand.workspace = true
 
 [features]
 default = ["std"]
