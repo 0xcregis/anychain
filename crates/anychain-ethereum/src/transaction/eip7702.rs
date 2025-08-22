@@ -484,7 +484,7 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
 
         let v = sig[64] + 27;
         let r = sig[..32].to_vec();
-        let s = sig[32..].to_vec();
+        let s = sig[32..64].to_vec();
 
         let v = Token::Uint(U256::from(v));
         let r = Token::FixedBytes(r);
