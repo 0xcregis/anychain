@@ -293,16 +293,12 @@ impl<N: EthereumNetwork> fmt::Display for Eip7702Transaction<N> {
 }
 
 pub struct Many2ManyTransfer<N: EthereumNetwork> {
-    pub contract: String, // caller contract address
     pub transfers: Vec<One2ManyTransfer<N>>,
 }
 
 impl<N: EthereumNetwork> Many2ManyTransfer<N> {
-    pub fn new(contract: String, transfers: Vec<One2ManyTransfer<N>>) -> Self {
-        Self {
-            contract,
-            transfers,
-        }
+    pub fn new(transfers: Vec<One2ManyTransfer<N>>) -> Self {
+        Self { transfers }
     }
 
     pub fn authorizations(&self) -> Result<Vec<Authorization>, TransactionError> {
