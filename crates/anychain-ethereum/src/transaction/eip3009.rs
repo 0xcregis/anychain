@@ -330,7 +330,7 @@ mod tests {
             .sign(recid, rs[..32].to_vec(), rs[32..].to_vec())
             .unwrap();
 
-        let nonce = U256::from(58);
+        let nonce = U256::from(67);
         let max_priority_fee_per_gas = U256::from_dec_str("1000000000").unwrap();
         let max_fee_per_gas = U256::from_dec_str("1000000000").unwrap();
         let gas_limit = U256::from(210000);

@@ -401,7 +401,6 @@ pub struct One2ManyTransfer {
     pub xprv: String,
     pub path: String,        // from address path
     pub nonce: u64,          // from address nonce
-    pub nonce_contract: u64, // nonce of contract bound to from address
     pub contract: String,    // batch transfer contract
     pub transfers: Vec<One2OneTransfer>,
 }
@@ -411,7 +410,6 @@ impl One2ManyTransfer {
         xprv: String,
         path: String,
         nonce: u64,
-        nonce_contract: u64,
         contract: String,
         transfers: Vec<One2OneTransfer>,
     ) -> Self {
@@ -419,7 +417,6 @@ impl One2ManyTransfer {
             xprv,
             path,
             nonce,
-            nonce_contract,
             contract,
             transfers,
         }
@@ -453,7 +450,6 @@ impl One2ManyTransfer {
         let sk = create_sk(self.xprv.clone(), self.path.clone());
         encode_one_2_many_transfers(
             "execute_batch_transfer",
-            self.nonce_contract,
             &self.transfers,
             &sk,
         )
@@ -503,7 +499,6 @@ impl One2OneTransfer {
 
 pub fn encode_one_2_many_transfers(
     func_name: &str,
-    nonce: u64,
     transfers: &[One2OneTransfer],
     sk: &libsecp256k1::SecretKey,
 ) -> Result<Vec<u8>, TransactionError> {
@@ -548,9 +543,7 @@ pub fn encode_one_2_many_transfers(
             .collect::<Vec<Token>>(),
     );
 
-    let nonce = Token::Uint(U256::from(nonce));
-
-    let stream = encode(&[nonce, calls.clone()]);
+    let stream = encode(&[calls.clone()]);
     let hash = keccak256(&stream).to_vec();
     let (rs, recid) = secp256k1_sign(sk, &hash).unwrap();
     let v = recid + 27;
@@ -675,7 +668,6 @@ mod tests {
             xprv.clone(),
             delegate.clone(),
             38,
-            2,
             batch_contract.clone(),
             vec![transfer1/* , transfer2*/],
         );
@@ -708,23 +700,15 @@ mod tests {
         let xprv = "xprv9s21ZrQH143K4AQzoQF6p3riRHUPG7VMQpYdCkcc548CYYT76Ay2nTFDXAfrMq7MT6NMePhuYP2uTGhTXjZZ1AZrGPZ4MyysX8ffTx9VwXU".to_string();
 
         let delegate = "m/44/60/0/3".to_string();
-        let from1 = "m/44/60/0/2".to_string();
-        let from2 = "m/44/60/0/1".to_string();
-        let to1 = "m/44/60/0/0".to_string();
-        let to2 = "m/44/60/0/4".to_string();
-        let to3 = "m/44/60/0/5".to_string();
-        let to4 = "m/44/60/0/6".to_string();
-
         let sk_delegate = create_sk(xprv.clone(), delegate.clone());
-        let sk_to2 = create_sk(xprv.clone(), to2.clone());
 
         let chain_id = Sepolia::CHAIN_ID;
-        let nonce = U256::from(34);
+        let nonce = U256::from(61);
         let max_priority_fee_per_gas = U256::from("200000000");
         let max_fee_per_gas = U256::from("200000000");
         let gas_limit = U256::from("21000");
-        let to = EthereumAddress::from_str("0xd62eFebf27BC254a441692BCcB7Ce1097E2e4D3a").unwrap();
-        let amount = U256::from_dec_str("10000000000000000").unwrap();
+        let to = EthereumAddress::from_str("0x424Ef693c6F2648983aEc92f35a1143ba9Dd076C").unwrap();
+        let amount = U256::from_dec_str("100000000000000000").unwrap();
 
         let params = Eip1559TransactionParameters {
             chain_id,
@@ -749,17 +733,22 @@ mod tests {
 
     #[test]
     fn test_decouple() {
+        let xprv = "xprv9s21ZrQH143K4AQzoQF6p3riRHUPG7VMQpYdCkcc548CYYT76Ay2nTFDXAfrMq7MT6NMePhuYP2uTGhTXjZZ1AZrGPZ4MyysX8ffTx9VwXU".to_string();
+
+        // let from1 = "m/44/60/0/2".to_string();
+        // let sk_from1 = create_sk(xprv.clone(), from1.clone());
+
         let sk = "3d98c2d5a7f737693b470114816000645419af49bd21258cc99142f6ef5fd60a".to_string();
         let sk = hex::decode(sk).unwrap();
         let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
-        let null = "0x0000000000000000000000000000000000000000";
-        let null = EthereumAddress::from_str(null).unwrap();
+        let batch = "0x0000000000000000000000000000000000000000";
+        let batch = EthereumAddress::from_str(batch).unwrap();
 
         let mut auth = Authorization {
             chain_id: Sepolia::CHAIN_ID,
-            address: null,
-            nonce: U256::from(57),
+            address: batch,
+            nonce: U256::from(66),
             y_parity: false,
             r: vec![],
             s: vec![],
@@ -771,7 +760,7 @@ mod tests {
 
         let params = Eip7702TransactionParameters {
             chain_id: Sepolia::CHAIN_ID,
-            nonce: U256::from(56),
+            nonce: U256::from(65),
             max_priority_fee_per_gas: U256::from_dec_str("1000000000").unwrap(),
             max_fee_per_gas: U256::from_dec_str("1000000000").unwrap(),
             gas_limit: U256::from(2100000),
