@@ -432,7 +432,7 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
     }
 
     pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
-        if let None = self.sig_transfer {
+        if self.sig_transfer.is_none() {
             return Err(TransactionError::Message(
                 "transfers not signed yet".to_string(),
             ));
