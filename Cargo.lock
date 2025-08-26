@@ -224,7 +224,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-ethereum"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "anychain-core",
  "anychain-kms",

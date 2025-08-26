@@ -397,6 +397,8 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
             }
             // returns the transfer digest
             1 => {
+                let chain_id = U256::from(N::CHAIN_ID);
+                let chain_id = Token::Uint(chain_id);
                 let nonce = Token::Uint(U256::from(self.nonce_contract));
                 let calls = Token::Array(
                     self.transfers
@@ -405,7 +407,7 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
                         .collect::<Vec<Token>>(),
                 );
 
-                let stream = encode(&[nonce, calls]);
+                let stream = encode(&[chain_id, nonce, calls]);
                 Ok(keccak256(&stream).to_vec())
             }
             _ => Err(TransactionError::Message("invalid digest type".to_string())),
