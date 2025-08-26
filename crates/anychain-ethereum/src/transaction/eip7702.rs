@@ -344,20 +344,42 @@ impl<N: EthereumNetwork> Many2ManyTransfer<N> {
 }
 
 pub struct One2ManyTransfer<N: EthereumNetwork> {
+    // address which initiates transfers
     pub from: String,
+
+    // nonce of from address
     pub nonce: u64,
-    pub contract: String, // contract bound to from by 7702
+
+    // nonce of the transfer contract (for replay protection)
+    pub nonce_contract: u64,
+
+    // contract authorized to from by 7702
+    pub contract: String,
+
+    // transfer batch
     pub transfers: Vec<Transfer>,
+
+    // from's signature for contract authorization
     pub sig_auth: Option<Vec<u8>>,
+
+    // froms's signature for transfers
     pub sig_transfer: Option<Vec<u8>>,
+
     _network: PhantomData<N>,
 }
 
 impl<N: EthereumNetwork> One2ManyTransfer<N> {
-    pub fn new(from: String, nonce: u64, contract: String, transfers: Vec<Transfer>) -> Self {
+    pub fn new(
+        from: String,
+        nonce: u64,
+        nonce_contract: u64,
+        contract: String,
+        transfers: Vec<Transfer>,
+    ) -> Self {
         Self {
             from,
             nonce,
+            nonce_contract,
             contract,
             transfers,
             sig_auth: None,
@@ -375,6 +397,7 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
             }
             // returns the transfer digest
             1 => {
+                let nonce = Token::Uint(U256::from(self.nonce_contract));
                 let calls = Token::Array(
                     self.transfers
                         .iter()
@@ -382,7 +405,7 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
                         .collect::<Vec<Token>>(),
                 );
 
-                let stream = encode(std::slice::from_ref(&calls));
+                let stream = encode(&[nonce, calls]);
                 Ok(keccak256(&stream).to_vec())
             }
             _ => Err(TransactionError::Message("invalid digest type".to_string())),
