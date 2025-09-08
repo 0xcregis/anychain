@@ -1,12 +1,14 @@
+use crate::contract::{erc20_transfer_func, execute_batch_transfer_func, schedule_func};
 use crate::util::{adapt2, pad_zeros, restore_sender, trim_leading_zeros};
-use crate::{encode_transfer, AccessItem, EthereumTransactionId};
+use crate::{erc20_transfer, AccessItem, EthereumTransactionId};
 use crate::{EthereumAddress, EthereumFormat, EthereumNetwork, EthereumPublicKey};
 
 use anychain_core::{hex, utilities::crypto::keccak256, Transaction, TransactionError};
 use core::{fmt, marker::PhantomData, str::FromStr};
-use ethabi::{encode, ethereum_types::H160, Function, Param, ParamType, StateMutability, Token};
+use ethabi::{encode, ethereum_types::H160, Token};
 use ethereum_types::U256;
 use rlp::{Decodable, DecoderError, Encodable, Rlp, RlpStream};
+use serde_json::{json, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Authorization {
@@ -310,25 +312,7 @@ impl<N: EthereumNetwork> Many2ManyTransfer<N> {
     }
 
     pub fn data(&self) -> Result<Vec<u8>, TransactionError> {
-        let param_calls = Param {
-            name: "calls".to_string(),
-            kind: ParamType::Array(Box::new(ParamType::Tuple(vec![
-                ParamType::Address,
-                ParamType::Uint(256),
-                ParamType::Bytes,
-            ]))),
-            internal_type: None,
-        };
-
-        #[allow(deprecated)]
-        let func = Function {
-            name: "schedule".to_string(),
-            inputs: vec![param_calls],
-            outputs: vec![],
-            constant: None,
-            state_mutability: StateMutability::Payable,
-        };
-
+        let func = schedule_func();
         let calls = Token::Array(
             self.transfers
                 .iter()
@@ -463,40 +447,7 @@ impl<N: EthereumNetwork> One2ManyTransfer<N> {
             ));
         }
 
-        let param_calls = Param {
-            name: "calls".to_string(),
-            kind: ParamType::Array(Box::new(ParamType::Tuple(vec![
-                ParamType::Address,
-                ParamType::Uint(256),
-                ParamType::Bytes,
-            ]))),
-            internal_type: None,
-        };
-
-        let param_v = Param {
-            name: "v".to_string(),
-            kind: ParamType::Uint(8),
-            internal_type: None,
-        };
-        let param_r = Param {
-            name: "r".to_string(),
-            kind: ParamType::FixedBytes(32),
-            internal_type: None,
-        };
-        let param_s = Param {
-            name: "s".to_string(),
-            kind: ParamType::FixedBytes(32),
-            internal_type: None,
-        };
-
-        #[allow(deprecated)]
-        let func = Function {
-            name: "execute_batch_transfer".to_string(),
-            inputs: vec![param_calls, param_v, param_r, param_s],
-            outputs: vec![],
-            constant: None,
-            state_mutability: StateMutability::Payable,
-        };
+        let func = execute_batch_transfer_func();
 
         let calls = Token::Array(
             self.transfers
@@ -550,7 +501,7 @@ impl Transfer {
             Some(token) => {
                 let to = Token::Address(H160::from_slice(&token.to_bytes().unwrap()));
                 let amount = Token::Uint(U256::from(0));
-                let data = Token::Bytes(encode_transfer("transfer", &self.to, self.amount));
+                let data = Token::Bytes(erc20_transfer(&self.to, self.amount));
                 Token::Tuple(vec![to, amount, data])
             }
             None => {
@@ -559,6 +510,58 @@ impl Transfer {
                 let data = Token::Bytes(vec![]);
                 Token::Tuple(vec![to, amount, data])
             }
+        }
+    }
+
+    pub fn from_token(token: Token) -> Result<Self, TransactionError> {
+        let call = token.into_tuple().unwrap();
+        let to = call[0].clone().into_address().unwrap();
+        let to = EthereumAddress::from_str(&hex::encode(to)).unwrap();
+        let amount = call[1].clone().clone().into_uint().unwrap();
+        let data = call[2].clone().into_bytes().unwrap();
+
+        if data.is_empty() {
+            Ok(Self {
+                token: None,
+                to,
+                amount,
+            })
+        } else {
+            let func = erc20_transfer_func();
+            let transfer = func
+                .decode_input(&data[4..])
+                .map_err(|e| TransactionError::Message(format!("Failed to decode data: {}", e)))?;
+            if transfer.len() != 2 {
+                return Err(TransactionError::Message(
+                    "Invalid ERC20 transfer data length".to_string(),
+                ));
+            }
+            let token = Some(to);
+            let to = transfer[0].clone().into_address().unwrap();
+            let to = EthereumAddress::from_str(&hex::encode(to)).unwrap();
+            let amount = transfer[1].clone().into_uint().unwrap();
+
+            Ok(Self { token, to, amount })
+        }
+    }
+
+    pub fn to_json(&self) -> Value {
+        let to = self.to.to_string();
+        let amount = self.amount.to_string();
+
+        match &self.token {
+            Some(token) => {
+                let token = token.to_string();
+                json!({
+                    "token": token,
+                    "to": to,
+                    "amount": amount,
+                })
+            }
+            None => json!({
+                "to": to,
+                "amount": amount,
+            }),
         }
     }
 }

@@ -1,9 +1,10 @@
 use core::marker::PhantomData;
 use core::str::FromStr;
 
+use crate::contract::eip3009_transfer_func;
 use crate::{EthereumAddress, EthereumNetwork};
 use anychain_core::{crypto::keccak256, hex, TransactionError};
-use ethabi::{encode, Function, Param, ParamType, StateMutability, Token};
+use ethabi::{encode, Token};
 use ethereum_types::{H160, U256};
 
 trait EIP712TypedData {
@@ -190,61 +191,7 @@ impl<N: EthereumNetwork> TransferWithAuthorizationParameters<N> {
     }
 
     fn to_data(&self) -> Result<Vec<u8>, TransactionError> {
-        #[allow(deprecated)]
-        let func = Function {
-            name: "transferWithAuthorization".to_string(),
-            inputs: vec![
-                Param {
-                    name: "from".to_string(),
-                    kind: ParamType::Address,
-                    internal_type: None,
-                },
-                Param {
-                    name: "to".to_string(),
-                    kind: ParamType::Address,
-                    internal_type: None,
-                },
-                Param {
-                    name: "value".to_string(),
-                    kind: ParamType::Uint(256),
-                    internal_type: None,
-                },
-                Param {
-                    name: "validAfter".to_string(),
-                    kind: ParamType::Uint(256),
-                    internal_type: None,
-                },
-                Param {
-                    name: "validBefore".to_string(),
-                    kind: ParamType::Uint(256),
-                    internal_type: None,
-                },
-                Param {
-                    name: "nonce".to_string(),
-                    kind: ParamType::FixedBytes(32),
-                    internal_type: None,
-                },
-                Param {
-                    name: "v".to_string(),
-                    kind: ParamType::Uint(8),
-                    internal_type: None,
-                },
-                Param {
-                    name: "r".to_string(),
-                    kind: ParamType::FixedBytes(32),
-                    internal_type: None,
-                },
-                Param {
-                    name: "s".to_string(),
-                    kind: ParamType::FixedBytes(32),
-                    internal_type: None,
-                },
-            ],
-            outputs: vec![],
-            constant: None,
-            state_mutability: StateMutability::NonPayable,
-        };
-
+        let func = eip3009_transfer_func();
         let from = self
             .from
             .to_bytes()
@@ -329,6 +276,8 @@ mod tests {
         let data = transfer
             .sign(recid, rs[..32].to_vec(), rs[32..].to_vec())
             .unwrap();
+
+        println!("Data: 0x{}", hex::encode(&data));
 
         let nonce = U256::from(67);
         let max_priority_fee_per_gas = U256::from_dec_str("1000000000").unwrap();

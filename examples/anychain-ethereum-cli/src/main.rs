@@ -8,7 +8,7 @@ use std::fmt::Error;
 use std::fmt::Formatter;
 use std::str::FromStr;
 
-use anychain_ethereum::{encode_transfer, EthereumAddress, EthereumFormat, EthereumPublicKey};
+use anychain_ethereum::{erc20_transfer, EthereumAddress, EthereumFormat, EthereumPublicKey};
 
 use anychain_core::{hex, Address, PublicKey};
 
@@ -270,7 +270,7 @@ fn main() {
                     let recepient = sub_matches.get_one::<String>("to").unwrap();
                     let recepient = EthereumAddress::from_str(recepient).unwrap();
                     let amount = U256::from(*sub_matches.get_one::<u64>("value").unwrap());
-                    data = encode_transfer("transfer", &recepient, amount); // data is encoded transfer(recepient, amount)
+                    data = erc20_transfer(&recepient, amount); // data is encoded transfer(recepient, amount)
                 }
                 "any" => {
                     to = H160::from_str(sub_matches.get_one::<String>("to").unwrap()).unwrap(); // as is
