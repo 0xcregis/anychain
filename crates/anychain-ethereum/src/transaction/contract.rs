@@ -211,8 +211,8 @@ pub fn decode(data: Vec<u8>) -> Result<Value, TransactionError> {
                             "from": hex::encode(from.into_address().unwrap().as_bytes()),
                             "to": hex::encode(to.into_address().unwrap().as_bytes()),
                             "value": value.into_uint().unwrap().to_string(),
-                            "valid_after": valid_after.into_uint().unwrap().to_string(),
-                            "valid_before": valid_before.into_uint().unwrap().to_string(),
+                            "validAfter": valid_after.into_uint().unwrap().to_string(),
+                            "validBefore": valid_before.into_uint().unwrap().to_string(),
                             "nonce": hex::encode(nonce.into_fixed_bytes().unwrap()),
                         }
                     }))
