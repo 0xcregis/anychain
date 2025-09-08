@@ -37,6 +37,18 @@ impl Authorization {
         self.r = rs[..32].to_vec();
         self.s = rs[32..].to_vec();
     }
+
+    pub fn restore_sender(&self) -> Result<EthereumAddress, TransactionError> {
+        let recid = match self.y_parity {
+            true => 1,
+            false => 0,
+        } as u8;
+
+        let sig = [self.r.clone(), self.s.clone()].concat();
+        let msg = self.digest();
+
+        restore_sender(msg, sig, recid)
+    }
 }
 
 impl Encodable for Authorization {
