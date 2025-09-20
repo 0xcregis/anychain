@@ -128,7 +128,7 @@ impl Transaction for NeoTransaction {
     }
 
     fn sign(&mut self, rs_pk_s: Vec<u8>, _recid: u8) -> Result<Vec<u8>, TransactionError> {
-        if rs_pk_s.len() % 97 != 0 {
+        if !rs_pk_s.len().is_multiple_of(97) {
             return Err(TransactionError::Message(format!(
                 "Invalid signauture-public-key tuple length {}",
                 rs_pk_s.len()
