@@ -282,7 +282,6 @@ mod tests {
     fn test_eip3009_tx() {
         let sk = "3d98c2d5a7f737693b470114816000645419af49bd21258cc99142f6ef5fd60a".to_string();
         let sk = hex::decode(sk).unwrap();
-        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
         let from = "0x7eE4c635d204eBE65fc8987CE6570CFA1651E8Af".to_string();
         let to = "0xf7a63003b8ef116939804b4c2dd49290a39c4d97".to_string();

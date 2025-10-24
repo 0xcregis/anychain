@@ -641,6 +641,7 @@ mod tests {
 
         let delegate = "m/44/60/0/3".to_string();
         let sk_delegate = create_sk(xprv.clone(), delegate.clone());
+        let sk_delegate = sk_delegate.serialize().to_vec();
 
         let chain_id = Sepolia::CHAIN_ID;
         let nonce = U256::from(61);
@@ -675,7 +676,6 @@ mod tests {
     fn test_decouple() {
         let sk = "3d98c2d5a7f737693b470114816000645419af49bd21258cc99142f6ef5fd60a".to_string();
         let sk = hex::decode(sk).unwrap();
-        let sk = libsecp256k1::SecretKey::parse_slice(&sk).unwrap();
 
         let batch = "0x0000000000000000000000000000000000000000";
         let batch = EthereumAddress::from_str(batch).unwrap();
