@@ -10,23 +10,28 @@ pub mod crypto;
 pub mod error;
 
 use anychain_core::crypto::sha256;
+use anyhow::{anyhow, Result};
 use bip32::PrivateKey;
 use curve25519_dalek::Scalar;
 use ed25519_dalek::ExpandedSecretKey;
-use error::Error;
 
-pub fn secp256k1_sign(sk: &libsecp256k1::SecretKey, msg: &[u8]) -> Result<(Vec<u8>, u8), Error> {
+pub fn secp256k1_sign(sk: &[u8], msg: &[u8]) -> Result<(Vec<u8>, u8)> {
+    let sk = libsecp256k1::SecretKey::parse_slice(sk)?;
     let msg = libsecp256k1::Message::parse_slice(msg)?;
-    let (sig, recid) = libsecp256k1::sign(&msg, sk);
+    let (sig, recid) = libsecp256k1::sign(&msg, &sk);
     Ok((sig.serialize().to_vec(), recid.into()))
 }
 
-pub fn ed25519_sign(sk: &Scalar, msg: &[u8]) -> Result<Vec<u8>, Error> {
-    let sk_bytes = PrivateKey::to_bytes(sk);
-    let nonce = sha256(&sk_bytes).to_vec();
-    let xsk = [sk_bytes, nonce].concat();
+pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
+    if sk.len() != 32 {
+        return Err(anyhow!("Invalid private key length".to_string()));
+    }
+    let sk = sk.to_vec();
+    let scalar = Scalar::from_bytes_mod_order(sk.clone().try_into().unwrap());
+    let nonce = sha256(&sk).to_vec();
+    let xsk = [sk, nonce].concat();
     let xsk = ExpandedSecretKey::from_bytes(&xsk).unwrap();
-    let pk = PrivateKey::public_key(sk);
+    let pk = PrivateKey::public_key(&scalar);
     let sig = xsk.sign(msg, &pk).to_bytes().to_vec();
     Ok(sig)
 }
