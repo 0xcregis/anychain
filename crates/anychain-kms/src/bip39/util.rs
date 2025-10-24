@@ -110,7 +110,8 @@ impl BitWriter {
     pub fn with_capacity(capacity: usize) -> Self {
         let mut bytes = capacity / 8;
 
-        if !capacity.is_multiple_of(8) {
+        #[allow(clippy::manual_is_multiple_of)]
+        if capacity % 8 != 0 {
             bytes += 1;
         }
 
