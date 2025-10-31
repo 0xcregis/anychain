@@ -208,6 +208,7 @@ mod tests {
     use anychain_core::{hex, PublicKey, Transaction};
     use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 
+    #[allow(deprecated)]
     #[test]
     fn test_tx_gen() {
         let sk = [

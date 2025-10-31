@@ -16,7 +16,7 @@ fn address_from_public_key<N: BitcoinNetwork>(
 ) -> Vec<(BitcoinFormat, String)> {
     let public_key = BitcoinPublicKey::<N>::from_secp256k1_public_key(public_key, true);
     let converter = |addr: BitcoinAddress<N>| Ok(addr.to_string());
-    let addresses: Vec<(BitcoinFormat, String)> = vec![
+    let addresses: Vec<(BitcoinFormat, String)> = [
         (
             BitcoinFormat::P2PKH,
             public_key
