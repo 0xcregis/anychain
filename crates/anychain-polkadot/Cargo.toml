@@ -14,7 +14,7 @@ repository = { workspace = true }
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
-sp-core = "30.0.0"
+sp-core = "38.1.0"
 base58 = { workspace = true }
 parity-scale-codec = { version = "3.6.5" }
 ed25519-dalek = { workspace = true }

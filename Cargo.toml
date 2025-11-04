@@ -8,7 +8,7 @@ members = [
     "crates/anychain-filecoin",
     "crates/anychain-polkadot",
     "crates/anychain-ripple",
-    "crates/anychain-neo",
+    #"crates/anychain-neo",
     "crates/anychain-cardano",
     "crates/anychain-kms",
     "examples/*",
@@ -54,7 +54,7 @@ forest_encoding = "0.2.2"
 cid = "0.8.6"
 base64 = "0.21.5"
 # bytes = "1.0"
-protobuf = { version = "=3.4.0" }
+protobuf = { version = "=3.7.2" }
 chrono = "0.4"
 ethabi = "17.2.0"
 regex = { version = "1.3" }
