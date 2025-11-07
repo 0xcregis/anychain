@@ -13,7 +13,8 @@ use anychain_core::crypto::sha256;
 use anyhow::{anyhow, Result};
 use bip32::PrivateKey;
 use curve25519_dalek::Scalar;
-use ed25519_dalek::ExpandedSecretKey;
+use ed25519_dalek::{hazmat::ExpandedSecretKey, Signature};
+use sha2::Sha512;
 
 pub fn secp256k1_sign(sk: &[u8], msg: &[u8]) -> Result<(Vec<u8>, u8)> {
     let sk = libsecp256k1::SecretKey::parse_slice(sk)?;
@@ -30,10 +31,12 @@ pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
     let scalar = Scalar::from_bytes_mod_order(sk.clone().try_into().unwrap());
     let nonce = sha256(&sk).to_vec();
     let xsk = [sk, nonce].concat();
-    let xsk = ExpandedSecretKey::from_bytes(&xsk).unwrap();
+    // let xsk = ExpandedSecretKey::from_bytes(&xsk).unwrap();
+    let xsk = ExpandedSecretKey::from_slice(&xsk).unwrap();
     let pk = PrivateKey::public_key(&scalar);
-    let sig = xsk.sign(msg, &pk).to_bytes().to_vec();
-    Ok(sig)
+    let sig: Signature = ed25519_dalek::hazmat::raw_sign::<Sha512>(&xsk, msg, &pk);
+    let sig_vec = sig.to_bytes().to_vec();
+    Ok(sig_vec)
 }
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ use alloc::string::{String, ToString};
 pub type XpubSecp256k1 = ExtendedPublicKey<libsecp256k1::PublicKey>;
 
 /// Extended public ed25519 EDDSA verifiying key.
-pub type XpubEd25519 = ExtendedPublicKey<ed25519_dalek::PublicKey>;
+pub type XpubEd25519 = ExtendedPublicKey<ed25519_dalek::VerifyingKey>;
 
 /// Extended public keys derived using BIP32.
 ///

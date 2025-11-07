@@ -21,6 +21,11 @@ ed25519-dalek = { workspace = true }
 serde_json = { workspace = true }
 libsecp256k1 = { workspace = true }
 blake2b_simd = { workspace = true }
+sha2 = {workspace = true}
+
+[dev-dependencies]
+curve25519-dalek = {workspace = true}
+anychain-kms = { path = "../anychain-kms", version = "0.1.20" }
 
 [lints]
 workspace = true

@@ -18,7 +18,7 @@ path = "examples/transfer-ada.rs"
 
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
-anychain-kms = { path = "../anychain-kms", version = "0.1.17" }
+#anychain-kms = { path = "../anychain-kms", version = "0.1.17" }
 serde = { workspace = true }
 ed25519-dalek = { workspace = true }
 curve25519-dalek = { workspace = true }
@@ -27,7 +27,7 @@ group = "0.13.0"
 cml-chain = { workspace = true }
 cml-crypto = { workspace = true }
 cml-core = { workspace = true }
-rand_core.workspace = true
+#rand_core.workspace = true
 
 [dev-dependencies]
 hex = "0.4.3"

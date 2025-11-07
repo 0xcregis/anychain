@@ -65,7 +65,7 @@ impl From<&XprvSecp256k1> for libsecp256k1::SecretKey {
 }
 
 impl PrivateKey for Scalar {
-    type PublicKey = ed25519_dalek::PublicKey;
+    type PublicKey = ed25519_dalek::VerifyingKey;
 
     fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
         let mut sk = [0u8; 32];
@@ -86,7 +86,7 @@ impl PrivateKey for Scalar {
 
     fn public_key(&self) -> Self::PublicKey {
         let pk = (G * self).to_bytes();
-        ed25519_dalek::PublicKey::from_bytes(&pk).unwrap()
+        ed25519_dalek::VerifyingKey::from_bytes(&pk).unwrap()
     }
 }
 

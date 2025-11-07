@@ -51,15 +51,15 @@ impl PublicKey for libsecp256k1::PublicKey {
     }
 }
 
-impl PublicKey for ed25519_dalek::PublicKey {
+impl PublicKey for ed25519_dalek::VerifyingKey {
     fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
         if bytes.len() == 32 {
-            Ok(
-                ed25519_dalek::PublicKey::from_bytes(&bytes)
-                    .or(Err(crate::bip32::Error::Crypto))?,
-            )
+            let arr: [u8; 32] = bytes.try_into().unwrap();
+            Ok(ed25519_dalek::VerifyingKey::from_bytes(&arr)
+                .or(Err(crate::bip32::Error::Crypto))?)
         } else if bytes.len() == 33 {
-            Ok(ed25519_dalek::PublicKey::from_bytes(&bytes[1..])
+            let arr: [u8; 32] = bytes[1..].try_into().unwrap();
+            Ok(ed25519_dalek::VerifyingKey::from_bytes(&arr)
                 .or(Err(crate::bip32::Error::Crypto))?)
         } else {
             Err(crate::bip32::Error::Crypto)
@@ -78,7 +78,7 @@ impl PublicKey for ed25519_dalek::PublicKey {
         let tweak = &Scalar::from_bytes_mod_order(_tweak) * G;
         let child = point + tweak;
         let child = child.to_bytes();
-        Ok(ed25519_dalek::PublicKey::from_bytes(&child).unwrap())
+        Ok(ed25519_dalek::VerifyingKey::from_bytes(&child).unwrap())
     }
 }
 

@@ -12,7 +12,7 @@ use {
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CardanoPublicKey(pub ed25519_dalek::PublicKey);
+pub struct CardanoPublicKey(pub ed25519_dalek::VerifyingKey);
 
 impl PublicKey for CardanoPublicKey {
     type SecretKey = Scalar;
@@ -22,7 +22,7 @@ impl PublicKey for CardanoPublicKey {
     fn from_secret_key(secret_key: &Self::SecretKey) -> Self {
         let pk = secret_key * G;
         let pk = pk.to_bytes();
-        let pk = ed25519_dalek::PublicKey::from_bytes(&pk).unwrap();
+        let pk = ed25519_dalek::VerifyingKey::from_bytes(&pk).unwrap();
         Self(pk)
     }
 

@@ -90,11 +90,9 @@ impl<N: PolkadotNetwork> Display for PolkadotAddress<N> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use crate::{PolkadotAddress, PolkadotFormat, PolkadotSecretKey, Westend};
     use anychain_core::{hex, Address};
-    use ed25519_dalek::SecretKey;
+    use std::str::FromStr;
 
     #[test]
     fn test_address() {
@@ -105,8 +103,9 @@ mod tests {
         let h = hex::encode(sk);
         println!("{}", h);
 
-        let sk = SecretKey::from_bytes(sk.as_slice()).unwrap();
-        let sk = PolkadotSecretKey::Ed25519(sk);
+        // let sk = SecretKey::from_bytes(sk.as_slice()).unwrap();
+        let signing_key: ed25519_dalek::SigningKey = ed25519_dalek::SigningKey::from_bytes(&sk);
+        let sk = PolkadotSecretKey::Ed25519(signing_key.to_bytes());
 
         let address =
             PolkadotAddress::<Westend>::from_secret_key(&sk, &PolkadotFormat::Standard).unwrap();

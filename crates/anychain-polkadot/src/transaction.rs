@@ -246,8 +246,12 @@ mod tests {
     };
     use anychain_core::Address;
     use anychain_core::{hex, Transaction};
-    use ed25519_dalek::{ExpandedSecretKey, PublicKey, SecretKey};
+    use ed25519_dalek::{
+        hazmat::{self, ExpandedSecretKey},
+        Signature, VerifyingKey,
+    };
     use serde_json::Value;
+    use sha2::Sha512;
     use std::str::FromStr;
 
     fn tx_from_str<N: PolkadotNetwork>(json: &str) -> PolkadotTransaction<N> {
@@ -327,8 +331,10 @@ mod tests {
             5, 8, 13, 17, 29,
         ];
 
-        let sk_from = ed25519_dalek::SecretKey::from_bytes(sk_from.as_slice()).unwrap();
-        let sk_to = ed25519_dalek::SecretKey::from_bytes(sk_to.as_slice()).unwrap();
+        // let sk_from = ed25519_dalek::SecretKey::from_bytes(sk_from.as_slice()).unwrap();
+        // let sk_to = ed25519_dalek::SecretKey::from_bytes(sk_to.as_slice()).unwrap();
+        let sk_from = ed25519_dalek::SecretKey::from(sk_from);
+        let sk_to = ed25519_dalek::SecretKey::from(sk_to);
 
         let sk_from = PolkadotSecretKey::Ed25519(sk_from);
         let sk_to = PolkadotSecretKey::Ed25519(sk_to);
@@ -405,13 +411,17 @@ mod tests {
             26, 232, 171, 144, 41, 109, 182, 148, 243, 20, 23, 29, 61,
         ];
 
-        let sk = SecretKey::from_bytes(sk.as_slice()).unwrap();
-        let pk = PublicKey::from(&sk);
+        let secret = ed25519_dalek::SecretKey::from(sk);
+        let xsk: ed25519_dalek::hazmat::ExpandedSecretKey = ExpandedSecretKey::from(&secret);
+        let pk = VerifyingKey::from(&xsk);
+        let signature: Signature = hazmat::raw_sign::<Sha512>(&xsk, &msg, &pk);
 
-        let xsk = ExpandedSecretKey::from(&sk);
-        let sig = xsk.sign(&msg, &pk);
+        // let sk = SecretKey::from_bytes(sk.as_slice()).unwrap();
+        // let pk = PublicKey::from(&sk);
+        // let xsk = ExpandedSecretKey::from_slice(&sk).unwrap();
+        // let sig = xsk.sign(&msg, &pk);
 
-        let signed_tx = tx.sign_ed25519(sig.to_bytes().to_vec()).unwrap();
+        let signed_tx = tx.sign_ed25519(signature.to_bytes().to_vec()).unwrap();
         let signed_tx = hex::encode(signed_tx);
 
         assert_eq!(

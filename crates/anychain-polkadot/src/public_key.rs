@@ -11,7 +11,7 @@ pub enum PolkadotSecretKey {
 #[derive(Debug, Clone)]
 pub enum PublicKeyContent {
     Secp256k1(libsecp256k1::PublicKey),
-    Ed25519(ed25519_dalek::PublicKey),
+    Ed25519(ed25519_dalek::VerifyingKey),
 }
 
 #[derive(Debug, Clone)]
@@ -36,7 +36,9 @@ impl<N: PolkadotNetwork> PublicKey for PolkadotPublicKey<N> {
                 }
             }
             Self::SecretKey::Ed25519(sk) => {
-                let pk = ed25519_dalek::PublicKey::from(sk);
+                let signing_key: ed25519_dalek::SigningKey =
+                    ed25519_dalek::SigningKey::from_bytes(sk);
+                let pk: ed25519_dalek::VerifyingKey = signing_key.verifying_key();
                 let pk = PublicKeyContent::Ed25519(pk);
                 Self {
                     key: pk,
