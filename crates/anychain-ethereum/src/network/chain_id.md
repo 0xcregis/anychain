@@ -1,0 +1,39 @@
+mainnet:
+Ethereum = 1
+EthereumClassic = 61
+Polygon = 137
+Arbitrum = 42161
+Avalanche = 43114
+Base = 8453
+BinanceSmartChain = 56
+HuobiEco = 128
+Okex = 66
+OpBnb = 204
+Optimism = 10
+Linea = 59144
+Xlayer = 196
+Sei = 1329
+Cro = 25
+Mova = 61900
+Ink = 57073
+
+testnet:
+Sepolia = 11155111 // ETH testnet
+Goerli = 5 // ETH testnet
+Kotti = 6 // ETC testnet
+Mumbai = 80001 // Polygon testnet
+Amoy = 80002 // Polygon testnet
+ArbitrumGoerli = 421613 // Arbitrum testnet
+AvalancheTestnet = 43113
+BaseGoerli = 84531
+BinanceSmartChainTestnet = 97
+HuobiEcoTestnet = 256
+OkexTestnet = 65
+OpBnbTestnet = 5611
+OptimismGoerli = 420
+LineaSepolia = 59141
+XlayerTestnet = 195
+SeiTestnet = 1328
+CroTestnet = 338
+MovaTestnet = 10323
+InkTestnet = 763373
