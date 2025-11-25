@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-cardano"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anychain-core",
  "bip39",
@@ -276,7 +276,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-polkadot"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anychain-core",
  "anychain-kms",
