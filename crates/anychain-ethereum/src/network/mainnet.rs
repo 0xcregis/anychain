@@ -118,3 +118,10 @@ pub struct Ink;
 impl EthereumNetwork for Ink {
     const CHAIN_ID: u32 = 57073;
 }
+
+#[derive(Copy, Clone, Debug)]
+pub struct Morph;
+
+impl EthereumNetwork for Morph {
+    const CHAIN_ID: u32 = 2818;
+}

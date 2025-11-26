@@ -16,6 +16,7 @@ Sei = 1329
 Cro = 25
 Mova = 61900
 Ink = 57073
+Morph = 2818
 
 testnet:
 Sepolia = 11155111 // ETH testnet
@@ -37,3 +38,4 @@ SeiTestnet = 1328
 CroTestnet = 338
 MovaTestnet = 10323
 InkTestnet = 763373
+MorphTestnet = 2710
