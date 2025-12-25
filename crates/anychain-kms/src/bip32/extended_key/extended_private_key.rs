@@ -178,7 +178,7 @@ where
 {
     fn ct_eq(&self, other: &Self) -> Choice {
         let mut key_a = self.to_bytes();
-        let mut key_b = self.to_bytes();
+        let mut key_b = other.to_bytes();
 
         let result = key_a.ct_eq(&key_b)
             & self.attrs.depth.ct_eq(&other.attrs.depth)
@@ -248,5 +248,44 @@ where
         } else {
             Err(Error::Crypto)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bip32::{DerivationPath, XprvSecp256k1};
+    use subtle::ConstantTimeEq;
+
+    #[test]
+    fn test_constant_time_eq_same() {
+        let seed1 = [0x11u8; 64]; // All 0x11 bytes
+        let seed2 = [0x11u8; 64]; // All 0x11 bytes (SAME!)
+
+        let path: DerivationPath = "m/44'/60'/0'/0/0".parse().unwrap();
+
+        // Derive two completely same private keys
+        let key1 = XprvSecp256k1::new_from_path(seed1, &path).unwrap();
+        let key2 = XprvSecp256k1::new_from_path(seed2, &path).unwrap();
+
+        assert_eq!(key1.to_bytes(), key2.to_bytes(), "Keys should be same!");
+        assert!(bool::from(key1.ct_eq(&key2)));
+    }
+    #[test]
+    fn test_constant_time_eq_diff() {
+        let seed1 = [0x11u8; 64]; // All 0x11 bytes
+        let seed2 = [0x22u8; 64]; // All 0x22 bytes (DIFFERENT!)
+
+        let path: DerivationPath = "m/44'/60'/0'/0/0".parse().unwrap();
+
+        // Derive two completely different private keys
+        let key1 = XprvSecp256k1::new_from_path(seed1, &path).unwrap();
+        let key2 = XprvSecp256k1::new_from_path(seed2, &path).unwrap();
+
+        assert_ne!(
+            key1.to_bytes(),
+            key2.to_bytes(),
+            "Keys should be different!"
+        );
+        assert!(!bool::from(key1.ct_eq(&key2)));
     }
 }
