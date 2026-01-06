@@ -11,7 +11,7 @@ members = [
     #"crates/anychain-neo",
     "crates/anychain-cardano",
     "crates/anychain-kms",
-    "examples/*",
+    "examples/*", "crates/anychain-stellar",
 ]
 
 [workspace.package]

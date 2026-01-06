@@ -1,0 +1,15 @@
+[package]
+name = "anychain-stellar"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anychain-core = { path = "../anychain-core", version = "0.1.8" }
+serde = { workspace = true }
+
+[lints]
+workspace = true

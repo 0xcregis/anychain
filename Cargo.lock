@@ -301,6 +301,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "anychain-stellar"
+version = "0.1.0"
+dependencies = [
+ "anychain-core",
+ "serde",
+]
+
+[[package]]
 name = "anychain-tron"
 version = "0.2.14"
 dependencies = [
