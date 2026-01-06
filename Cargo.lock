@@ -305,7 +305,11 @@ name = "anychain-stellar"
 version = "0.1.0"
 dependencies = [
  "anychain-core",
+ "curve25519-dalek",
+ "ed25519-dalek",
+ "group",
  "serde",
+ "stellar-strkey",
 ]
 
 [[package]]
@@ -1266,6 +1270,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "crate-git-revision"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c521bf1f43d31ed2f73441775ed31935d77901cb3451e44b38a1c1612fcbaf98"
+dependencies = [
+ "serde",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
@@ -4528,6 +4543,16 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stellar-strkey"
+version = "0.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97e1a364048067bfcd24e6f1a93bba43eeb79c16b854596c841c3e8bab0bfa0c"
+dependencies = [
+ "crate-git-revision",
+ "data-encoding",
+]
 
 [[package]]
 name = "strsim"

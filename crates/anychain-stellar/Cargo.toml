@@ -10,6 +10,10 @@ repository.workspace = true
 [dependencies]
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
 serde = { workspace = true }
+curve25519-dalek = { workspace = true}
+ed25519-dalek = { workspace = true}
+stellar-strkey = "0.0.15"
+group = {workspace = true}
 
 [lints]
 workspace = true

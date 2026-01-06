@@ -73,6 +73,7 @@ bs58 = { version = "0.4", default-features = false, features = ["check", "alloc"
 cml-chain = "6.2.0"
 cml-crypto = "6.2.0"
 cml-core = "6.2.0"
+group = "0.13.0"
 
 [profile.release]
 strip = true       # Automatically strip symbols from the binary

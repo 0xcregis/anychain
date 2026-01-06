@@ -2,7 +2,7 @@
 // https://developers.stellar.org/docs/learn/fundamentals/stellar-data-structures/assets#amount-precision
 
 use {
-    anychain_core::{Amount, AmountError, to_basic_unit_u64},
+    anychain_core::{to_basic_unit_u64, Amount, AmountError},
     core::fmt,
     serde::{Deserialize, Serialize},
     std::ops::{Add, Sub},
