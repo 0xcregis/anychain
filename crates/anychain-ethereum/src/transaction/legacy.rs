@@ -35,6 +35,10 @@ impl EthereumTransactionParameters {
 
         Ok(rlp)
     }
+
+    pub fn get_data(&self) -> Vec<u8> {
+        self.data.clone()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
