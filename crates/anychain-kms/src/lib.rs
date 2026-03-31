@@ -27,15 +27,20 @@ pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
     if sk.len() != 32 {
         return Err(anyhow!("Invalid private key length".to_string()));
     }
+
     let sk = sk.to_vec();
     let scalar = Scalar::from_bytes_mod_order(sk.clone().try_into().unwrap());
     let nonce = sha256(&sk).to_vec();
-    let xsk = [sk, nonce].concat();
-    // let xsk = ExpandedSecretKey::from_bytes(&xsk).unwrap();
-    let xsk = ExpandedSecretKey::from_slice(&xsk).unwrap();
+
+    let xsk = ExpandedSecretKey {
+        scalar,
+        hash_prefix: nonce.try_into().unwrap(),
+    };
+
     let pk = PrivateKey::public_key(&scalar);
     let sig: Signature = ed25519_dalek::hazmat::raw_sign::<Sha512>(&xsk, msg, &pk);
     let sig_vec = sig.to_bytes().to_vec();
+
     Ok(sig_vec)
 }
 
