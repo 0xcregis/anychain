@@ -211,6 +211,7 @@ impl RippleTransaction {
 
     fn from_st(st: &SerializedType) -> Result<Self, TransactionError> {
         if let SerializedType::Object { members, .. } = st {
+            let mut source = [0u8; 20];
             let mut destination = [0u8; 20];
             let mut fee = 0;
             let mut sequence = 0;
@@ -230,7 +231,8 @@ impl RippleTransaction {
                         if *field_value == 3 {
                             destination = *account_id;
                         } else if *field_value == 1 {
-                            // we skip the deserialization of account
+                            // Store source account (field 1) for later hash160(public_key) verification.
+                            source = *account_id;
                         } else {
                             return Err(TransactionError::Message(format!(
                                 "Invalid field value {} for field serialized type 'account'",
@@ -358,6 +360,16 @@ impl RippleTransaction {
                         ))
                     }
                 }
+            }
+
+            // Enforce that Account(source) matches the signer public key hash.
+            let derived_source = hash160(&public_key);
+            if source != derived_source.as_slice() {
+                return Err(TransactionError::Message(format!(
+                    "Invalid source account: expected {}, got {}",
+                    hex::encode(derived_source),
+                    hex::encode(source),
+                )));
             }
 
             let mut tx = RippleTransaction::new(&RippleTransactionParameters {
@@ -837,7 +849,7 @@ mod tests {
     use crate::{RippleFormat, RipplePublicKey};
 
     use super::{RippleTransaction, RippleTransactionParameters};
-    use anychain_core::{PublicKey, Transaction};
+    use anychain_core::{PublicKey, Transaction, TransactionError};
     use libsecp256k1::{self, Message, SecretKey};
     use std::str::FromStr;
 
@@ -862,7 +874,8 @@ mod tests {
         let from = pk_from.to_address(&RippleFormat::Standard).unwrap();
         let to = pk_to.to_address(&RippleFormat::Standard).unwrap();
 
-        println!("from = {}\nto = {}", from, to);
+        assert_eq!(from.to_string(), "rDZr8KX1A5Ws1DyT7jZd8TPonchDzDGfX2");
+        assert_eq!(to.to_string(), "rpnZmX9CW1QoP2uPRgB5mupp9exFyZmuKM");
 
         let pk_from = pk_from.serialize();
 
@@ -885,8 +898,9 @@ mod tests {
         let tx = tx.sign(sig, 0).unwrap();
         let tx = RippleTransaction::from_bytes(&tx).unwrap();
 
-        println!("tx = {:?}", tx);
-        println!("tx = {}", tx);
+        assert_eq!("120000240262524f2e00000032614000000005f5e10068400000000007a120732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e997446304402200adf9912caaf33ef357031cd46a49c026e5780ca198b1d32dfd252f38fdde572022056b953c08d31b0d68ed6e9ffb810fd8deeefbad21d08f82527bbfa3ec6de0330811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998ff9ea7c077061796d656e747d0467756169e1f1", tx.to_string());
+        // println!("tx = {:?}", tx);
+        // println!("tx = {}", tx);
     }
 
     #[test]
@@ -894,7 +908,50 @@ mod tests {
         let tx = "120000240262524f2e00000032614000000005f5e10068400000000007a120732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e997446304402200adf9912caaf33ef357031cd46a49c026e5780ca198b1d32dfd252f38fdde572022056b953c08d31b0d68ed6e9ffb810fd8deeefbad21d08f82527bbfa3ec6de0330811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998ff9ea7c077061796d656e747d0467756169e1f1";
         let tx = RippleTransaction::from_str(tx).unwrap();
 
-        println!("tx = {:?}", tx);
-        println!("tx = {}", tx);
+        assert_eq!(
+            tx.params.destination,
+            [
+                11, 213, 36, 131, 132, 35, 52, 16, 157, 82, 147, 88, 71, 196, 188, 24, 138, 4, 153,
+                143
+            ]
+        );
+        assert_eq!(tx.params.fee, 500000);
+        assert_eq!(tx.params.sequence, 39998031);
+        assert_eq!(tx.params.destination_tag, 50);
+        assert_eq!(tx.params.amount, 100000000);
+        assert_eq!(tx.params.memos.len(), 1);
+        assert_eq!(
+            tx.params.public_key,
+            [
+                2, 183, 34, 167, 1, 112, 69, 25, 129, 210, 105, 187, 82, 219, 152, 108, 70, 205,
+                94, 70, 216, 38, 40, 247, 119, 15, 188, 41, 98, 166, 12, 94, 153
+            ]
+        );
+        let expected_signagure: Vec<u8> = [
+            10, 223, 153, 18, 202, 175, 51, 239, 53, 112, 49, 205, 70, 164, 156, 2, 110, 87, 128,
+            202, 25, 139, 29, 50, 223, 210, 82, 243, 143, 221, 229, 114, 86, 185, 83, 192, 141, 49,
+            176, 214, 142, 214, 233, 255, 184, 16, 253, 141, 238, 239, 186, 210, 29, 8, 248, 37,
+            39, 187, 250, 62, 198, 222, 3, 48,
+        ]
+        .into();
+        assert_eq!(tx.signature, Some(expected_signagure));
+    }
+
+    #[test]
+    fn test_tx_from_str_rejects_tampered_source_account() {
+        let tx = "120000240262524f2e00000032614000000005f5e10068400000000007a120732102b722a70170451981d269bb52db986c46cd5e46d82628f7770fbc2962a60c5e997446304402200adf9912caaf33ef357031cd46a49c026e5780ca198b1d32dfd252f38fdde572022056b953c08d31b0d68ed6e9ffb810fd8deeefbad21d08f82527bbfa3ec6de0330811489af78f1b802fca6dfaa06c9b6807d2288a9c3be83140bd52483842334109d52935847c4bc188a04998ff9ea7c077061796d656e747d0467756169e1f1";
+
+        // Tamper source account (field 0x81 + len 0x14 + 20-byte payload) but keep SigningPubKey unchanged.
+        let tampered = tx.replacen(
+            "811489af78f1b802fca6dfaa06c9b6807d2288a9c3b",
+            "811400af78f1b802fca6dfaa06c9b6807d2288a9c3b",
+            1,
+        );
+
+        let err = RippleTransaction::from_str(&tampered).unwrap_err();
+        assert!(matches!(
+            err,
+            TransactionError::Message(msg) if msg.contains("Invalid source account")
+        ));
     }
 }
