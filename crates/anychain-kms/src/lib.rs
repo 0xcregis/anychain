@@ -24,17 +24,20 @@ pub fn secp256k1_sign(sk: &[u8], msg: &[u8]) -> Result<(Vec<u8>, u8)> {
 }
 
 pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
-    if sk.len() != 32 {
-        return Err(anyhow!("Invalid private key length".to_string()));
-    }
-
     let sk = sk.to_vec();
-    let scalar = Scalar::from_bytes_mod_order(sk.clone().try_into().unwrap());
+    let sk: [u8; 32] = sk
+        .try_into()
+        .map_err(|_| anyhow!("Invalid private key length".to_string()))?;
+
+    let scalar = Scalar::from_bytes_mod_order(sk);
     let nonce = sha256(&sk).to_vec();
+    let nonce: [u8; 32] = nonce
+        .try_into()
+        .map_err(|_| anyhow!("Invalid nonce length".to_string()))?;
 
     let xsk = ExpandedSecretKey {
         scalar,
-        hash_prefix: nonce.try_into().unwrap(),
+        hash_prefix: nonce,
     };
 
     let pk = PrivateKey::public_key(&scalar);
@@ -99,5 +102,13 @@ mod tests {
         let xpub: XpubSecp256k1 = xprv.public_key();
 
         println!("{}", xpub.to_string(Prefix::XPUB));
+    }
+
+    #[test]
+    fn test_ed25519_sign() {
+        let sk = [1u8; 32];
+        let msg = b"hello world";
+        let sig = super::ed25519_sign(&sk, msg).unwrap();
+        println!("Signature: {:X?}", sig);
     }
 }
