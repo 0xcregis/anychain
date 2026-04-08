@@ -103,4 +103,12 @@ mod tests {
 
         println!("{}", xpub.to_string(Prefix::XPUB));
     }
+
+    #[test]
+    fn test_ed25519_sign() {
+        let sk = [1u8; 32];
+        let msg = b"hello world";
+        let sig = super::ed25519_sign(&sk, msg).unwrap();
+        println!("Signature: {:X?}", sig);
+    }
 }
