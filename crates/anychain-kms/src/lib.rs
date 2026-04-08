@@ -25,12 +25,14 @@ pub fn secp256k1_sign(sk: &[u8], msg: &[u8]) -> Result<(Vec<u8>, u8)> {
 
 pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
     let sk = sk.to_vec();
-    let sk: [u8; 32] = sk.try_into()
+    let sk: [u8; 32] = sk
+        .try_into()
         .map_err(|_| anyhow!("Invalid private key length".to_string()))?;
 
     let scalar = Scalar::from_bytes_mod_order(sk);
     let nonce = sha256(&sk).to_vec();
-    let nonce: [u8; 32] = nonce.try_into()
+    let nonce: [u8; 32] = nonce
+        .try_into()
         .map_err(|_| anyhow!("Invalid nonce length".to_string()))?;
 
     let xsk = ExpandedSecretKey {
