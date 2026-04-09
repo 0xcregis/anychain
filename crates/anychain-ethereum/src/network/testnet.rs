@@ -166,3 +166,10 @@ pub struct MacaTestnet;
 impl EthereumNetwork for MacaTestnet {
     const CHAIN_ID: u32 = 777177;
 }
+
+#[derive(Copy, Clone, Debug)]
+pub struct UniSepolia;
+
+impl EthereumNetwork for UniSepolia {
+    const CHAIN_ID: u32 = 1301;
+}
