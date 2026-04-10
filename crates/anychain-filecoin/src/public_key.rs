@@ -86,7 +86,8 @@ impl FromStr for FilecoinPublicKey {
         let stream = hex::decode(&s)?;
         match is_bls {
             true => {
-                let key = bls_signatures::PublicKey::from_bytes(&stream).unwrap();
+                let key = bls_signatures::PublicKey::from_bytes(&stream)
+                    .map_err(|e| PublicKeyError::Crate("bls_signatures", format!("{:?}", e)))?;
                 Ok(Self::Bls(key))
             }
             false => {
@@ -113,5 +114,16 @@ impl Display for FilecoinPublicKey {
                 write!(f, "{}", s)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_public_key_from_str() {
+        let invalid_bls = "bls_pub_deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+        let _key = FilecoinPublicKey::from_str(invalid_bls);
+        assert!(matches!(_key, Err(PublicKeyError::Crate(_, _))));
     }
 }
