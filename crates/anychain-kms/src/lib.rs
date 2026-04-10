@@ -24,7 +24,13 @@ pub fn secp256k1_sign(sk: &[u8], msg: &[u8]) -> Result<(Vec<u8>, u8)> {
 }
 
 pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
-    let sk = sk.to_vec();
+    // tests can inject nonce bytes via ed25519_sign_inner
+    let nonce = sha256(sk);
+
+    ed25519_sign_inner(sk, msg, &nonce)
+}
+
+fn ed25519_sign_inner(sk: &[u8], msg: &[u8], nonce_bytes: &[u8]) -> Result<Vec<u8>> {
     let sk: [u8; 32] = sk
         .try_into()
         .map_err(|_| anyhow!("Invalid private key length".to_string()))?;
@@ -43,8 +49,7 @@ pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
      * (e.g., via Ristretto or ensuring all points are in the prime-order subgroup).
      */
     let scalar = Scalar::from_bytes_mod_order(sk);
-    let nonce = sha256(&sk).to_vec();
-    let nonce: [u8; 32] = nonce
+    let nonce: [u8; 32] = nonce_bytes
         .try_into()
         .map_err(|_| anyhow!("Invalid nonce length".to_string()))?;
 
@@ -62,7 +67,7 @@ pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::ed25519_sign;
+    use super::{ed25519_sign, ed25519_sign_inner};
     use crate::bip32::{ChildNumber, DerivationPath, Prefix, XprvSecp256k1, XpubSecp256k1};
     use crate::bip39::{Language, Mnemonic, Seed};
     use ed25519_dalek::{
@@ -169,5 +174,19 @@ mod tests {
             91, 144, 161, 185, 213, 14, 6,
         ];
         assert_eq!(expected_sig.as_slice(), sig);
+    }
+
+    #[test]
+    fn test_ed25519_exception() {
+        let msg = b"hello world";
+
+        let short_sk = [1u8; 31];
+        let sk_err = ed25519_sign(&short_sk, msg).unwrap_err();
+        assert!(sk_err.to_string().contains("Invalid private key length"));
+
+        let sk = [1u8; 32];
+        let short_nonce = [2u8; 31];
+        let nonce_err = ed25519_sign_inner(&sk, msg, &short_nonce).unwrap_err();
+        assert!(nonce_err.to_string().contains("Invalid nonce length"));
     }
 }
