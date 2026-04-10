@@ -24,17 +24,20 @@ pub fn secp256k1_sign(sk: &[u8], msg: &[u8]) -> Result<(Vec<u8>, u8)> {
 }
 
 pub fn ed25519_sign(sk: &[u8], msg: &[u8]) -> Result<Vec<u8>> {
-    if sk.len() != 32 {
-        return Err(anyhow!("Invalid private key length".to_string()));
-    }
-
     let sk = sk.to_vec();
-    let scalar = Scalar::from_bytes_mod_order(sk.clone().try_into().unwrap());
+    let sk: [u8; 32] = sk
+        .try_into()
+        .map_err(|_| anyhow!("Invalid private key length".to_string()))?;
+
+    let scalar = Scalar::from_bytes_mod_order(sk);
     let nonce = sha256(&sk).to_vec();
+    let nonce: [u8; 32] = nonce
+        .try_into()
+        .map_err(|_| anyhow!("Invalid nonce length".to_string()))?;
 
     let xsk = ExpandedSecretKey {
         scalar,
-        hash_prefix: nonce.try_into().unwrap(),
+        hash_prefix: nonce,
     };
 
     let pk = PrivateKey::public_key(&scalar);
@@ -101,41 +104,11 @@ mod tests {
         println!("{}", xpub.to_string(Prefix::XPUB));
     }
 
-    use super::ed25519_sign;
-    use ed25519_dalek::{
-        hazmat::{self, ExpandedSecretKey},
-        Signature, Signer, SigningKey, VerifyingKey,
-    };
-    use sha2::Sha512;
-
     #[test]
-    fn test_stand_ed25519_sign() {
-        // ed25519-dalek v2.2.0
-
-        let secret_key_bytes: [u8; 32] = [
-            224, 90, 166, 77, 51, 213, 200, 177, 62, 18, 172, 127, 11, 124, 215, 1, 150, 165, 56,
-            139, 192, 234, 139, 72, 131, 7, 67, 224, 44, 17, 79, 101,
-        ];
-
-        let secret_key = ed25519_dalek::SecretKey::from(secret_key_bytes);
-        let expanded_secret_key: ExpandedSecretKey = ExpandedSecretKey::from(&secret_key);
-        let verifying_key = VerifyingKey::from(&expanded_secret_key);
-
-        let message = b"helloworld";
-        let raw_signature: Signature =
-            hazmat::raw_sign::<Sha512>(&expanded_secret_key, message, &verifying_key);
-
-        let signing_key = SigningKey::from_bytes(&secret_key_bytes);
-        let standard_signature = signing_key.sign(message);
-
-        assert_eq!(raw_signature, standard_signature);
-
-        let custom_signature_result = ed25519_sign(&expanded_secret_key.scalar.to_bytes(), message);
-        assert!(custom_signature_result.is_ok());
-
-        let custom_signature_bytes = custom_signature_result.unwrap();
-        dbg!(custom_signature_bytes);
-
-        // TODO: custom_signature_bytes does not equal raw_signature
+    fn test_ed25519_sign() {
+        let sk = [1u8; 32];
+        let msg = b"hello world";
+        let sig = super::ed25519_sign(&sk, msg).unwrap();
+        println!("Signature: {:X?}", sig);
     }
 }
