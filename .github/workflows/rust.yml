@@ -16,30 +16,32 @@ jobs:
 
     strategy:
       matrix:
-        rust-version: [ 1.94.1 ]
+        rust-version: [ 1.95.0 ]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Cache Cargo dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
-          path: ~/.cargo
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust-version }}
       - name: Check formatting
         run: cargo fmt -- --check
       - name: cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-targets --tests -- -D warnings
+        run: cargo clippy --workspace --all-targets --tests -- -D warnings
       - name: Build and test
         run: cargo test --all-features
