@@ -1,7 +1,7 @@
 [package]
 name = "anychain-filecoin"
 description = "A Rust library for Filecoin-focused cryptocurrency wallets, enabling seamless transactions on the Filecoin blockchain"
-version = "0.1.10"
+version = "0.1.11"
 keywords = ["filecoin", "blockchain", "wallet", "transactions"]
 categories = ["cryptography::cryptocurrencies"]
 
