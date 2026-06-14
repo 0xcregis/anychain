@@ -28,6 +28,29 @@ pub fn erc20_transfer_func() -> Function {
     }
 }
 
+pub fn erc20_appove_func() -> Function {
+    let param_spender = Param {
+        name: "spender".to_string(),
+        kind: ParamType::Address,
+        internal_type: None,
+    };
+
+    let param_amount = Param {
+        name: "amount".to_string(),
+        kind: ParamType::Uint(256),
+        internal_type: None,
+    };
+
+    #[allow(deprecated)]
+    Function {
+        name: "approve".to_string(),
+        inputs: vec![param_spender, param_amount],
+        outputs: vec![],
+        constant: None,
+        state_mutability: StateMutability::Payable,
+    }
+}
+
 pub fn eip3009_transfer_func() -> Function {
     let param_from = Param {
         name: "from".to_string(),
@@ -156,6 +179,16 @@ pub fn erc20_transfer(address: &EthereumAddress, amount: U256) -> Vec<u8> {
     let func = erc20_transfer_func();
     let tokens = vec![
         Token::Address(H160::from_slice(&address.to_bytes().unwrap())),
+        Token::Uint(amount),
+    ];
+
+    func.encode_input(&tokens).unwrap()
+}
+
+pub fn erc20_approve(spender: &EthereumAddress, amount: U256) -> Vec<u8> {
+    let func = erc20_appove_func();
+    let tokens = vec![
+        Token::Address(H160::from_slice(&spender.to_bytes().unwrap())),
         Token::Uint(amount),
     ];
 
