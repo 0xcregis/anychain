@@ -6,7 +6,7 @@ use ethabi::{ethereum_types::H160, Function, Param, ParamType, StateMutability, 
 use ethereum_types::U256;
 use serde_json::{json, Value};
 
-pub fn erc20_transfer_func() -> Function {
+pub(crate) fn erc20_transfer_func() -> Function {
     let param_to = Param {
         name: "to".to_string(),
         kind: ParamType::Address,
@@ -28,7 +28,7 @@ pub fn erc20_transfer_func() -> Function {
     }
 }
 
-pub fn erc20_appove_func() -> Function {
+pub(crate) fn erc20_approve_func() -> Function {
     let param_spender = Param {
         name: "spender".to_string(),
         kind: ParamType::Address,
@@ -51,7 +51,7 @@ pub fn erc20_appove_func() -> Function {
     }
 }
 
-pub fn eip3009_transfer_func() -> Function {
+pub(crate) fn eip3009_transfer_func() -> Function {
     let param_from = Param {
         name: "from".to_string(),
         kind: ParamType::Address,
@@ -118,7 +118,7 @@ pub fn eip3009_transfer_func() -> Function {
     }
 }
 
-pub fn schedule_func() -> Function {
+pub(crate) fn schedule_func() -> Function {
     let param_calls = Param {
         name: "calls".to_string(),
         kind: ParamType::Array(Box::new(ParamType::Tuple(vec![
@@ -139,7 +139,7 @@ pub fn schedule_func() -> Function {
     }
 }
 
-pub fn execute_batch_transfer_func() -> Function {
+pub(crate) fn execute_batch_transfer_func() -> Function {
     let param_calls = Param {
         name: "calls".to_string(),
         kind: ParamType::Array(Box::new(ParamType::Tuple(vec![
@@ -186,7 +186,7 @@ pub fn erc20_transfer(address: &EthereumAddress, amount: U256) -> Vec<u8> {
 }
 
 pub fn erc20_approve(spender: &EthereumAddress, amount: U256) -> Vec<u8> {
-    let func = erc20_appove_func();
+    let func = erc20_approve_func();
     let tokens = vec![
         Token::Address(H160::from_slice(&spender.to_bytes().unwrap())),
         Token::Uint(amount),
@@ -309,6 +309,27 @@ pub fn decode(data: Vec<u8>) -> Result<Value, TransactionError> {
                     Ok(json!({
                         "type": "batch_transfer",
                         "batchTransfers": batch_transfers,
+                    }))
+                }
+                Err(e) => Err(TransactionError::Message(e.to_string())),
+            }
+        }
+        "095ea7b3" => {
+            let func = erc20_approve_func();
+            match func.decode_input(&data[4..]) {
+                Ok(tokens) => {
+                    let spender = tokens[0].clone();
+                    let amount = tokens[1].clone();
+
+                    let spender = hex::encode(spender.into_address().unwrap().as_bytes());
+                    let amount = amount.into_uint().unwrap().to_string();
+
+                    Ok(json!({
+                        "type": "erc20_approve",
+                        "params": {
+                            "spender": spender,
+                            "amount": amount,
+                        }
                     }))
                 }
                 Err(e) => Err(TransactionError::Message(e.to_string())),
