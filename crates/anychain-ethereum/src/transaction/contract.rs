@@ -195,6 +195,17 @@ pub fn erc20_approve(spender: &EthereumAddress, amount: U256) -> Vec<u8> {
     func.encode_input(&tokens).unwrap()
 }
 
+fn to_address(token: Token) -> Result<String, TransactionError> {
+    let address = token.into_address().unwrap();
+    let address = hex::encode(address.as_bytes());
+    Ok(format!("0x{}", address))
+}
+
+fn to_amount(token: Token) -> Result<String, TransactionError> {
+    let amount = token.into_uint().unwrap();
+    Ok(amount.to_string())
+}
+
 pub fn decode(data: Vec<u8>) -> Result<Value, TransactionError> {
     if data.len() < 4 {
         return Err(TransactionError::Message("Illegal data".to_string()));
@@ -211,8 +222,8 @@ pub fn decode(data: Vec<u8>) -> Result<Value, TransactionError> {
                     let to = tokens[0].clone();
                     let amount = tokens[1].clone();
 
-                    let to = hex::encode(to.into_address().unwrap().as_bytes());
-                    let amount = amount.into_uint().unwrap().to_string();
+                    let to = to_address(to)?;
+                    let amount = to_amount(amount)?;
 
                     Ok(json!({
                         "type": "erc20_transfer",
@@ -241,11 +252,11 @@ pub fn decode(data: Vec<u8>) -> Result<Value, TransactionError> {
                     Ok(json!({
                         "type": "eip3009_transfer",
                         "params": {
-                            "from": hex::encode(from.into_address().unwrap().as_bytes()),
-                            "to": hex::encode(to.into_address().unwrap().as_bytes()),
-                            "value": value.into_uint().unwrap().to_string(),
-                            "validAfter": valid_after.into_uint().unwrap().to_string(),
-                            "validBefore": valid_before.into_uint().unwrap().to_string(),
+                            "from": to_address(from)?,
+                            "to": to_address(to)?,
+                            "value": to_amount(value)?,
+                            "validAfter": to_amount(valid_after)?,
+                            "validBefore": to_amount(valid_before)?,
                             "nonce": hex::encode(nonce.into_fixed_bytes().unwrap()),
                         }
                     }))
@@ -321,8 +332,8 @@ pub fn decode(data: Vec<u8>) -> Result<Value, TransactionError> {
                     let spender = tokens[0].clone();
                     let amount = tokens[1].clone();
 
-                    let spender = hex::encode(spender.into_address().unwrap().as_bytes());
-                    let amount = amount.into_uint().unwrap().to_string();
+                    let spender = to_address(spender)?;
+                    let amount = to_amount(amount)?;
 
                     Ok(json!({
                         "type": "erc20_approve",
