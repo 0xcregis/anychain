@@ -16,7 +16,7 @@ use bls_signatures::Serialize as BlsSerialize;
 use data_encoding::DecodeError;
 use data_encoding::Encoding;
 use data_encoding_macro::new_encoding;
-use fvm_ipld_encoding::{serde_bytes, Cbor};
+use fvm_ipld_encoding::serde_bytes;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -57,7 +57,7 @@ impl Address for FilecoinAddress {
     }
 }
 
-impl Cbor for FilecoinAddress {}
+// impl Cbor for FilecoinAddress {}
 
 impl FilecoinAddress {
     /// Address constructor
@@ -532,6 +532,24 @@ mod tests {
     #[test]
     fn base32_to_internal_address() {
         let addr = FilecoinAddress::from_str("f2qexjxohk7c7j6r2tud6kgab6yd62fhdszjukcra").unwrap();
-        println!("{}", addr);
+        assert_eq!(
+            "f2qexjxohk7c7j6r2tud6kgab6yd62fhdszjukcra",
+            addr.to_string()
+        );
+    }
+
+    #[test]
+    fn test_mainnet_address() {
+        let secret_bytes = [1u8; 32];
+        let secret_key = libsecp256k1::SecretKey::parse_slice(&secret_bytes).unwrap();
+        let public_key = libsecp256k1::PublicKey::from_secret_key(&secret_key);
+
+        let addr = FilecoinAddress::new_secp256k1_v2(Network::Mainnet, public_key).unwrap();
+        let addr_str = addr.to_string();
+
+        assert!(addr_str.starts_with(MAINNET_PREFIX));
+        assert!(addr_str.starts_with("f1"));
+        assert_eq!(addr.network(), Network::Mainnet);
+        assert_eq!("f1ksu3ktw4xhyaoltwr546b3epfs5wxxqfyyxipwi", addr_str);
     }
 }

@@ -6,12 +6,13 @@ use crate::format::FilecoinFormat;
 use crate::public_key::FilecoinPublicKey;
 use crate::utilities::crypto::blake2b_256;
 use anychain_core::{Transaction, TransactionError, TransactionId};
+use cid::Cid;
 
 use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
 pub use fvm_ipld_encoding::RawBytes;
-use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor};
+use fvm_ipld_encoding::{de, ser, serde_bytes};
 
 use forest_encoding::tuple::*;
 use fvm_ipld_encoding::repr::*;
@@ -25,6 +26,17 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use self::json::FilecoinTransactionJson;
+
+const DAG_CBOR_CODEC: u64 = 0x71;
+const BLAKE2B_256_MULTIHASH_CODE: u64 = 0xb220;
+
+fn cid_from_cbor<T: ser::Serialize>(value: &T) -> anyhow::Result<Cid> {
+    let data = fvm_ipld_encoding::to_vec(value)?;
+    let digest = blake2b_256(&data);
+    let hash = cid::multihash::Multihash::<64>::wrap(BLAKE2B_256_MULTIHASH_CODE, &digest)
+        .map_err(|e| anyhow!("failed to build multihash: {e}"))?;
+    Ok(Cid::new_v1(DAG_CBOR_CODEC, hash))
+}
 
 /// Represents the parameters for a filecoin transaction
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -41,9 +53,13 @@ pub struct FilecoinTransactionParameters {
     pub gas_premium: FilecoinAmount,
 }
 
-impl Cbor for FilecoinTransactionParameters {}
+// impl Cbor for FilecoinTransactionParameters {}
 
 impl FilecoinTransactionParameters {
+    pub fn cid(&self) -> anyhow::Result<Cid> {
+        cid_from_cbor(self)
+    }
+
     /// Helper function to convert the message into signing bytes.
     /// This function returns the message `Cid` bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -144,7 +160,7 @@ pub struct FilecoinSignature {
     pub bytes: Vec<u8>,
 }
 
-impl Cbor for FilecoinSignature {}
+// impl Cbor for FilecoinSignature {}
 
 impl ser::Serialize for FilecoinSignature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -208,7 +224,7 @@ pub struct FilecoinTransaction {
     pub signature: FilecoinSignature,
 }
 
-impl Cbor for FilecoinTransaction {}
+// impl Cbor for FilecoinTransaction {}
 
 impl Transaction for FilecoinTransaction {
     type Address = FilecoinAddress;
@@ -265,6 +281,10 @@ impl Transaction for FilecoinTransaction {
 }
 
 impl FilecoinTransaction {
+    pub fn cid(&self) -> anyhow::Result<Cid> {
+        cid_from_cbor(self)
+    }
+
     pub fn digest(&self) -> Result<Vec<u8>, TransactionError> {
         Ok(blake2b_256(&self.params.to_bytes()).to_vec())
     }
@@ -361,7 +381,6 @@ pub mod parameter_json {
     use super::address_json::AddressJson;
     use super::amount_json;
     use super::cid_json;
-    use super::Cbor;
     use super::FilecoinAmount;
     use super::FilecoinTransactionParameters;
     use super::RawBytes;
@@ -710,7 +729,22 @@ mod tests {
 
         let tx = FilecoinTransaction::new(&params).unwrap();
 
-        println!("tx = {}", tx);
+        let expected = r#"{"Message":{"Version":0,"To":"t1meiag3eum5xtxi5tivnw4fjhkrdtaqu4v5t4nly","From":"f1lhjzzj6on64czzsgfw5jxsf7y5uv5qvh7dmpevy","Nonce":999,"Value":"1000000000000000000","GasLimit":500000,"GasFeeCap":"1000000000000000","GasPremium":"100000000000000000","Method":0,"Params":"","CID":{"/":"bafy2bzacea2dufcc2vhvrt3pzn24t2zmuhnbdmf5kgch6blkxsppukc4rp6bu"}},"Signature":{"Type":1,"Data":""},"CID":{"/":"bafy2bzacebx42rzvvl3v6mio44ileyxwohj2d2i34otmk7wwqsd4rdl4b3bhq"}}"#;
+
+        // Robust: compare parsed JSON, not raw string formatting.
+        let actual_json: serde_json::Value = serde_json::from_str(&tx.to_string()).unwrap();
+        let expected_json: serde_json::Value = serde_json::from_str(expected).unwrap();
+        assert_eq!(actual_json, expected_json);
+
+        let param_bytes = params.to_bytes();
+        assert_eq!(
+            &[
+                1, 113, 160, 228, 2, 32, 52, 58, 20, 66, 213, 79, 88, 207, 111, 203, 117, 201, 235,
+                44, 161, 218, 17, 176, 189, 81, 132, 127, 5, 106, 188, 158, 250, 40, 92, 139, 252,
+                26
+            ],
+            param_bytes.as_slice()
+        );
     }
 
     #[test]
@@ -718,6 +752,36 @@ mod tests {
         let s = r#"{"Message":{"Version":0,"To":"t1meiag3eum5xtxi5tivnw4fjhkrdtaqu4v5t4nly","From":"f1lhjzzj6on64czzsgfw5jxsf7y5uv5qvh7dmpevy","Nonce":999,"Value":"1000000000000000000","GasLimit":500000,"GasFeeCap":"1000000000000000","GasPremium":"100000000000000000","Method":0,"Params":"","CID":{"/":"bafy2bzacea2dufcc2vhvrt3pzn24t2zmuhnbdmf5kgch6blkxsppukc4rp6bu"}},"Signature":{"Type":1,"Data":""},"CID":{"/":"bafy2bzacebx42rzvvl3v6mio44ileyxwohj2d2i34otmk7wwqsd4rdl4b3bhq"}}"#;
         let tx = FilecoinTransaction::from_bytes(s.as_bytes()).unwrap();
 
-        println!("tx = {}", tx);
+        let expected_json: serde_json::Value = serde_json::from_str(s).unwrap();
+        let actual_json: serde_json::Value = serde_json::from_str(&tx.to_string()).unwrap();
+
+        assert_eq!(actual_json, expected_json);
+
+        // Assert each Message property explicitly
+        assert_eq!(tx.params.version, 0);
+        assert_eq!(
+            tx.params.to.to_string(),
+            "t1meiag3eum5xtxi5tivnw4fjhkrdtaqu4v5t4nly"
+        );
+        assert_eq!(
+            tx.params.from.to_string(),
+            "f1lhjzzj6on64czzsgfw5jxsf7y5uv5qvh7dmpevy"
+        );
+        assert_eq!(tx.params.sequence, 999);
+        assert_eq!(tx.params.value.to_string(), "1000000000000000000");
+        assert_eq!(tx.params.gas_limit, 500000);
+        assert_eq!(tx.params.gas_fee_cap.to_string(), "1000000000000000");
+        assert_eq!(tx.params.gas_premium.to_string(), "100000000000000000");
+        assert_eq!(tx.params.method_num, 0);
+        assert!(tx.params.params.bytes().is_empty());
+
+        assert_eq!(actual_json["Message"]["Params"].as_str(), Some(""));
+        assert_eq!(
+            actual_json["Message"]["CID"]["/"].as_str(),
+            Some("bafy2bzacea2dufcc2vhvrt3pzn24t2zmuhnbdmf5kgch6blkxsppukc4rp6bu")
+        );
+
+        // Optional extra field-level checks (nice for readable test failures)
+        assert_eq!(tx.signature.sig_type as u8, 1);
     }
 }

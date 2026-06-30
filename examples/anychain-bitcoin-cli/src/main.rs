@@ -44,8 +44,8 @@ fn address_from_public_key<N: BitcoinNetwork>(
     ]
     .iter()
     .map(|tuple| {
-        if tuple.1.is_ok() {
-            (tuple.0.clone(), tuple.1.as_ref().unwrap().to_string())
+        if let Ok(item) = &tuple.1 {
+            (tuple.0.clone(), item.to_string())
         } else {
             (tuple.0.clone(), "null".to_string())
         }

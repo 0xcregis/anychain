@@ -118,8 +118,12 @@ impl FilecoinAmountConverter for FilecoinAmount {
     }
 }
 
-#[test]
-fn f() {
-    let atto_fil = FilecoinAmount::from_fil("0.0001");
-    println!("amount = {}", atto_fil);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn f() {
+        let atto_fil = FilecoinAmount::from_fil("0.0001");
+        assert_eq!("100000000000000", atto_fil.to_string());
+    }
 }

@@ -16,30 +16,48 @@ jobs:
 
     strategy:
       matrix:
-        rust-version: [ 1.89.0 ]
+        rust-version: [ 1.95.0 ]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+        uses: actions/checkout@v6
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust-version }}
+
+      - name: Setup kache
+        uses: kunobi-ninja/kache-action@v1
+        with:
+          cache-executables: true
+          cache-key-prefix: kache-rust-ci
+
       - name: Check formatting
         run: cargo fmt -- --check
+
       - name: cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-targets --tests -- -D warnings
+        run: cargo clippy --workspace --all-targets --tests -- -D warnings
+
       - name: Build and test
         run: cargo test --all-features
+
+      - name: Export kache report
+        if: ${{ always() }}
+        run: |
+          mkdir -p /tmp/kache-report
+          kache report \
+            --format json \
+            --since 24h \
+            --output /tmp/kache-report/rust-ci.json
+
+      - name: Upload kache report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: kache-report-rust-ci-${{ github.run_id }}
+          path: /tmp/kache-report/rust-ci.json
+          if-no-files-found: error
