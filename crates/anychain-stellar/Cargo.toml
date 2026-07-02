@@ -14,6 +14,8 @@ curve25519-dalek = { workspace = true }
 ed25519-dalek = { workspace = true }
 stellar-strkey = "0.0.18"
 group = "0.13.0"
+hex.workspace = true
+stellar-xdr = { version = "27.0.0", features = ["base64"] }
 
 [lints]
 workspace = true
