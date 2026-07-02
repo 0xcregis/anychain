@@ -128,7 +128,6 @@ impl Transaction for StellarTransaction {
                 let sig = BytesM::try_from(sig)
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
                 let signature = Signature(sig);
-
                 let sig = DecoratedSignature { hint, signature };
 
                 let envelope = TransactionEnvelope::Tx(TransactionV1Envelope {
@@ -136,21 +135,26 @@ impl Transaction for StellarTransaction {
                     signatures: VecM::try_from(vec![sig])
                         .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?,
                 });
+
                 let stream = envelope
                     .to_xdr(Limits::none())
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
+
                 Ok(stream)
             }
             None => {
                 let tagged_transaction = TransactionSignaturePayloadTaggedTransaction::Tx(tx);
                 let network_id = Hash(sha256(self.params.network_id.as_bytes()));
+
                 let tx = TransactionSignaturePayload {
                     network_id,
                     tagged_transaction,
                 };
+
                 let stream = tx
                     .to_xdr(Limits::none())
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
+
                 Ok(stream)
             }
         }
