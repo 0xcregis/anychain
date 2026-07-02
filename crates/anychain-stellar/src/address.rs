@@ -30,7 +30,7 @@ impl Address for StellarAddress {
     ) -> Result<Self, AddressError> {
         let public_key = stellar_strkey::ed25519::PublicKey::from_payload(public_key.0.as_bytes())
             .map_err(|e| AddressError::Crate("public_key", format!("{e:?}")))?;
-        Ok(Self(public_key.to_string()))
+        Ok(Self(public_key.to_string().as_str().to_string()))
     }
 
     fn is_valid(address: &str) -> bool {
@@ -44,7 +44,7 @@ impl FromStr for StellarAddress {
     fn from_str(addr: &str) -> Result<Self, Self::Err> {
         let public_key = stellar_strkey::ed25519::PublicKey::from_str(addr)
             .map_err(|e| AddressError::Crate("from", format!("{e:?}")))?;
-        Ok(Self(public_key.to_string()))
+        Ok(Self(public_key.to_string().as_str().to_string()))
     }
 }
 
