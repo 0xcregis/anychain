@@ -1,22 +1,25 @@
-use core::fmt;
-use std::str::FromStr;
-use crate::StellarPublicKey;
 use crate::address::StellarAddress;
 use crate::format::StellarFormat;
+use crate::StellarPublicKey;
 use anychain_core::{
-    crypto::sha256, transaction::{Transaction, TransactionError, TransactionId}
+    crypto::sha256,
+    transaction::{Transaction, TransactionError, TransactionId},
 };
+use core::fmt;
+use std::str::FromStr;
 use stellar_xdr::{
-    Hash, Limits, Memo, MuxedAccount, Operation, OperationBody, PaymentOp, Preconditions,
-    SequenceNumber, Transaction as Tx, TransactionExt, TransactionSignaturePayload,
-    TransactionSignaturePayloadTaggedTransaction, Uint256, WriteXdr, TransactionEnvelope,
-    Asset, BytesM, TransactionV1Envelope, VecM, Signature, SignatureHint, DecoratedSignature,
+    AccountId, Asset, BytesM, CreateAccountOp, DecoratedSignature, Hash, Limits, Memo,
+    MuxedAccount, Operation, OperationBody, PaymentOp, Preconditions, PublicKey, SequenceNumber,
+    Signature, SignatureHint, Transaction as Tx, TransactionEnvelope, TransactionExt,
+    TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
+    TransactionV1Envelope, Uint256, VecM, WriteXdr,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransactionParameters {
     pub from: StellarAddress,
     pub to: StellarAddress,
+    pub has_account: bool,
     pub amount: i64,
     pub fee: u32,
     pub nonce: i64,
@@ -70,9 +73,13 @@ impl Transaction for StellarTransaction {
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
         let from = StellarPublicKey::from_str(&self.params.from.to_string())
-            .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?.0.to_bytes();
+            .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?
+            .0
+            .to_bytes();
         let to = StellarPublicKey::from_str(&self.params.to.to_string())
-            .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?.0.to_bytes();
+            .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?
+            .0
+            .to_bytes();
 
         let source_account = MuxedAccount::Ed25519(Uint256(from));
         let destination = MuxedAccount::Ed25519(Uint256(to));
@@ -80,6 +87,21 @@ impl Transaction for StellarTransaction {
 
         let fee = self.params.fee;
         let seq_num = SequenceNumber(self.params.nonce);
+
+        let op_body = match self.params.has_account {
+            true => OperationBody::Payment(PaymentOp {
+                destination: destination.clone(),
+                asset: Asset::Native,
+                amount,
+            }),
+            false => {
+                let destination = AccountId(PublicKey::PublicKeyTypeEd25519(Uint256(to)));
+                OperationBody::CreateAccount(CreateAccountOp {
+                    destination,
+                    starting_balance: amount,
+                })
+            }
+        };
 
         let tx = Tx {
             source_account,
@@ -90,11 +112,7 @@ impl Transaction for StellarTransaction {
             ext: TransactionExt::V0,
             operations: [Operation {
                 source_account: None,
-                body: OperationBody::Payment(PaymentOp {
-                    destination,
-                    asset: Asset::Native,
-                    amount,
-                }),
+                body: op_body,
             }]
             .try_into()
             .unwrap(),
@@ -111,17 +129,15 @@ impl Transaction for StellarTransaction {
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
                 let signature = Signature(sig);
 
-                let sig = DecoratedSignature {
-                    hint,
-                    signature,
-                };
+                let sig = DecoratedSignature { hint, signature };
 
                 let envelope = TransactionEnvelope::Tx(TransactionV1Envelope {
                     tx,
                     signatures: VecM::try_from(vec![sig])
                         .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?,
                 });
-                let stream = envelope.to_xdr(Limits::none())
+                let stream = envelope
+                    .to_xdr(Limits::none())
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
                 Ok(stream)
             }
@@ -132,7 +148,8 @@ impl Transaction for StellarTransaction {
                     network_id,
                     tagged_transaction,
                 };
-                let stream = tx.to_xdr(Limits::none())
+                let stream = tx
+                    .to_xdr(Limits::none())
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
                 Ok(stream)
             }
@@ -154,8 +171,5 @@ impl Transaction for StellarTransaction {
 mod tests {
 
     #[test]
-    fn test_tx_gen() {
-
-
-    }
+    fn test_tx_gen() {}
 }
