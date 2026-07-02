@@ -15,19 +15,19 @@ use stellar_xdr::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransactionParameters {
-    from: StellarAddress,
-    to: StellarAddress,
-    amount: i64,
-    fee: u32,
-    nonce: i64,
-    network_id: String,
-    public_key: [u8; 32],
+    pub from: StellarAddress,
+    pub to: StellarAddress,
+    pub amount: i64,
+    pub fee: u32,
+    pub nonce: i64,
+    pub network_id: String,
+    pub public_key: [u8; 32],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransaction {
-    parameters: StellarTransactionParameters,
-    signatures: Option<Vec<Vec<u8>>>,
+    pub parameters: StellarTransactionParameters,
+    pub signatures: Option<Vec<Vec<u8>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
