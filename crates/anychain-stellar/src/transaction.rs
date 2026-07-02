@@ -26,7 +26,7 @@ pub struct StellarTransactionParameters {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransaction {
-    pub parameters: StellarTransactionParameters,
+    pub params: StellarTransactionParameters,
     pub signatures: Option<Vec<Vec<u8>>>,
 }
 
@@ -50,9 +50,9 @@ impl Transaction for StellarTransaction {
     type TransactionId = StellarTransactionId;
     type TransactionParameters = StellarTransactionParameters;
 
-    fn new(parameters: &Self::TransactionParameters) -> Result<Self, anychain_core::TransactionError> {
+    fn new(params: &Self::TransactionParameters) -> Result<Self, anychain_core::TransactionError> {
         Ok(Self {
-            parameters: parameters.clone(),
+            params: params.clone(),
             signatures: None,
         })
     }
@@ -69,17 +69,17 @@ impl Transaction for StellarTransaction {
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
-        let from = StellarPublicKey::from_str(&self.parameters.from.to_string())
+        let from = StellarPublicKey::from_str(&self.params.from.to_string())
             .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?.0.to_bytes();
-        let to = StellarPublicKey::from_str(&self.parameters.to.to_string())
+        let to = StellarPublicKey::from_str(&self.params.to.to_string())
             .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?.0.to_bytes();
 
         let source_account = MuxedAccount::Ed25519(Uint256(from));
         let destination = MuxedAccount::Ed25519(Uint256(to));
-        let amount = self.parameters.amount;
+        let amount = self.params.amount;
 
-        let fee = self.parameters.fee;
-        let seq_num = SequenceNumber(self.parameters.nonce);
+        let fee = self.params.fee;
+        let seq_num = SequenceNumber(self.params.nonce);
 
         let tx = Tx {
             source_account,
@@ -103,7 +103,7 @@ impl Transaction for StellarTransaction {
         match &self.signatures {
             Some(sigs) => {
                 let mut hint = [0u8; 4];
-                hint.copy_from_slice(&self.parameters.public_key[28..]);
+                hint.copy_from_slice(&self.params.public_key[28..]);
                 let hint = SignatureHint(hint);
 
                 let sig = sigs[0].clone();
@@ -127,7 +127,7 @@ impl Transaction for StellarTransaction {
             }
             None => {
                 let tagged_transaction = TransactionSignaturePayloadTaggedTransaction::Tx(tx);
-                let network_id = Hash(sha256(self.parameters.network_id.as_bytes()));
+                let network_id = Hash(sha256(self.params.network_id.as_bytes()));
                 let tx = TransactionSignaturePayload {
                     network_id,
                     tagged_transaction,
