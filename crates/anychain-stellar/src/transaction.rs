@@ -121,9 +121,9 @@ impl Transaction for StellarTransaction {
                     signatures: VecM::try_from(vec![sig])
                         .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?,
                 });
-                let stream = envelope.to_xdr_base64(Limits::none())
+                let stream = envelope.to_xdr(Limits::none())
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
-                Ok(stream.as_bytes().to_vec())
+                Ok(stream)
             }
             None => {
                 let tagged_transaction = TransactionSignaturePayloadTaggedTransaction::Tx(tx);
