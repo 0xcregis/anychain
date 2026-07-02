@@ -144,7 +144,9 @@ impl Transaction for StellarTransaction {
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        todo!()
+        let stream = self.to_bytes()?;
+        let txid = sha256(&stream).to_vec();
+        Ok(StellarTransactionId { txid })
     }
 }
 
