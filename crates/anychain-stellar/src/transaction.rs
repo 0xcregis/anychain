@@ -86,7 +86,7 @@ impl Transaction for StellarTransaction {
         let amount = self.params.amount;
 
         let fee = self.params.fee;
-        let seq_num = SequenceNumber(self.params.nonce);
+        let seq_num = SequenceNumber(self.params.nonce + 1);
 
         let op_body = match self.params.has_account {
             true => OperationBody::Payment(PaymentOp {
