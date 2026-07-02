@@ -127,8 +127,8 @@ impl Transaction for StellarTransaction {
                 let sig = sigs[0].clone();
                 let sig = BytesM::try_from(sig)
                     .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?;
-                let signature = Signature(sig);
-                let sig = DecoratedSignature { hint, signature };
+                let sig = Signature(sig);
+                let sig = DecoratedSignature { hint, signature: sig };
 
                 let envelope = TransactionEnvelope::Tx(TransactionV1Envelope {
                     tx,
