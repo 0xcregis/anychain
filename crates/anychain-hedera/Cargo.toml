@@ -14,8 +14,12 @@ serde = { workspace = true }
 pbkdf2 = { workspace = true }
 sha2 = { workspace = true }
 hiero-sdk = "0.43.0"
+hiero-sdk-proto = "0.20.0"
+prost = "0.13.5"
 bip32 = "0.5.3"
 k256 = { version = "0.13.4", features = ["ecdsa", "precomputed-tables", "std", "pkcs8"] }
+time = { version = "0.3.47", features = ["std"] }
+tokio = { version = "1.52.1", features = ["full"] }
 
 [lints]
 workspace = true

@@ -257,10 +257,14 @@ dependencies = [
  "bip32",
  "hex",
  "hiero-sdk",
+ "hiero-sdk-proto",
  "k256",
  "pbkdf2",
+ "prost 0.13.5",
  "serde",
  "sha2 0.10.9",
+ "time",
+ "tokio",
 ]
 
 [[package]]
