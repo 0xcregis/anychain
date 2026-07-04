@@ -1,0 +1,21 @@
+[package]
+name = "anychain-hedera"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anychain-core = { path = "../anychain-core", version = "0.1.8" }
+hex = { workspace = true }
+serde = { workspace = true }
+pbkdf2 = { workspace = true }
+sha2 = { workspace = true }
+hiero-sdk = "0.43.0"
+bip32 = "0.5.3"
+k256 = { version = "0.13.4", features = ["ecdsa", "precomputed-tables", "std", "pkcs8"] }
+
+[lints]
+workspace = true
