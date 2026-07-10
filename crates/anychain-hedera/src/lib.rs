@@ -3,9 +3,15 @@ pub mod amount;
 pub mod format;
 pub mod public_key;
 pub mod transaction;
+pub mod protobuf;
+pub mod jni_bridge;
 
 pub use self::address::*;
 pub use self::amount::*;
 pub use self::format::*;
 pub use self::public_key::*;
 pub use self::transaction::*;
+
+pub use crate::protobuf::services;
+pub use crate::protobuf::sdk;
+pub use crate::protobuf::mirror;

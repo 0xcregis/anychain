@@ -7,16 +7,22 @@ homepage.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+jni = "0.21.1"
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
 hex = { workspace = true }
 serde = { workspace = true }
 pbkdf2 = { workspace = true }
 sha2 = { workspace = true }
 hiero-sdk = "0.43.0"
-hiero-sdk-proto = "0.20.0"
+tonic = { version = "0.12.3", features = ["transport"] }
 prost = "0.13.5"
 bip32 = "0.5.3"
+http = "1.4.0"
+http-body-util = "0.1.3"
 k256 = { version = "0.13.4", features = ["ecdsa", "precomputed-tables", "std", "pkcs8"] }
 time = { version = "0.3.47", features = ["std"] }
 tokio = { version = "1.52.1", features = ["full"] }

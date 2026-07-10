@@ -257,7 +257,9 @@ dependencies = [
  "bip32",
  "hex",
  "hiero-sdk",
- "hiero-sdk-proto",
+ "http",
+ "http-body-util",
+ "jni",
  "k256",
  "pbkdf2",
  "prost 0.13.5",
@@ -265,6 +267,7 @@ dependencies = [
  "sha2 0.10.9",
  "time",
  "tokio",
+ "tonic",
 ]
 
 [[package]]
