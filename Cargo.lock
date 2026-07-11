@@ -255,12 +255,12 @@ version = "0.1.0"
 dependencies = [
  "anychain-core",
  "bip32",
+ "ed25519-dalek",
  "hex",
  "hiero-sdk",
  "http",
  "http-body-util",
  "jni",
- "k256",
  "pbkdf2",
  "prost 0.13.5",
  "serde",
@@ -3269,7 +3269,6 @@ dependencies = [
  "once_cell",
  "serdect",
  "sha2 0.10.9",
- "signature",
 ]
 
 [[package]]

@@ -1,12 +1,11 @@
-use jni::JNIEnv;
-use jni::objects::{JClass, JString, JByteArray};
-use jni::sys::{jlong, jint, jstring, jbyteArray};
-use std::str::FromStr;
-use crate::transaction::{HederaTransaction, HederaTransactionParameters, HederaTransactionData};
-use hiero_sdk::{AccountId, Client, PrivateKey, AnyTransaction, TransactionReceiptQuery};
-use k256::ecdsa::{SigningKey, signature::hazmat::PrehashSigner};
-use k256::elliptic_curve::sec1::ToEncodedPoint;
+use crate::transaction::{HederaTransaction, HederaTransactionData, HederaTransactionParameters};
 use anychain_core::Transaction;
+use ed25519_dalek::SigningKey;
+use hiero_sdk::{AccountId, AnyTransaction, Client, PrivateKey, TransactionReceiptQuery};
+use jni::objects::{JByteArray, JClass, JString};
+use jni::sys::{jbyteArray, jint, jlong, jstring};
+use jni::JNIEnv;
+use std::str::FromStr;
 
 #[no_mangle]
 pub extern "system" fn Java_HederaTransactionTest_createAndFundAccount(
@@ -23,33 +22,20 @@ pub extern "system" fn Java_HederaTransactionTest_createAndFundAccount(
         let client = Client::for_testnet();
         let operator_id = AccountId::from_str(&operator_id_str).unwrap();
         let operator_key = PrivateKey::from_str_ecdsa(&operator_priv_hex_str).unwrap();
-        client.set_operator(operator_id, operator_key.clone());
+        client.set_operator(operator_id, operator_key);
 
-        let new_key = PrivateKey::generate_ecdsa();
+        let new_key = PrivateKey::generate_ed25519();
         let new_pk = new_key.public_key();
 
-        let create_params = HederaTransactionParameters {
-            payer_account_id: operator_id_str.clone(),
-            node_account_ids: vec!["0.0.4".to_string()],
-            valid_start_seconds: time::OffsetDateTime::now_utc().unix_timestamp() - 10,
-            valid_start_nanos: 0,
-            max_transaction_fee: 100_000_000,
-            memo: "anychain hedera live account create test via JNI".to_string(),
-            public_key: operator_key.public_key().to_bytes_raw(),
-            data: HederaTransactionData::CreateAccount {
-                new_account_public_key: new_pk.to_bytes_raw(),
-                initial_balance: 500_000_000, // 5 HBAR
-            },
-        };
+        println!("Natively creating a funded Ed25519 test account...");
+        let response = hiero_sdk::AccountCreateTransaction::new()
+            .set_key_without_alias(new_pk.clone())
+            .initial_balance(hiero_sdk::Hbar::from_tinybars(250_000_000)) // Fund with 2.5 HBAR
+            .max_transaction_fee(hiero_sdk::Hbar::from_tinybars(150_000_000))
+            .transaction_id(hiero_sdk::TransactionId::generate(operator_id)) // Guarantee uniqueness!
+            .execute(&client)
+            .await;
 
-        let mut create_tx = HederaTransaction::new(&create_params).unwrap();
-        let create_digest = hex::decode(create_tx.to_transaction_id().unwrap().txid).unwrap();
-        let operator_signing_key = SigningKey::from_slice(&operator_key.to_bytes_raw()).unwrap();
-        let (create_sig, _) = operator_signing_key.sign_prehash(&create_digest).unwrap();
-        let signed_create_bytes = create_tx.sign(create_sig.to_vec(), 0).unwrap();
-
-        let mut sdk_tx = AnyTransaction::from_bytes(&signed_create_bytes).unwrap();
-        let response = sdk_tx.execute(&client).await;
         match response {
             Ok(resp) => {
                 let receipt = resp.get_receipt(&client).await.unwrap();
@@ -61,11 +47,8 @@ pub extern "system" fn Java_HederaTransactionTest_createAndFundAccount(
                     hex::encode(new_pk.to_bytes_raw())
                 )
             }
-            Err(hiero_sdk::Error::TransactionPreCheckStatus { status: hiero_sdk::Status::InsufficientPayerBalance, .. }) => {
-                "INSUFFICIENT_PAYER_BALANCE,,".to_string()
-            }
             Err(e) => {
-                panic!("create account failed: {:?}", e);
+                panic!("Native account creation failed: {:?}", e);
             }
         }
     });
@@ -163,12 +146,14 @@ pub extern "system" fn Java_HederaTransactionTest_signDigest(
     digest_arr: JByteArray,
     private_key_arr: JByteArray,
 ) -> jbyteArray {
+    use ed25519_dalek::Signer;
     let digest: Vec<u8> = env.convert_byte_array(&digest_arr).unwrap();
     let private_key_bytes: Vec<u8> = env.convert_byte_array(&private_key_arr).unwrap();
 
-    let signing_key = SigningKey::from_slice(&private_key_bytes).unwrap();
-    let (signature, _) = signing_key.sign_prehash(&digest).unwrap();
-    let signature_bytes = signature.to_vec();
+    let priv_arr: [u8; 32] = private_key_bytes.try_into().unwrap();
+    let signing_key = SigningKey::from_bytes(&priv_arr);
+    let signature = signing_key.sign(&digest);
+    let signature_bytes = signature.to_bytes().to_vec();
 
     let j_array = env.byte_array_from_slice(&signature_bytes).unwrap();
     j_array.into_raw()
@@ -190,7 +175,7 @@ pub extern "system" fn Java_HederaTransactionTest_queryReceipt(
     let status_str = runtime.block_on(async {
         let client = Client::for_testnet();
         let operator_id = AccountId::from_str(&operator_id_str).unwrap();
-        let operator_key = PrivateKey::from_str_ecdsa(&operator_priv_hex_str).unwrap();
+        let operator_key = PrivateKey::from_str_ed25519(&operator_priv_hex_str).unwrap();
         client.set_operator(operator_id, operator_key);
 
         let sdk_tx = AnyTransaction::from_bytes(&signed_tx_bytes).unwrap();
@@ -229,7 +214,8 @@ pub extern "system" fn Java_HederaTransactionTest_createAccountTransaction(
     let node_str: String = env.get_string(&node_str).unwrap().into();
     let memo: String = env.get_string(&memo_str).unwrap().into();
     let payer_public_key: Vec<u8> = env.convert_byte_array(&payer_public_key_arr).unwrap();
-    let new_account_public_key: Vec<u8> = env.convert_byte_array(&new_account_public_key_arr).unwrap();
+    let new_account_public_key: Vec<u8> =
+        env.convert_byte_array(&new_account_public_key_arr).unwrap();
 
     let node_account_ids = if node_str.is_empty() {
         vec![]
@@ -256,29 +242,7 @@ pub extern "system" fn Java_HederaTransactionTest_createAccountTransaction(
     Box::into_raw(boxed_tx) as jlong
 }
 
-#[no_mangle]
-pub extern "system" fn Java_HederaTransactionTest_getEvmAddress(
-    env: JNIEnv,
-    _class: JClass,
-    public_key_arr: JByteArray,
-) -> jstring {
-    let public_key: Vec<u8> = env.convert_byte_array(&public_key_arr).unwrap();
-    
-    let k256_pk = k256::PublicKey::from_sec1_bytes(&public_key).unwrap();
-    let encoded_point = k256_pk.to_encoded_point(false);
-    let raw_bytes = encoded_point.as_bytes();
-    
-    let evm_addr = if raw_bytes.len() == 65 && raw_bytes[0] == 4 {
-        let digest_bytes = anychain_core::crypto::keccak256(&raw_bytes[1..]);
-        let evm_addr_bytes = &digest_bytes[12..];
-        format!("0x{}", hex::encode(evm_addr_bytes))
-    } else {
-        panic!("Failed to decompress public key");
-    };
-
-    env.new_string(evm_addr).unwrap().into_raw()
-}
-
+#[allow(dead_code)]
 struct RawCodec;
 
 impl tonic::codec::Codec for RawCodec {
@@ -296,26 +260,35 @@ impl tonic::codec::Codec for RawCodec {
     }
 }
 
+#[allow(dead_code)]
 struct RawEncoder;
 
 impl tonic::codec::Encoder for RawEncoder {
     type Item = Vec<u8>;
     type Error = tonic::Status;
 
-    fn encode(&mut self, item: Self::Item, dst: &mut tonic::codec::EncodeBuf<'_>) -> Result<(), Self::Error> {
+    fn encode(
+        &mut self,
+        item: Self::Item,
+        dst: &mut tonic::codec::EncodeBuf<'_>,
+    ) -> Result<(), Self::Error> {
         use prost::bytes::BufMut;
         dst.put_slice(&item);
         Ok(())
     }
 }
 
+#[allow(dead_code)]
 struct RawDecoder;
 
 impl tonic::codec::Decoder for RawDecoder {
     type Item = crate::protobuf::services::TransactionResponse;
     type Error = tonic::Status;
 
-    fn decode(&mut self, src: &mut tonic::codec::DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
+    fn decode(
+        &mut self,
+        src: &mut tonic::codec::DecodeBuf<'_>,
+    ) -> Result<Option<Self::Item>, Self::Error> {
         use prost::Message;
         let res = crate::protobuf::services::TransactionResponse::decode(src)
             .map_err(|e| tonic::Status::new(tonic::Code::Internal, e.to_string()))?;
