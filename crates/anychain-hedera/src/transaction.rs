@@ -336,257 +336,59 @@ impl Transaction for HederaTransaction {
             .tx
             .to_bytes()
             .map_err(|e| TransactionError::Message(format!("to_bytes failed: {}", e)))?;
+
         let mut tx_list = TransactionList::decode(&*tx_bytes).map_err(|e| {
             TransactionError::Message(format!("decode TransactionList failed: {}", e))
         })?;
-        let proto_tx = tx_list.transaction_list.first_mut().ok_or_else(|| {
+
+        let tx = tx_list.transaction_list.first_mut().ok_or_else(|| {
             TransactionError::Message("No transaction in transaction list".to_string())
         })?;
 
-        let mut signed_tx = SignedTransaction::decode(&*proto_tx.signed_transaction_bytes)
-            .map_err(|e| {
-                TransactionError::Message(format!("decode SignedTransaction failed: {}", e))
-            })?;
-
-        let body = TransactionBody::decode(&*signed_tx.body_bytes).map_err(|e| {
-            TransactionError::Message(format!("decode TransactionBody failed: {}", e))
-        })?;
-
-        signed_tx.body_bytes = prost::Message::encode_to_vec(&body);
-        proto_tx.signed_transaction_bytes = prost::Message::encode_to_vec(&signed_tx);
-
-        if self.signature.is_none() {
-            Ok(signed_tx.body_bytes)
-        } else {
-            Ok(proto_tx.encode_to_vec())
+        match &self.signature {
+            Some(_) => Ok(tx.encode_to_vec()),
+            None => {
+                let signed_tx =
+                    SignedTransaction::decode(&*tx.signed_transaction_bytes).map_err(|e| {
+                        TransactionError::Message(format!("decode SignedTransaction failed: {}", e))
+                    })?;
+                Ok(signed_tx.body_bytes)
+            }
         }
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
-        if self.signature.is_none() {
-            let bytes = self.to_bytes()?;
-            Ok(HederaTransactionId {
-                txid: hex::encode(bytes),
-            })
-        } else {
-            let id = self
-                .tx
-                .get_transaction_id()
-                .ok_or_else(|| TransactionError::Message("Missing transaction ID".to_string()))?;
-            let txid = format!(
-                "{}@{}.{}",
-                id.account_id,
-                id.valid_start.unix_timestamp(),
-                id.valid_start.nanosecond()
-            );
-            Ok(HederaTransactionId { txid })
-        }
+        let id = self
+            .tx
+            .get_transaction_id()
+            .ok_or_else(|| TransactionError::Message("Missing transaction ID".to_string()))?;
+        let txid = format!(
+            "{}@{}.{}",
+            id.account_id,
+            id.valid_start.unix_timestamp(),
+            id.valid_start.nanosecond()
+        );
+        Ok(HederaTransactionId { txid })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::Signer;
     use ed25519_dalek::SigningKey;
+    use hiero_sdk::{Client, PrivateKey};
+    use std::collections::HashMap;
+    use std::str::FromStr;
 
+    const END_POINT: &str = "http://35.237.119.55:50211/proto.CryptoService/cryptoTransfer";
     const PRIVATE_HEX_ALICE: &str =
         "0e4fd0cf299f45f27e269e92736f9d70a67df8bec332d0f3841d2d3f46379e2f";
     const PRIVATE_HEX_BOB: &str =
-        "ceb3a264b2a2c1516ecc8d87c183c6bb0ae0a2fb89993e1f7ffbda188e15236a";
+        "be16996c9f6731347d11eb59c498d8908d7ff2b0d0bef860552c6ee1da66fd3a";
 
-    #[test]
-    fn test_hedera_public_key_alias_parsing() {
-        let private_alice = hex::decode(PRIVATE_HEX_ALICE).unwrap();
-        let private_alice_arr: [u8; 32] = private_alice.try_into().unwrap();
-        let sk_alice = SigningKey::from_bytes(&private_alice_arr);
-        let pk_alice_hex = hex::encode(sk_alice.verifying_key().to_bytes());
-
-        let private_bob = hex::decode(PRIVATE_HEX_BOB).unwrap();
-        let private_bob_arr: [u8; 32] = private_bob.try_into().unwrap();
-        let sk_bob = SigningKey::from_bytes(&private_bob_arr);
-        let pk_bob_hex = hex::encode(sk_bob.verifying_key().to_bytes());
-
-        let alias_payer = format!("0.0.{}", pk_alice_hex);
-        let alias_receiver = format!("0.0.{}", pk_bob_hex);
-
-        let params = HederaTransactionParameters {
-            payer_account_id: alias_payer.to_string(),
-            node_account_ids: vec!["0.0.4".to_string()],
-            valid_start_seconds: 1717171717,
-            valid_start_nanos: 123456789,
-            max_transaction_fee: 1000000,
-            memo: "alias parsing test".to_string(),
-            public_key: sk_alice.verifying_key().to_bytes().to_vec(),
-            data: HederaTransactionData::Transfer {
-                receiver_account_id: alias_receiver.to_string(),
-                amount: 250,
-            },
-        };
-
-        let tx = HederaTransaction::new(&params).unwrap();
-        assert_eq!(tx.params.payer_account_id, alias_payer);
-    }
-
-    #[test]
-    fn test_print_b_pubkey() {
-        let pk = hiero_sdk::PrivateKey::from_str_ed25519(
-            "10676410088a00b2debc0e00d7e686789d514d369d0d864f3bd943f954b0dd65",
-        )
-        .unwrap();
-        println!(
-            "DERIVED B PUBLIC KEY: {}",
-            hex::encode(pk.public_key().to_bytes_raw())
-        );
-    }
-
-    #[test]
-    fn test_hedera_transaction_signing_roundtrip() {
-        use ed25519_dalek::Signer;
-
-        let private_key_bytes = hex::decode(PRIVATE_HEX_ALICE).unwrap();
-        let private_arr: [u8; 32] = private_key_bytes.try_into().unwrap();
-        let signing_key = SigningKey::from_bytes(&private_arr);
-        let public_key_bytes = signing_key.verifying_key().to_bytes().to_vec();
-
-        let params = HederaTransactionParameters {
-            payer_account_id: "0.0.8007608".to_string(),
-            node_account_ids: vec!["0.0.4".to_string()],
-            valid_start_seconds: 1717171717,
-            valid_start_nanos: 123456789,
-            max_transaction_fee: 1000000,
-            memo: "roundtrip test".to_string(),
-            public_key: public_key_bytes.clone(),
-            data: HederaTransactionData::Transfer {
-                receiver_account_id: "0.0.8007609".to_string(),
-                amount: 100,
-            },
-        };
-
-        // 1. Create transaction
-        let mut tx = HederaTransaction::new(&params).unwrap();
-        assert_eq!(tx.params.memo, "roundtrip test");
-        assert_eq!(tx.params.payer_account_id, "0.0.8007608");
-        match &tx.params.data {
-            HederaTransactionData::Transfer {
-                receiver_account_id,
-                amount,
-            } => {
-                assert_eq!(receiver_account_id, "0.0.8007609");
-                assert_eq!(*amount, 100);
-            }
-            _ => panic!("expected Transfer transaction data"),
-        }
-
-        // 2. Generate body bytes to sign
-        let tx_id = tx.to_transaction_id().unwrap();
-        let body_bytes = hex::decode(tx_id.txid).unwrap();
-
-        let expected_body = tx.to_bytes().unwrap();
-        assert_eq!(body_bytes, expected_body);
-
-        // 3. Sign the body_bytes
-        let signature = signing_key.sign(&body_bytes);
-        let signature_bytes = signature.to_bytes().to_vec();
-        assert_eq!(signature_bytes.len(), 64);
-
-        // 4. Insert signature
-        let signed_tx_bytes = tx.sign(signature_bytes.clone(), 0).unwrap();
-
-        // 5. Parse back from bytes
-        let parsed_tx = HederaTransaction::from_bytes(&signed_tx_bytes).unwrap();
-        assert_eq!(parsed_tx.params.payer_account_id, "0.0.8007608");
-        assert_eq!(parsed_tx.params.memo, "roundtrip test");
-        match &parsed_tx.params.data {
-            HederaTransactionData::Transfer {
-                receiver_account_id,
-                amount,
-            } => {
-                assert_eq!(receiver_account_id, "0.0.8007609");
-                assert_eq!(*amount, 100);
-            }
-            _ => panic!("expected Transfer transaction data"),
-        }
-        assert_eq!(parsed_tx.signature.unwrap(), signature_bytes);
-    }
-
-    #[test]
-    fn test_hedera_account_create_signing_roundtrip() {
-        use ed25519_dalek::Signer;
-
-        let private_key_bytes = hex::decode(PRIVATE_HEX_ALICE).unwrap();
-        let private_arr: [u8; 32] = private_key_bytes.try_into().unwrap();
-        let signing_key = SigningKey::from_bytes(&private_arr);
-        let public_key_bytes = signing_key.verifying_key().to_bytes().to_vec();
-
-        let mut new_key_bytes = [0u8; 32];
-        new_key_bytes[..4].copy_from_slice(b"test");
-        let new_account_signing_key = SigningKey::from_bytes(&new_key_bytes);
-        let new_account_pk_bytes = new_account_signing_key.verifying_key().to_bytes().to_vec();
-
-        let params = HederaTransactionParameters {
-            payer_account_id: "0.0.8007608".to_string(),
-            node_account_ids: vec!["0.0.4".to_string()],
-            valid_start_seconds: 1717171717,
-            valid_start_nanos: 123456789,
-            max_transaction_fee: 1000000,
-            memo: "account create test".to_string(),
-            public_key: public_key_bytes.clone(),
-            data: HederaTransactionData::CreateAccount {
-                new_account_public_key: new_account_pk_bytes.clone(),
-                initial_balance: 500_000_000, // 5 HBAR
-            },
-        };
-
-        // 1. Create transaction
-        let mut tx = HederaTransaction::new(&params).unwrap();
-        assert_eq!(tx.params.memo, "account create test");
-        assert_eq!(tx.params.payer_account_id, "0.0.8007608");
-        match &tx.params.data {
-            HederaTransactionData::CreateAccount {
-                new_account_public_key,
-                initial_balance,
-            } => {
-                assert_eq!(new_account_public_key, &new_account_pk_bytes);
-                assert_eq!(*initial_balance, 500_000_000);
-            }
-            _ => panic!("expected CreateAccount transaction data"),
-        }
-
-        // 2. Generate bytes to sign
-        let tx_id = tx.to_transaction_id().unwrap();
-        let body_bytes = hex::decode(tx_id.txid).unwrap();
-
-        // 3. Sign the body_bytes
-        let signature = signing_key.sign(&body_bytes);
-        let signature_bytes = signature.to_bytes().to_vec();
-        assert_eq!(signature_bytes.len(), 64);
-
-        // 4. Insert signature
-        let signed_tx_bytes = tx.sign(signature_bytes.clone(), 0).unwrap();
-
-        // 5. Parse back from bytes
-        let parsed_tx = HederaTransaction::from_bytes(&signed_tx_bytes).unwrap();
-        assert_eq!(parsed_tx.params.payer_account_id, "0.0.8007608");
-        assert_eq!(parsed_tx.params.memo, "account create test");
-        match &parsed_tx.params.data {
-            HederaTransactionData::CreateAccount {
-                new_account_public_key,
-                initial_balance,
-            } => {
-                assert_eq!(new_account_public_key, &new_account_pk_bytes);
-                assert_eq!(*initial_balance, 500_000_000);
-            }
-            _ => panic!("expected CreateAccount transaction data"),
-        }
-        assert_eq!(parsed_tx.signature.unwrap(), signature_bytes);
-    }
-
-    async fn run_onchain_transfer_test(payer_type: &str, receiver_type: &str) {
-        use ed25519_dalek::Signer;
-        use hiero_sdk::{Client, PrivateKey, TransactionReceiptQuery};
-        use std::collections::HashMap;
-        use std::str::FromStr;
-
+    #[tokio::test]
+    async fn test_transfer_alice_to_bob() {
         // 1. Setup client with ECDSA operator (Alice's funded account 0.0.8007608) to pay for the initial account creation
         let mut custom_nodes = HashMap::new();
         custom_nodes.insert(
@@ -594,234 +396,99 @@ mod tests {
             AccountId::from_str("0.0.4").unwrap(),
         );
         let client = Client::for_network(custom_nodes).unwrap();
-        let initial_operator_id = AccountId::from_str("0.0.8007608").unwrap();
-        let initial_operator_key = PrivateKey::from_str_ecdsa(PRIVATE_HEX_ALICE).unwrap();
-        client.set_operator(initial_operator_id, initial_operator_key);
+        let id_alice = AccountId::from_str("0.0.8007608").unwrap();
+        let sk_alice = PrivateKey::from_str_ecdsa(PRIVATE_HEX_ALICE).unwrap();
+        client.set_operator(id_alice, sk_alice);
         client.set_default_max_transaction_fee(hiero_sdk::Hbar::from_tinybars(1_000_000)); // Limit default max fee to 0.01 HBAR!
 
-        let channel = tonic::transport::Channel::from_static("http://35.237.119.55:50211")
-            .timeout(std::time::Duration::from_secs(10)) // Set a 10-second network-level timeout to prevent hangs
-            .connect()
-            .await;
+        let id_bob = AccountId::from_str("0.0.9549757").unwrap();
 
-        let channel = match channel {
-            Ok(c) => c,
-            Err(e) => {
-                println!("Skipping live test because consensus node is unreachable (DNS/Network error): {:?}", e);
-                return;
-            }
-        };
-        let mut grpc_client = tonic::client::Grpc::new(channel.clone());
-
-        // 2. Dynamically create a funded Ed25519 operator to act as the payer for our test via Transfer (Auto-Creation)
-        let ed_operator_key = hiero_sdk::PrivateKey::generate_ed25519();
-        let mut ed_operator_pk_bytes = ed_operator_key.public_key().to_bytes_raw();
-
-        // Strip 12-byte DER prefix from Bob's public key if present to get the raw 32-byte Ed25519 key
-        if ed_operator_pk_bytes.starts_with(&[
-            0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
-        ]) {
-            ed_operator_pk_bytes = ed_operator_pk_bytes[12..].to_vec();
-        }
-        let ed_operator_sk_bytes = ed_operator_key.to_bytes_raw();
-
-        let ed_operator_alias_str = format!("0.0.{}", hex::encode(&ed_operator_pk_bytes));
-        let ed_operator_alias = AccountId::from_str(&ed_operator_alias_str).unwrap();
-
-        println!("Dynamically auto-creating a funded Ed25519 operator on testnet...");
         let create_response = hiero_sdk::TransferTransaction::new()
-            .hbar_transfer(
-                initial_operator_id,
-                hiero_sdk::Hbar::from_tinybars(-5_000_000),
-            ) // Fund Bob with 0.05 HBAR
-            .hbar_transfer(ed_operator_alias, hiero_sdk::Hbar::from_tinybars(5_000_000))
+            .hbar_transfer(id_alice, hiero_sdk::Hbar::from_tinybars(-100_000_000)) // Fund Bob with 0.05 HBAR
+            .hbar_transfer(id_bob, hiero_sdk::Hbar::from_tinybars(100_000_000))
             .max_transaction_fee(hiero_sdk::Hbar::from_tinybars(78_000_000)) // 0.78 HBAR maximum fee to exactly cover actual creation fees within Alice's 84M balance limit
             .execute(&client)
             .await
             .unwrap();
 
         let _create_receipt = create_response.get_receipt(&client).await.unwrap();
-        let ed_operator_id = ed_operator_alias.clone();
+        let info = hiero_sdk::AccountInfoQuery::new()
+            .account_id(id_bob.clone())
+            .execute(&client)
+            .await
+            .unwrap();
+        let id_bob = info.account_id;
         println!(
-            "Successfully auto-created Ed25519 operator alias: {}",
-            ed_operator_id
+            "Successfully transferred {} HBARs to account: {}",
+            1, id_bob
         );
+    }
 
-        // 3. Generate Ed25519 keypair for Alice (Receiver)
-        let alice_key = PrivateKey::generate_ed25519();
-        let alice_pk_bytes = alice_key.public_key().to_bytes_raw();
-        let _alice_sk_bytes = alice_key.to_bytes_raw();
-
-        // Reuse the funded Alice account 0.0.8007608 as the recipient to prevent new account creation fees
-        let alice_seq = if receiver_type == "sequential" {
-            "0.0.8007608".to_string()
-        } else {
-            "".to_string()
-        };
-
-        // Update the client operator to our new Ed25519 account
-        client.set_operator(ed_operator_id, ed_operator_key.clone());
-
-        let bob_seq = ed_operator_id.to_string();
-        let bob_pk = ed_operator_pk_bytes;
-        let bob_sk = ed_operator_sk_bytes;
-
-        // Strip 12-byte DER prefix from Alice's public key if present
-        let mut alice_pk = alice_pk_bytes;
-        if alice_pk.starts_with(&[
-            0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
-        ]) {
-            alice_pk = alice_pk[12..].to_vec();
-        }
-
-        // Format the aliases with the correct DER-prefixed public key format required by Hedera nodes
-        let alice_alias = format!("0.0.302a300506032b6570032100{}", hex::encode(&alice_pk));
-        let _bob_alias = format!("0.0.302a300506032b6570032100{}", hex::encode(&bob_pk));
-
-        let (payer_id, receiver_id, payer_pk, payer_sk) = match receiver_type {
-            "alias" => (
-                bob_seq.clone(),
-                alice_alias.clone(),
-                bob_pk.clone(),
-                bob_sk.clone(),
-            ),
-            "sequential" => (
-                bob_seq.clone(),
-                alice_seq.clone(),
-                bob_pk.clone(),
-                bob_sk.clone(),
-            ),
-            _ => panic!("invalid receiver type"),
-        };
-
-        println!(
-            "Running onchain transfer from Payer ({}) to Receiver ({})",
-            payer_id, receiver_id
-        );
-
-        let unique_nanos = (payer_type
+    #[tokio::test]
+    async fn test_transfer_bob_to_alice() {
+        let unique_nanos = ("alice"
             .as_bytes()
             .iter()
             .fold(0u32, |acc, &b| acc + b as u32)
             * 1000
-            + receiver_type
-                .as_bytes()
-                .iter()
-                .fold(0u32, |acc, &b| acc + b as u32)) as i32;
+            + "bob".as_bytes().iter().fold(0u32, |acc, &b| acc + b as u32))
+            as i32;
+
+        let id_bob = "0.0.9549757".to_string();
+        let id_alice = "0.0.8007608".to_string();
+
+        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
+        let pk_bob = sk_bob.public_key().to_bytes();
 
         let params = HederaTransactionParameters {
-            payer_account_id: payer_id,
+            payer_account_id: id_bob.clone(),
             node_account_ids: vec!["0.0.4".to_string()],
             valid_start_seconds: time::OffsetDateTime::now_utc().unix_timestamp() - 10,
             valid_start_nanos: unique_nanos,
             max_transaction_fee: 2_000_000,
-            memo: format!("onchain-{}-to-{}", payer_type, receiver_type),
-            public_key: payer_pk,
+            memo: format!("onchain-{}-to-{}", id_bob, id_alice),
+            public_key: pk_bob,
             data: HederaTransactionData::Transfer {
-                receiver_account_id: receiver_id,
-                amount: 500_000,
+                receiver_account_id: id_alice,
+                amount: 10_000_000,
             },
         };
 
         let mut hedera_tx = HederaTransaction::new(&params).unwrap();
-        let tx_id = hedera_tx.to_transaction_id().unwrap();
-        let body_bytes = hex::decode(tx_id.txid).unwrap();
-        let private_arr: [u8; 32] = payer_sk.try_into().unwrap();
+        let body_bytes = hedera_tx.to_bytes().unwrap();
+
+        let private_arr: [u8; 32] = sk_bob.to_bytes().try_into().unwrap();
         let signing_key = SigningKey::from_bytes(&private_arr);
         let signature = signing_key.sign(&body_bytes);
         let signature_bytes = signature.to_bytes().to_vec();
 
-        let signed_tx_bytes = hedera_tx.sign(signature_bytes, 0).unwrap();
+        let tx = hedera_tx.sign(signature_bytes, 0).unwrap();
 
-        let path = http::uri::PathAndQuery::from_static("/proto.CryptoService/cryptoTransfer");
-        let req = tonic::Request::new(signed_tx_bytes.clone());
+        fn generate_grpc_curl_cmd(payload: &[u8], url: &str) -> String {
+            // 1. 获取 payload 长度并转换为 4 字节的大端序数组
+            let len = payload.len() as u32;
+            let len_bytes = len.to_be_bytes();
 
-        grpc_client.ready().await.unwrap();
+            // 2. 构造 5 字节的 gRPC 前缀：1 字节压缩标志(0) + 4 字节大端序长度
+            let mut full_bytes = Vec::with_capacity(5 + payload.len());
+            full_bytes.push(0u8);
+            full_bytes.extend_from_slice(&len_bytes);
 
-        let grpc_response = grpc_client
-            .unary(req, path, RawCodec)
-            .await
-            .unwrap()
-            .into_inner();
+            // 3. 拼入原始数据
+            full_bytes.extend_from_slice(payload);
 
-        assert_eq!(grpc_response.node_transaction_precheck_code, 0);
+            // 4. 将全套字节整体转换为 Hex 字符串
+            let full_hex = hex::encode(full_bytes);
 
-        let sdk_tx = AnyTransaction::from_bytes(&signed_tx_bytes).unwrap();
-        let sdk_tx_id = sdk_tx.get_transaction_id().unwrap();
-
-        let transfer_receipt = TransactionReceiptQuery::new()
-            .transaction_id(sdk_tx_id)
-            .execute(&client)
-            .await
-            .unwrap();
-
-        println!(
-            "Transfer consensus receipt status: {:?}",
-            transfer_receipt.status
-        );
-        assert_eq!(transfer_receipt.status, hiero_sdk::Status::Success);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_onchain_transfer_sequential_to_alias() {
-        run_onchain_transfer_test("sequential", "alias").await;
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_onchain_transfer_sequential_to_sequential() {
-        run_onchain_transfer_test("sequential", "sequential").await;
-    }
-
-    struct RawCodec;
-
-    impl tonic::codec::Codec for RawCodec {
-        type Encode = Vec<u8>;
-        type Decode = crate::protobuf::services::TransactionResponse;
-        type Encoder = RawEncoder;
-        type Decoder = RawDecoder;
-
-        fn encoder(&mut self) -> Self::Encoder {
-            RawEncoder
+            // 5. 组装成最终可在终端运行的 curl 命令行字符串
+            format!(
+                "echo \"{}\" | xxd -r -p | curl --verbose --proxytunnel --http2-prior-knowledge -H \"Content-Type: application/grpc\" -H \"TE: trailers\" --data-binary @-  {}",
+                full_hex, url
+            )
         }
 
-        fn decoder(&mut self) -> Self::Decoder {
-            RawDecoder
-        }
-    }
+        let curl_command = generate_grpc_curl_cmd(&tx, END_POINT);
 
-    struct RawEncoder;
-
-    impl tonic::codec::Encoder for RawEncoder {
-        type Item = Vec<u8>;
-        type Error = tonic::Status;
-
-        fn encode(
-            &mut self,
-            item: Self::Item,
-            dst: &mut tonic::codec::EncodeBuf<'_>,
-        ) -> Result<(), Self::Error> {
-            use prost::bytes::BufMut;
-            dst.put_slice(&item);
-            Ok(())
-        }
-    }
-
-    struct RawDecoder;
-
-    impl tonic::codec::Decoder for RawDecoder {
-        type Item = crate::protobuf::services::TransactionResponse;
-        type Error = tonic::Status;
-
-        fn decode(
-            &mut self,
-            src: &mut tonic::codec::DecodeBuf<'_>,
-        ) -> Result<Option<Self::Item>, Self::Error> {
-            use prost::Message;
-            let res = crate::protobuf::services::TransactionResponse::decode(src)
-                .map_err(|e| tonic::Status::new(tonic::Code::Internal, e.to_string()))?;
-            Ok(Some(res))
-        }
+        println!("{}", curl_command);
     }
 }

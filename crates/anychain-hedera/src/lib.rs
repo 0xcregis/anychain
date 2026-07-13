@@ -1,7 +1,6 @@
 pub mod address;
 pub mod amount;
 pub mod format;
-pub mod jni_bridge;
 pub mod protobuf;
 pub mod public_key;
 pub mod transaction;
