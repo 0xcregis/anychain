@@ -1,4 +1,9 @@
 use {
+    crate::protobuf::sdk::TransactionList,
+    crate::protobuf::services::{
+        account_id::Account, key::Key, signature_pair::Signature, transaction_body::Data,
+        SignedTransaction, TransactionBody,
+    },
     crate::{address::HederaAddress, format::HederaFormat, public_key::HederaPublicKey},
     anychain_core::{Transaction, TransactionError, TransactionId},
     hiero_sdk::{AccountId, AnyTransaction, Hbar, TransactionId as HieroTxId, TransferTransaction},
@@ -214,36 +219,43 @@ impl Transaction for HederaTransaction {
         let tx_bytes = any_tx.to_bytes().unwrap_or_default();
         let mut tx_data = None;
 
-        if let Ok(tx_list) = crate::protobuf::sdk::TransactionList::decode(&*tx_bytes) {
+        if let Ok(tx_list) = TransactionList::decode(&*tx_bytes) {
             if let Some(proto_tx) = tx_list.transaction_list.first() {
-                if let Ok(signed_tx) = crate::protobuf::services::SignedTransaction::decode(
-                    &*proto_tx.signed_transaction_bytes,
-                ) {
-                    if let Ok(body) =
-                        crate::protobuf::services::TransactionBody::decode(&*signed_tx.body_bytes)
-                    {
+                if let Ok(signed_tx) =
+                    SignedTransaction::decode(&*proto_tx.signed_transaction_bytes)
+                {
+                    if let Ok(body) = TransactionBody::decode(&*signed_tx.body_bytes) {
                         if let Some(data) = body.data {
                             match data {
-                                crate::protobuf::services::transaction_body::Data::CryptoTransfer(
-                                    transfer_body,
-                                ) => {
+                                Data::CryptoTransfer(transfer_body) => {
                                     let mut receiver_account_id = String::new();
                                     let mut amount = 0i64;
                                     if let Some(transfers) = transfer_body.transfers {
                                         for aa in transfers.account_amounts {
                                             if let Some(acc) = aa.account_id {
                                                 let acc_str = match &acc.account {
-                                                    Some(crate::protobuf::services::account_id::Account::AccountNum(num)) => {
-                                                        format!("{}.{}.{}", acc.shard_num, acc.realm_num, num)
+                                                    Some(Account::AccountNum(num)) => {
+                                                        format!(
+                                                            "{}.{}.{}",
+                                                            acc.shard_num, acc.realm_num, num
+                                                        )
                                                     }
-                                                    Some(crate::protobuf::services::account_id::Account::Alias(alias)) => {
+                                                    Some(Account::Alias(alias)) => {
                                                         if alias.len() == 20 {
                                                             format!("0x{}", hex::encode(alias))
                                                         } else {
-                                                            format!("{}.{}.{}", acc.shard_num, acc.realm_num, hex::encode(alias))
+                                                            format!(
+                                                                "{}.{}.{}",
+                                                                acc.shard_num,
+                                                                acc.realm_num,
+                                                                hex::encode(alias)
+                                                            )
                                                         }
                                                     }
-                                                    None => format!("{}.{}.0", acc.shard_num, acc.realm_num),
+                                                    None => format!(
+                                                        "{}.{}.0",
+                                                        acc.shard_num, acc.realm_num
+                                                    ),
                                                 };
                                                 if aa.amount < 0 {
                                                     // Payer (debit)
@@ -260,12 +272,10 @@ impl Transaction for HederaTransaction {
                                         amount,
                                     });
                                 }
-                                crate::protobuf::services::transaction_body::Data::CryptoCreateAccount(
-                                    create_body,
-                                ) => {
+                                Data::CryptoCreateAccount(create_body) => {
                                     let mut new_account_public_key = Vec::new();
                                     if let Some(key) = create_body.key {
-                                        if let Some(crate::protobuf::services::key::Key::Ed25519(pk_bytes)) = key.key {
+                                        if let Some(Key::Ed25519(pk_bytes)) = key.key {
                                             new_account_public_key = pk_bytes;
                                         }
                                     }
@@ -282,17 +292,14 @@ impl Transaction for HederaTransaction {
         }
 
         let mut signature = None;
-        if let Ok(tx_list) = crate::protobuf::sdk::TransactionList::decode(&*tx_bytes) {
+        if let Ok(tx_list) = TransactionList::decode(&*tx_bytes) {
             if let Some(proto_tx) = tx_list.transaction_list.first() {
-                if let Ok(signed_tx) = crate::protobuf::services::SignedTransaction::decode(
-                    &*proto_tx.signed_transaction_bytes,
-                ) {
+                if let Ok(signed_tx) =
+                    SignedTransaction::decode(&*proto_tx.signed_transaction_bytes)
+                {
                     if let Some(sig_map) = signed_tx.sig_map {
                         if let Some(sig_pair) = sig_map.sig_pair.first() {
-                            if let Some(
-                                crate::protobuf::services::signature_pair::Signature::Ed25519(sig),
-                            ) = &sig_pair.signature
-                            {
+                            if let Some(Signature::Ed25519(sig)) = &sig_pair.signature {
                                 signature = Some(sig.clone());
                             }
                         }
@@ -329,25 +336,21 @@ impl Transaction for HederaTransaction {
             .tx
             .to_bytes()
             .map_err(|e| TransactionError::Message(format!("to_bytes failed: {}", e)))?;
-        let mut tx_list =
-            crate::protobuf::sdk::TransactionList::decode(&*tx_bytes).map_err(|e| {
-                TransactionError::Message(format!("decode TransactionList failed: {}", e))
-            })?;
+        let mut tx_list = TransactionList::decode(&*tx_bytes).map_err(|e| {
+            TransactionError::Message(format!("decode TransactionList failed: {}", e))
+        })?;
         let proto_tx = tx_list.transaction_list.first_mut().ok_or_else(|| {
             TransactionError::Message("No transaction in transaction list".to_string())
         })?;
 
-        let mut signed_tx = crate::protobuf::services::SignedTransaction::decode(
-            &*proto_tx.signed_transaction_bytes,
-        )
-        .map_err(|e| {
-            TransactionError::Message(format!("decode SignedTransaction failed: {}", e))
-        })?;
-
-        let body = crate::protobuf::services::TransactionBody::decode(&*signed_tx.body_bytes)
+        let mut signed_tx = SignedTransaction::decode(&*proto_tx.signed_transaction_bytes)
             .map_err(|e| {
-                TransactionError::Message(format!("decode TransactionBody failed: {}", e))
+                TransactionError::Message(format!("decode SignedTransaction failed: {}", e))
             })?;
+
+        let body = TransactionBody::decode(&*signed_tx.body_bytes).map_err(|e| {
+            TransactionError::Message(format!("decode TransactionBody failed: {}", e))
+        })?;
 
         signed_tx.body_bytes = prost::Message::encode_to_vec(&body);
         proto_tx.signed_transaction_bytes = prost::Message::encode_to_vec(&signed_tx);
@@ -631,10 +634,7 @@ mod tests {
                 initial_operator_id,
                 hiero_sdk::Hbar::from_tinybars(-5_000_000),
             ) // Fund Bob with 0.05 HBAR
-            .hbar_transfer(
-                ed_operator_alias,
-                hiero_sdk::Hbar::from_tinybars(5_000_000),
-            )
+            .hbar_transfer(ed_operator_alias, hiero_sdk::Hbar::from_tinybars(5_000_000))
             .max_transaction_fee(hiero_sdk::Hbar::from_tinybars(78_000_000)) // 0.78 HBAR maximum fee to exactly cover actual creation fees within Alice's 84M balance limit
             .execute(&client)
             .await
