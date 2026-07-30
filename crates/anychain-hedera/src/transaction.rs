@@ -1,8 +1,7 @@
 use {
-    crate::protobuf::sdk::TransactionList,
-    crate::protobuf::services::{
+    crate::protobuf::{
         account_id::Account, key::Key, signature_pair::Signature, transaction_body::Data,
-        SignedTransaction, TransactionBody,
+        SignedTransaction, TransactionBody, TransactionList
     },
     crate::{address::HederaAddress, format::HederaFormat, public_key::HederaPublicKey},
     anychain_core::{Transaction, TransactionError, TransactionId},

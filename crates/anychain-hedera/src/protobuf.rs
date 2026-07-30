@@ -187,3 +187,11 @@ pub struct TransactionResponse {
     #[prost(uint64, tag = "2")]
     pub cost: u64,
 }
+
+/// A simple protobuf wrapper to store a list of transactions. This is used by
+/// `Transaction.[from|to]Bytes()` in the SDKs.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TransactionList {
+    #[prost(message, repeated, tag = "1")]
+    pub transaction_list: ::prost::alloc::vec::Vec<Transaction>,
+}
