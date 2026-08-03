@@ -213,7 +213,7 @@ impl TransactionId for FilecoinTransactionId {}
 
 impl fmt::Display for FilecoinTransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &BASE32_ENCODER.encode(&self.txid[..]))
+        write!(f, "{}", BASE32_ENCODER.encode(&self.txid[..]))
     }
 }
 
