@@ -22,11 +22,7 @@ pub struct BitcoinAddress<N: BitcoinNetwork> {
     _network: PhantomData<N>,
 }
 
-pub static BASE32_ENCODE_TABLE: [u8; 32] = [
-    b'q', b'p', b'z', b'r', b'y', b'9', b'x', b'8', b'g', b'f', b'2', b't', b'v', b'd', b'w', b'0',
-    b's', b'3', b'j', b'n', b'5', b'4', b'k', b'h', b'c', b'e', b'6', b'm', b'u', b'a', b'7', b'l',
-];
-
+pub static BASE32_ENCODE_TABLE: [u8; 32] = *b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 pub static BASE32_DECODE_TABLE: [i8; 128] = [
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
