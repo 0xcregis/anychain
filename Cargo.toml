@@ -12,7 +12,7 @@ members = [
     "crates/anychain-cardano",
     "crates/anychain-stellar",
     "crates/anychain-kms",
-    "examples/*",
+    "examples/*", "crates/anychain-hedera",
 ]
 
 [workspace.package]
