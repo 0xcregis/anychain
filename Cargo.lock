@@ -108,7 +108,7 @@ dependencies = [
 name = "anychain-bitcoin"
 version = "0.1.15"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "base58",
  "bech32 0.9.1",
  "hex",
@@ -124,7 +124,7 @@ name = "anychain-bitcoin-cli"
 version = "0.1.0"
 dependencies = [
  "anychain-bitcoin",
- "anychain-core",
+ "anychain-core 0.1.8",
  "clap",
  "libsecp256k1",
  "serde_json",
@@ -135,7 +135,7 @@ name = "anychain-bitcoin-client"
 version = "0.1.0"
 dependencies = [
  "anychain-bitcoin",
- "anychain-core",
+ "anychain-core 0.1.8",
  "libsecp256k1",
 ]
 
@@ -143,7 +143,7 @@ dependencies = [
 name = "anychain-cardano"
 version = "0.1.5"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "bip39",
  "blockfrost",
  "cml-chain",
@@ -173,10 +173,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "anychain-core"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e146f6b6b6a92a3264a566c804935d0ebcb8486390cd84581324c851c9e1bece"
+dependencies = [
+ "base58",
+ "bech32 0.9.1",
+ "hex",
+ "rand_core 0.6.4",
+ "ripemd",
+ "serde_json",
+ "sha2 0.10.9",
+ "sha3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "anychain-ethereum"
 version = "0.1.41"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "anychain-kms",
  "ethabi",
  "ethereum-types",
@@ -192,7 +209,7 @@ dependencies = [
 name = "anychain-ethereum-cli"
 version = "0.1.0"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "anychain-ethereum",
  "clap",
  "libsecp256k1",
@@ -204,7 +221,7 @@ dependencies = [
 name = "anychain-filecoin"
 version = "0.1.11"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "anyhow",
  "arbitrary",
  "base64 0.21.7",
@@ -231,7 +248,7 @@ dependencies = [
 name = "anychain-kms"
 version = "0.1.23"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "anyhow",
  "bs58 0.4.0",
  "curve25519-dalek",
@@ -258,7 +275,7 @@ dependencies = [
 name = "anychain-neo"
 version = "0.1.1"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "base58",
  "base64 0.21.7",
  "p256",
@@ -269,7 +286,7 @@ dependencies = [
 name = "anychain-neo-cli"
 version = "0.1.0"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "anychain-neo",
  "clap",
 ]
@@ -278,7 +295,7 @@ dependencies = [
 name = "anychain-polkadot"
 version = "0.1.7"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "anychain-kms",
  "base58",
  "blake2b_simd 1.0.4",
@@ -295,16 +312,30 @@ dependencies = [
 name = "anychain-ripple"
 version = "0.1.12"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "base58",
  "libsecp256k1",
+]
+
+[[package]]
+name = "anychain-stellar"
+version = "0.1.0"
+dependencies = [
+ "anychain-core 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "curve25519-dalek",
+ "ed25519-dalek",
+ "group",
+ "hex",
+ "serde",
+ "stellar-strkey 0.0.18",
+ "stellar-xdr",
 ]
 
 [[package]]
 name = "anychain-tron"
 version = "0.2.14"
 dependencies = [
- "anychain-core",
+ "anychain-core 0.1.8",
  "base58",
  "chrono",
  "ethabi",
@@ -1837,6 +1868,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape-bytes"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
+
+[[package]]
 name = "ethabi"
 version = "17.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1879,6 +1916,12 @@ dependencies = [
  "primitive-types 0.11.1",
  "uint 0.9.5",
 ]
+
+[[package]]
+name = "ethnum"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40404c3f5f511ec4da6fe866ddf6a717c309fdbb69fbbad7b0f3edab8f2e835f"
 
 [[package]]
 name = "ff"
@@ -2240,6 +2283,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92c171d55b98633f4ed3860808f004099b36c1cc29c42cfc53aa8591b21efcf2"
 dependencies = [
  "crunchy",
+]
+
+[[package]]
+name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]
@@ -4618,6 +4670,43 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stellar-strkey"
+version = "0.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee1832fb50c651ad10f734aaf5d31ca5acdfb197a6ecda64d93fcdb8885af913"
+dependencies = [
+ "crate-git-revision 0.0.6",
+ "data-encoding",
+]
+
+[[package]]
+name = "stellar-strkey"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f34ff61c0ca6f1c2b4169e8d1633417bd9225f58b6175e4e317204565d16277"
+dependencies = [
+ "crate-git-revision 0.0.9",
+ "data-encoding",
+ "heapless",
+ "zeroize",
+]
+
+[[package]]
+name = "stellar-xdr"
+version = "27.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05ff843326969bdf1ef673dcdba94c08f4a3c8f1e58d6e6ef39b1bd4f749179a"
+dependencies = [
+ "base64 0.22.1",
+ "crate-git-revision 0.0.6",
+ "escape-bytes",
+ "ethnum",
+ "hex",
+ "sha2 0.10.9",
+ "stellar-strkey 0.0.13",
+]
 
 [[package]]
 name = "strsim"

@@ -10,6 +10,7 @@ members = [
     "crates/anychain-ripple",
     #"crates/anychain-neo",
     "crates/anychain-cardano",
+    "crates/anychain-stellar",
     "crates/anychain-kms",
     "examples/*",
 ]
