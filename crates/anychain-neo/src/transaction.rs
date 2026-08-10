@@ -189,7 +189,7 @@ impl Display for NeoTransaction {
         write!(
             f,
             "{}",
-            &hex::encode(match self.to_bytes() {
+            hex::encode(match self.to_bytes() {
                 Ok(transaction) => transaction,
                 _ => return Err(Error),
             })
