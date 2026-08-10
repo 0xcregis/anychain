@@ -302,7 +302,7 @@ impl<N: EthereumNetwork> fmt::Display for Eip7702Transaction<N> {
         write!(
             f,
             "0x{}",
-            &hex::encode(match self.to_bytes() {
+            hex::encode(match self.to_bytes() {
                 Ok(transaction) => transaction,
                 _ => return Err(fmt::Error),
             })
