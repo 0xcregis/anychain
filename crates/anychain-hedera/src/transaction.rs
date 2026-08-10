@@ -1,7 +1,7 @@
 use {
     crate::protobuf::{
         account_id::Account, key::Key, signature_pair::Signature, transaction_body::Data,
-        SignedTransaction, TransactionBody, TransactionList
+        SignedTransaction, TransactionBody, TransactionList,
     },
     crate::{address::HederaAddress, format::HederaFormat, public_key::HederaPublicKey},
     anychain_core::{Transaction, TransactionError, TransactionId},
@@ -412,7 +412,7 @@ mod tests {
 
         let _create_receipt = create_response.get_receipt(&client).await.unwrap();
         let info = hiero_sdk::AccountInfoQuery::new()
-            .account_id(id_bob.clone())
+            .account_id(id_bob)
             .execute(&client)
             .await
             .unwrap();

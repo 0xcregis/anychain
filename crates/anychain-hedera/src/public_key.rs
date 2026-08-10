@@ -47,7 +47,7 @@ impl FromStr for HederaPublicKey {
 impl fmt::Display for HederaPublicKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let buf = self.0.to_bytes();
-        write!(f, "{}", hex::encode(&buf))
+        write!(f, "{}", hex::encode(buf))
     }
 }
 
