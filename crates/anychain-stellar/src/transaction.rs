@@ -9,9 +9,9 @@ use core::fmt;
 use std::str::FromStr;
 use stellar_xdr::{
     AccountId, Asset, BytesM, CreateAccountOp, DecoratedSignature, Hash, Limits, Memo,
-    MuxedAccount, Operation, OperationBody, PaymentOp, Preconditions, PublicKey, SequenceNumber,
-    Signature, SignatureHint, Transaction as Tx, TransactionEnvelope, TransactionExt,
-    TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
+    MuxedAccount, Operation, OperationBody, PaymentOp, Preconditions, PublicKey, ReadXdr,
+    SequenceNumber, Signature, SignatureHint, Transaction as Tx, TransactionEnvelope,
+    TransactionExt, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
     TransactionV1Envelope, Uint256, VecM, WriteXdr,
 };
 
@@ -24,7 +24,6 @@ pub struct StellarTransactionParameters {
     pub fee: u32,
     pub nonce: i64,
     pub network_id: String,
-    pub public_key: [u8; 32],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -87,6 +86,7 @@ impl Transaction for StellarTransaction {
 
         let fee = self.params.fee;
         let seq_num = SequenceNumber(self.params.nonce + 1);
+        let network_id = self.params.network_id.as_bytes();
 
         let op_body = match self.params.has_account {
             true => OperationBody::Payment(PaymentOp {
@@ -121,7 +121,8 @@ impl Transaction for StellarTransaction {
         match &self.signatures {
             Some(sigs) => {
                 let mut hint = [0u8; 4];
-                hint.copy_from_slice(&self.params.public_key[28..]);
+                let pk = self.params.from.to_array()?;
+                hint.copy_from_slice(&pk[28..]);
                 let hint = SignatureHint(hint);
 
                 let sig = sigs[0].clone();
@@ -147,7 +148,7 @@ impl Transaction for StellarTransaction {
             }
             None => {
                 let tagged_transaction = TransactionSignaturePayloadTaggedTransaction::Tx(tx);
-                let network_id = Hash(sha256(self.params.network_id.as_bytes()));
+                let network_id = Hash(sha256(network_id));
 
                 let tx = TransactionSignaturePayload {
                     network_id,
@@ -163,8 +164,75 @@ impl Transaction for StellarTransaction {
         }
     }
 
-    fn from_bytes(_transaction: &[u8]) -> Result<Self, TransactionError> {
-        todo!()
+    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
+        let envelope = TransactionEnvelope::from_xdr(tx, Limits::none())
+            .map_err(|e| TransactionError::Crate("from_bytes", format!("{e:?}")))?;
+
+        match envelope {
+            TransactionEnvelope::Tx(TransactionV1Envelope { tx, .. }) => {
+                let source_account = match tx.source_account {
+                    MuxedAccount::Ed25519(Uint256(pk)) => pk,
+                    _ => {
+                        return Err(TransactionError::Message(
+                            "Unsupported source account type".to_string(),
+                        ));
+                    }
+                };
+
+                let (destination, amount, has_account) = match &tx.operations[0].body {
+                    OperationBody::Payment(PaymentOp {
+                        destination,
+                        amount,
+                        ..
+                    }) => match destination {
+                        MuxedAccount::Ed25519(Uint256(pk)) => (pk, *amount, true),
+                        _ => {
+                            return Err(TransactionError::Message(
+                                "Unsupported destination account type".to_string(),
+                            ));
+                        }
+                    },
+                    OperationBody::CreateAccount(CreateAccountOp {
+                        destination,
+                        starting_balance,
+                        ..
+                    }) => match destination {
+                        AccountId(PublicKey::PublicKeyTypeEd25519(Uint256(pk))) => {
+                            (pk, *starting_balance, false)
+                        }
+                    },
+                    _ => {
+                        return Err(TransactionError::Message(
+                            "Unsupported operation type".to_string(),
+                        ));
+                    }
+                };
+
+                let from = StellarAddress::from_array(source_account)
+                    .map_err(|e| TransactionError::Crate("from_bytes", format!("{e:?}")))?;
+                let to = StellarAddress::from_array(*destination)
+                    .map_err(|e| TransactionError::Crate("from_bytes", format!("{e:?}")))?;
+
+                let fee = tx.fee;
+                let nonce = tx.seq_num.0 - 1;
+
+                Ok(Self {
+                    params: StellarTransactionParameters {
+                        from,
+                        to,
+                        has_account,
+                        amount,
+                        fee,
+                        nonce,
+                        network_id: String::new(), // Network ID is not included in the envelope
+                    },
+                    signatures: None, // Signatures are not included in the envelope
+                })
+            }
+            _ => Err(TransactionError::Message(
+                "Unsupported transaction envelope type".to_string(),
+            )),
+        }
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
