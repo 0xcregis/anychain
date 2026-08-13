@@ -14,6 +14,7 @@ use stellar_xdr::{
     TransactionExt, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
     TransactionV1Envelope, Uint256, VecM, WriteXdr,
 };
+use base64::{engine::general_purpose::STANDARD, Engine};
 
 const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
 const TESTNET_NETWORK_ID: &str = "Test SDF Network ; September 2015";
@@ -251,6 +252,18 @@ impl Transaction for StellarTransaction {
         let stream = self.to_bytes()?;
         let txid = sha256(&stream).to_vec();
         Ok(StellarTransactionId { txid })
+    }
+}
+
+impl FromStr for StellarTransaction {
+    type Err = TransactionError;
+
+    fn from_str(tx: &str) -> Result<Self, Self::Err> {
+        let tx = STANDARD
+            .decode(tx)
+            .map_err(|e| TransactionError::Message(e.to_string()))
+            .unwrap();
+        StellarTransaction::from_bytes(&tx)
     }
 }
 

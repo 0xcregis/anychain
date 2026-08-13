@@ -13,15 +13,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-# anychain-core = { path = "../anychain-core", version = "0.1.8" }
 anychain-core = "0.1.8"
+stellar-strkey = "0.0.18"
+group = "0.13.0"
+stellar-xdr = { version = "27.0.0", features = ["base64"] }
 serde = { workspace = true }
 curve25519-dalek = { workspace = true }
 ed25519-dalek = { workspace = true }
-stellar-strkey = "0.0.18"
-group = "0.13.0"
-hex.workspace = true
-stellar-xdr = { version = "27.0.0", features = ["base64"] }
+base64 = { workspace = true }
+hex = { workspace = true }
 
 [lints]
 workspace = true
