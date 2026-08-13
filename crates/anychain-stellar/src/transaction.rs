@@ -15,6 +15,9 @@ use stellar_xdr::{
     TransactionV1Envelope, Uint256, VecM, WriteXdr,
 };
 
+const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
+const TESTNET_NETWORK_ID: &str = "Test SDF Network ; September 2015";
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransactionParameters {
     pub from: StellarAddress,
@@ -23,7 +26,7 @@ pub struct StellarTransactionParameters {
     pub amount: i64,
     pub fee: u32,
     pub nonce: i64,
-    pub network_id: String,
+    pub network_id: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -86,7 +89,16 @@ impl Transaction for StellarTransaction {
 
         let fee = self.params.fee;
         let seq_num = SequenceNumber(self.params.nonce + 1);
-        let network_id = self.params.network_id.as_bytes();
+        let network_id = match self.params.network_id {
+            0 => MAINNET_NETWORK_ID,
+            1 => TESTNET_NETWORK_ID,
+            _ => {
+                return Err(TransactionError::Message(format!(
+                    "Invalid network ID: {}",
+                    self.params.network_id
+                )))
+            }
+        };
 
         let op_body = match self.params.has_account {
             true => OperationBody::Payment(PaymentOp {
@@ -148,7 +160,7 @@ impl Transaction for StellarTransaction {
             }
             None => {
                 let tagged_transaction = TransactionSignaturePayloadTaggedTransaction::Tx(tx);
-                let network_id = Hash(sha256(network_id));
+                let network_id = Hash(sha256(network_id.as_bytes()));
 
                 let tx = TransactionSignaturePayload {
                     network_id,
@@ -224,7 +236,7 @@ impl Transaction for StellarTransaction {
                         amount,
                         fee,
                         nonce,
-                        network_id: String::new(), // Network ID is not included in the envelope
+                        network_id: 0, // Network ID is not included in the envelope
                     },
                     signatures: None, // Signatures are not included in the envelope
                 })
