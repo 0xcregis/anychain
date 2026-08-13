@@ -5,6 +5,7 @@ use anychain_core::{
     crypto::sha256,
     transaction::{Transaction, TransactionError, TransactionId},
 };
+use base64::{engine::general_purpose::STANDARD, Engine};
 use core::fmt;
 use std::str::FromStr;
 use stellar_xdr::{
@@ -14,7 +15,6 @@ use stellar_xdr::{
     TransactionExt, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
     TransactionV1Envelope, Uint256, VecM, WriteXdr,
 };
-use base64::{engine::general_purpose::STANDARD, Engine};
 
 const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
 const TESTNET_NETWORK_ID: &str = "Test SDF Network ; September 2015";
