@@ -12,6 +12,20 @@ use {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StellarAddress(pub String);
 
+impl StellarAddress {
+    pub fn from_array(pk: [u8; 32]) -> Result<Self, AddressError> {
+        let pk = stellar_strkey::ed25519::PublicKey::from_payload(&pk)
+            .map_err(|e| AddressError::Crate("from_array", format!("{e:?}")))?;
+        Ok(Self(pk.to_string().as_str().to_string()))
+    }
+
+    pub fn to_array(&self) -> Result<[u8; 32], AddressError> {
+        let pk = stellar_strkey::ed25519::PublicKey::from_str(&self.0)
+            .map_err(|e| AddressError::Crate("to_array", format!("{e:?}")))?;
+        Ok(pk.0)
+    }
+}
+
 impl Address for StellarAddress {
     type SecretKey = Scalar;
     type Format = StellarFormat;
