@@ -5,6 +5,7 @@ use anychain_core::{
     crypto::sha256,
     transaction::{Transaction, TransactionError, TransactionId},
 };
+use base64::{engine::general_purpose::STANDARD, Engine};
 use core::fmt;
 use std::str::FromStr;
 use stellar_xdr::{
@@ -251,6 +252,18 @@ impl Transaction for StellarTransaction {
         let stream = self.to_bytes()?;
         let txid = sha256(&stream).to_vec();
         Ok(StellarTransactionId { txid })
+    }
+}
+
+impl FromStr for StellarTransaction {
+    type Err = TransactionError;
+
+    fn from_str(tx: &str) -> Result<Self, Self::Err> {
+        let tx = STANDARD
+            .decode(tx)
+            .map_err(|e| TransactionError::Message(e.to_string()))
+            .unwrap();
+        StellarTransaction::from_bytes(&tx)
     }
 }
 
