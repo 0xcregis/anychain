@@ -3,7 +3,7 @@ name = "anychain-hedera"
 description = "A Rust library for Hedera-focused cryptocurrency wallets, enabling seamless transactions on the Hedera network"
 keywords = ["blockchain", "crypto", "hedera", "wallet"]
 categories = ["cryptography::cryptocurrencies"]
-version = "0.1.0"
+version = "0.1.1"
 
 # Workspace inherited keys
 authors.workspace = true
