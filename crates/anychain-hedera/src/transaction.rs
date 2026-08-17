@@ -345,7 +345,21 @@ impl Transaction for HederaTransaction {
         })?;
 
         match &self.signature {
-            Some(_) => Ok(tx.encode_to_vec()),
+            Some(_) => {
+                let payload = tx.encode_to_vec();
+
+                // gRPC prefix
+                let len = payload.len() as u32;
+                let len = len.to_be_bytes();
+
+                let mut full_bytes = Vec::with_capacity(5 + payload.len());
+                full_bytes.push(0u8);
+                full_bytes.extend_from_slice(&len);
+
+                full_bytes.extend_from_slice(&payload);
+
+                Ok(full_bytes)
+            }
             None => {
                 let signed_tx =
                     SignedTransaction::decode(&*tx.signed_transaction_bytes).map_err(|e| {
@@ -380,7 +394,7 @@ mod tests {
     use std::collections::HashMap;
     use std::str::FromStr;
 
-    const END_POINT: &str = "http://35.237.119.55:50211/proto.CryptoService/cryptoTransfer";
+    const END_POINT: &str = "http://0.testnet.hedera.com:50211/proto.CryptoService/cryptoTransfer";
     const PRIVATE_HEX_ALICE: &str =
         "0e4fd0cf299f45f27e269e92736f9d70a67df8bec332d0f3841d2d3f46379e2f";
     const PRIVATE_HEX_BOB: &str =
@@ -441,7 +455,7 @@ mod tests {
 
         let params = HederaTransactionParameters {
             payer_account_id: id_bob.clone(),
-            node_account_ids: vec!["0.0.4".to_string()],
+            node_account_ids: vec!["0.0.3".to_string()],
             valid_start_seconds: time::OffsetDateTime::now_utc().unix_timestamp() - 10,
             valid_start_nanos: unique_nanos,
             max_transaction_fee: 2_000_000,
@@ -463,30 +477,13 @@ mod tests {
 
         let tx = hedera_tx.sign(signature_bytes, 0).unwrap();
 
-        fn generate_grpc_curl_cmd(payload: &[u8], url: &str) -> String {
-            // 1. 获取 payload 长度并转换为 4 字节的大端序数组
-            let len = payload.len() as u32;
-            let len_bytes = len.to_be_bytes();
+        let tx = hex::encode(tx);
 
-            // 2. 构造 5 字节的 gRPC 前缀：1 字节压缩标志(0) + 4 字节大端序长度
-            let mut full_bytes = Vec::with_capacity(5 + payload.len());
-            full_bytes.push(0u8);
-            full_bytes.extend_from_slice(&len_bytes);
-
-            // 3. 拼入原始数据
-            full_bytes.extend_from_slice(payload);
-
-            // 4. 将全套字节整体转换为 Hex 字符串
-            let full_hex = hex::encode(full_bytes);
-
-            // 5. 组装成最终可在终端运行的 curl 命令行字符串
-            format!(
-                "echo \"{}\" | xxd -r -p | curl --verbose --proxytunnel --http2-prior-knowledge -H \"Content-Type: application/grpc\" -H \"TE: trailers\" --data-binary @-  {}",
-                full_hex, url
-            )
-        }
-
-        let curl_command = generate_grpc_curl_cmd(&tx, END_POINT);
+        // Assemble the curl command to send the transaction to the Hedera network
+        let curl_command = format!(
+            "echo \"{}\" | xxd -r -p | curl --verbose --proxytunnel --noproxy \"*\" --http2-prior-knowledge -H \"Content-Type: application/grpc\" -H \"TE: trailers\" --data-binary @- --output - {}",
+            tx, END_POINT
+        );
 
         println!("{}", curl_command);
     }
