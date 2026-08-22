@@ -400,6 +400,7 @@ mod tests {
     const PRIVATE_HEX_BOB: &str =
         "be16996c9f6731347d11eb59c498d8908d7ff2b0d0bef860552c6ee1da66fd3a";
 
+    #[ignore]
     #[tokio::test]
     async fn test_transfer_alice_to_bob() {
         // 1. Setup client with ECDSA operator (Alice's funded account 0.0.8007608) to pay for the initial account creation
@@ -437,6 +438,7 @@ mod tests {
         );
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_transfer_bob_to_alice() {
         let unique_nanos = ("alice"
