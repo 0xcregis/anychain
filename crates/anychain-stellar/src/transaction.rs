@@ -11,13 +11,20 @@ use std::str::FromStr;
 use stellar_xdr::{
     AccountId, Asset, BytesM, CreateAccountOp, DecoratedSignature, Hash, Limits, Memo,
     MuxedAccount, Operation, OperationBody, PaymentOp, Preconditions, PublicKey, ReadXdr,
-    SequenceNumber, Signature, SignatureHint, Transaction as Tx, TransactionEnvelope,
+    SequenceNumber, Signature, SignatureHint, StringM, Transaction as Tx, TransactionEnvelope,
     TransactionExt, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
     TransactionV1Envelope, Uint256, VecM, WriteXdr,
 };
 
 const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
 const TESTNET_NETWORK_ID: &str = "Test SDF Network ; September 2015";
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum StellarMemo {
+    None,
+    Text(String),
+    Id(u64),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransactionParameters {
@@ -27,6 +34,7 @@ pub struct StellarTransactionParameters {
     pub amount: i64,
     pub fee: u32,
     pub nonce: i64,
+    pub memo: StellarMemo,
     pub network_id: u8,
 }
 
@@ -116,12 +124,22 @@ impl Transaction for StellarTransaction {
             }
         };
 
+        let memo = match &self.params.memo {
+            StellarMemo::None => Memo::None,
+            StellarMemo::Text(text) => {
+                let memo = StringM::from_str(text)
+                    .map_err(|e| TransactionError::Message(e.to_string()))?;
+                Memo::Text(memo)
+            }
+            StellarMemo::Id(id) => Memo::Id(*id),
+        };
+
         let tx = Tx {
             source_account,
             fee,
             seq_num,
             cond: Preconditions::None,
-            memo: Memo::None,
+            memo,
             ext: TransactionExt::V0,
             operations: [Operation {
                 source_account: None,
@@ -229,6 +247,17 @@ impl Transaction for StellarTransaction {
                 let fee = tx.fee;
                 let nonce = tx.seq_num.0 - 1;
 
+                let memo = match &tx.memo {
+                    Memo::None => StellarMemo::None,
+                    Memo::Text(text) => StellarMemo::Text(text.to_string()),
+                    Memo::Id(id) => StellarMemo::Id(*id),
+                    _ => {
+                        return Err(TransactionError::Message(
+                            "Unsupported memo type".to_string(),
+                        ));
+                    }
+                };
+
                 Ok(Self {
                     params: StellarTransactionParameters {
                         from,
@@ -237,6 +266,7 @@ impl Transaction for StellarTransaction {
                         amount,
                         fee,
                         nonce,
+                        memo,
                         network_id: 0, // Network ID is not included in the envelope
                     },
                     signatures: None, // Signatures are not included in the envelope
