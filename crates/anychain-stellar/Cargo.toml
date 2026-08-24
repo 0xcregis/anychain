@@ -3,7 +3,7 @@ name = "anychain-stellar"
 description = "A Rust library for Stellar-focused cryptocurrency wallets, enabling seamless transactions on the Stellar network"
 keywords = ["blockchain", "crypto", "stellar", "wallet"]
 categories = ["cryptography::cryptocurrencies"]
-version = "0.1.3"
+version = "0.1.4"
 
 # Workspace inherited keys
 authors.workspace = true
