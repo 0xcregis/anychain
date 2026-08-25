@@ -20,71 +20,72 @@ concurrency:
 
 env:
   CI: true
-  AUDIT_SERVER: "https://api.sguard.top"    # 修改1：添加环境变量 安全审计平台api节点url
-  PROJECT_NAME: "${{ github.repository }}"     # 修改2：添加环境变量 审计报告唯一标识
+  AUDIT_SERVER: "https://api.sguard.top"    # 1
+  PROJECT_NAME: "${{ github.repository }}"  # 2
 
 jobs:
-  security-audit: # 修改3：添加审计JOB，名称:security-audit
-    name: "🔍 代码安全审计"
+  security-audit: # 3
+    name: "code audit"
     runs-on: [ self-hosted, audit-machine ]
-    timeout-minutes: 180  # 设置3小时超时
+    timeout-minutes: 180  #
 
     steps:
-      - name: "📥 检出代码"
+      - name: "checkout code"
         uses: actions/checkout@v4
 
-      - name: "⚡ 执行安全扫描"
+      - name: "run security scan"
         run: |
-          echo "开始执行SAST扫描..."
-          # 运行 Semgrep 扫描
+          echo "SAST scan..."
+          # Semgrep scan 
           SEMGREP_REDACT_CODE=true semgrep scan --config auto . 2>&1 | tee semgrep_report.txt
 
-      - name: "📤 上传扫描结果"
+      - name: "upload scan results"
         run: |
-          echo "上传扫描结果..."
+          echo "upload scan results..."
           curl -X POST "$AUDIT_SERVER/upload-and-audit/" \
             -F "file=@semgrep_report.txt" \
             -F "additional_param=$PROJECT_NAME" \
             -o uploadResponse.json
           UPLOAD_RESPONSE=$(cat uploadResponse.json)
-          echo "semgrep上传文件api返回内容: $UPLOAD_RESPONSE"  
+          echo "semgrep upload file API response: $UPLOAD_RESPONSE"  
 
-      - name: "⏳ 轮询审计结果"
+      - name: "poll audit results"
+
         id: audit-result
         run: |
-          echo "轮询审计结果..."
+          echo "poll audit results..."
           
           for i in {1..100}; do
-            echo "第 $i 次轮询..."
+            echo "polling attempt $i..."
           
             curl -X POST "$AUDIT_SERVER/audit-status/" \
               -F "task_id=$PROJECT_NAME" \
               -o auditResponse.json
           
             AUDIT_RESPONSE=$(cat auditResponse.json)
-            echo "审计结果状态: $AUDIT_RESPONSE"
+            echo "audit result status: $AUDIT_RESPONSE"
           
             STATUS=$(jq -r '.status // "error"' auditResponse.json 2>/dev/null || echo "error")
           
             if [ "$STATUS" = "completed" ]; then
-              echo "✅ 审计通过"
+              echo "✅ Audit completed"
               exit 0
             elif [ "$STATUS" = "failed" ]; then
-              echo "❌ 审计失败"
-              exit 1     # 模拟审核成功，正常使用这里值应为1，审核失败
+              echo "Audit failed, please check the audit server for details."
+              exit 1     #
             fi
           
             sleep 60
           done
-          echo "❌ 轮询超时"
+          echo "❌ Polling timed out"
           exit 1
 
   quality:
     name: Quality
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: security-audit                               # 修改4：添加 依赖安全审计作业
-    if: needs.security-audit.result == 'success'        # 修改5：添加 只有审计成功才继续执行
+    needs: security-audit                               # 4
+    if: needs.security-audit.result == 'success'        # 5
 
     strategy:
       matrix:
