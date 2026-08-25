@@ -9,11 +9,13 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use core::fmt;
 use std::str::FromStr;
 use stellar_xdr::{
-    AccountId, Asset, BytesM, CreateAccountOp, DecoratedSignature, Hash, Limits, Memo,
-    MuxedAccount, Operation, OperationBody, PaymentOp, Preconditions, PublicKey, ReadXdr,
-    SequenceNumber, Signature, SignatureHint, StringM, Transaction as Tx, TransactionEnvelope,
-    TransactionExt, TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
-    TransactionV1Envelope, Uint256, VecM, WriteXdr,
+    AlphaNum12, AlphaNum4, Asset, AssetCode12, AssetCode4, BytesM, ContractId, CreateAccountOp,
+    DecoratedSignature, Hash, HostFunction, InvokeContractArgs, InvokeHostFunctionOp, Limits, Memo,
+    Operation, OperationBody, PaymentOp, Preconditions, ReadXdr, ScAddress, ScSymbol, ScVal,
+    SequenceNumber, Signature, SignatureHint, SorobanAuthorizationEntry, SorobanAuthorizedFunction,
+    SorobanAuthorizedInvocation, SorobanCredentials, StringM, Transaction as Tx,
+    TransactionEnvelope, TransactionExt, TransactionSignaturePayload,
+    TransactionSignaturePayloadTaggedTransaction, TransactionV1Envelope, VecM, WriteXdr,
 };
 
 const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
@@ -26,8 +28,45 @@ pub enum StellarMemo {
     Id(u64),
 }
 
+impl StellarMemo {
+    pub fn to_memo(&self) -> Result<Memo, TransactionError> {
+        match self {
+            StellarMemo::None => Ok(Memo::None),
+            StellarMemo::Text(text) => {
+                let memo = StringM::from_str(text)
+                    .map_err(|e| TransactionError::Message(e.to_string()))?;
+                Ok(Memo::Text(memo))
+            }
+            StellarMemo::Id(id) => Ok(Memo::Id(*id)),
+        }
+    }
+
+    pub fn from_memo(memo: &Memo) -> Result<Self, TransactionError> {
+        match memo {
+            Memo::None => Ok(StellarMemo::None),
+            Memo::Text(text) => Ok(StellarMemo::Text(text.to_string())),
+            Memo::Id(id) => Ok(StellarMemo::Id(*id)),
+            _ => Err(TransactionError::Message(
+                "Unsupported memo type".to_string(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum StellarToken {
+    Classic {
+        asset_code: String,
+        issuer: StellarAddress,
+    },
+    Soroban {
+        contract: String,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransactionParameters {
+    pub token: Option<StellarToken>,
     pub from: StellarAddress,
     pub to: StellarAddress,
     pub has_account: bool,
@@ -36,6 +75,194 @@ pub struct StellarTransactionParameters {
     pub nonce: i64,
     pub memo: StellarMemo,
     pub network_id: u8,
+}
+
+impl StellarTransactionParameters {
+    pub fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
+        match &self.token {
+            Some(token) => match token {
+                StellarToken::Classic { asset_code, issuer } => {
+                    let issuer = issuer.to_account_id()?;
+                    let asset = match asset_code.len() {
+                        1..=4 => {
+                            let code = AssetCode4::from_str(asset_code)
+                                .map_err(|e| TransactionError::Message(e.to_string()))?;
+                            Asset::CreditAlphanum4(AlphaNum4 {
+                                asset_code: code,
+                                issuer,
+                            })
+                        }
+                        5..=12 => {
+                            let code = AssetCode12::from_str(asset_code)
+                                .map_err(|e| TransactionError::Message(e.to_string()))?;
+                            Asset::CreditAlphanum12(AlphaNum12 {
+                                asset_code: code,
+                                issuer,
+                            })
+                        }
+                        _ => {
+                            return Err(TransactionError::Message(format!(
+                                "Invalid asset code length: {}",
+                                asset_code.len()
+                            )))
+                        }
+                    };
+                    Ok(OperationBody::Payment(PaymentOp {
+                        destination: self.to.to_muxed_account()?,
+                        asset,
+                        amount: self.amount,
+                    }))
+                }
+                StellarToken::Soroban { contract } => {
+                    let contract = ContractId::from_str(contract)
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+                    let contract = ScAddress::Contract(contract);
+
+                    let function = StringM::try_from("transfer")
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+                    let function = ScSymbol(function);
+
+                    let from = ScVal::Address(ScAddress::Account(self.from.to_account_id()?));
+                    let to = ScVal::Address(ScAddress::Account(self.to.to_account_id()?));
+                    let amount = ScVal::I64(self.amount);
+
+                    let args: VecM<ScVal> = vec![from, to, amount].try_into().map_err(|_| {
+                        TransactionError::Message("VecM transfer error".to_string())
+                    })?;
+
+                    let args = InvokeContractArgs {
+                        contract_address: contract,
+                        function_name: function,
+                        args,
+                    };
+
+                    let host_function = HostFunction::InvokeContract(args.clone());
+
+                    let credentials = SorobanCredentials::SourceAccount;
+                    let root_invocation = SorobanAuthorizedInvocation {
+                        function: SorobanAuthorizedFunction::ContractFn(args),
+                        sub_invocations: vec![].try_into().map_err(|_| {
+                            TransactionError::Message("VecM transfer error".to_string())
+                        })?,
+                    };
+                    let auth = SorobanAuthorizationEntry {
+                        credentials,
+                        root_invocation,
+                    };
+
+                    let op = InvokeHostFunctionOp {
+                        host_function,
+                        auth: vec![auth].try_into().map_err(|_| {
+                            TransactionError::Message("VecM transfer error".to_string())
+                        })?,
+                    };
+
+                    Ok(OperationBody::InvokeHostFunction(op))
+                }
+            },
+            None => match self.has_account {
+                true => Ok(OperationBody::Payment(PaymentOp {
+                    destination: self.to.to_muxed_account()?,
+                    asset: Asset::Native,
+                    amount: self.amount,
+                })),
+                false => Ok(OperationBody::CreateAccount(CreateAccountOp {
+                    destination: self.to.to_account_id()?,
+                    starting_balance: self.amount,
+                })),
+            },
+        }
+    }
+
+    pub fn from_operation_body(
+        body: &OperationBody,
+    ) -> Result<(Option<StellarToken>, StellarAddress, i64, bool), TransactionError> {
+        match body {
+            OperationBody::Payment(PaymentOp {
+                destination,
+                amount,
+                asset,
+            }) => {
+                let to = StellarAddress::from_muxed_account(destination)?;
+                let token = match asset {
+                    Asset::Native => None,
+                    Asset::CreditAlphanum4(AlphaNum4 { asset_code, issuer }) => {
+                        let asset_code = asset_code.to_string();
+                        let issuer = StellarAddress::from_account_id(issuer)?;
+                        let token = StellarToken::Classic { asset_code, issuer };
+                        Some(token)
+                    }
+                    Asset::CreditAlphanum12(AlphaNum12 { asset_code, issuer }) => {
+                        let asset_code = asset_code.to_string();
+                        let issuer = StellarAddress::from_account_id(issuer)?;
+                        let token = StellarToken::Classic { asset_code, issuer };
+                        Some(token)
+                    }
+                };
+                Ok((token, to, *amount, true))
+            }
+            OperationBody::CreateAccount(CreateAccountOp {
+                destination,
+                starting_balance,
+                ..
+            }) => {
+                let to = StellarAddress::from_account_id(destination)?;
+                Ok((None, to, *starting_balance, false))
+            }
+            OperationBody::InvokeHostFunction(op) => {
+                if let HostFunction::InvokeContract(args) = op.host_function.clone() {
+                    let contract = args.contract_address;
+                    let args = args.args;
+                    let contract = Self::scaddress_to_contract(&contract)?;
+                    match (args.get(1), args.get(2)) {
+                        (Some(to), Some(amount)) => {
+                            let to = Self::scval_to_address(to)?;
+                            let amount = Self::scval_to_amount(amount)?;
+                            let token = StellarToken::Soroban { contract };
+                            Ok((Some(token), to, amount, true))
+                        }
+                        _ => Err(TransactionError::Message(
+                            "invalid contract call".to_string(),
+                        )),
+                    }
+                } else {
+                    Err(TransactionError::Message(
+                        "invalid contract call".to_string(),
+                    ))
+                }
+            }
+            _ => Err(TransactionError::Message(
+                "Unsupported operation type".to_string(),
+            )),
+        }
+    }
+
+    pub fn scaddress_to_contract(addr: &ScAddress) -> Result<String, TransactionError> {
+        if let ScAddress::Contract(contract) = addr {
+            return Ok(contract.to_string());
+        }
+        Err(TransactionError::Message(
+            "scval cannot convert to contract address".to_string(),
+        ))
+    }
+
+    pub fn scval_to_address(val: &ScVal) -> Result<StellarAddress, TransactionError> {
+        if let ScVal::Address(ScAddress::Account(account)) = val {
+            return Ok(StellarAddress::from_account_id(account)?);
+        }
+        Err(TransactionError::Message(
+            "scval cannot convert to stellar address".to_string(),
+        ))
+    }
+
+    pub fn scval_to_amount(val: &ScVal) -> Result<i64, TransactionError> {
+        if let ScVal::I64(amount) = val {
+            return Ok(*amount);
+        }
+        Err(TransactionError::Message(
+            "scval cannot convert to amount".to_string(),
+        ))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -83,19 +310,8 @@ impl Transaction for StellarTransaction {
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
-        let from = StellarPublicKey::from_str(&self.params.from.to_string())
-            .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?
-            .0
-            .to_bytes();
-        let to = StellarPublicKey::from_str(&self.params.to.to_string())
-            .map_err(|e| TransactionError::Crate("to_bytes", format!("{e:?}")))?
-            .0
-            .to_bytes();
-
-        let source_account = MuxedAccount::Ed25519(Uint256(from));
-        let destination = MuxedAccount::Ed25519(Uint256(to));
-        let amount = self.params.amount;
-
+        let from = self.params.from.clone();
+        let memo = self.params.memo.clone();
         let fee = self.params.fee;
         let seq_num = SequenceNumber(self.params.nonce + 1);
         let network_id = match self.params.network_id {
@@ -109,41 +325,16 @@ impl Transaction for StellarTransaction {
             }
         };
 
-        let op_body = match self.params.has_account {
-            true => OperationBody::Payment(PaymentOp {
-                destination: destination.clone(),
-                asset: Asset::Native,
-                amount,
-            }),
-            false => {
-                let destination = AccountId(PublicKey::PublicKeyTypeEd25519(Uint256(to)));
-                OperationBody::CreateAccount(CreateAccountOp {
-                    destination,
-                    starting_balance: amount,
-                })
-            }
-        };
-
-        let memo = match &self.params.memo {
-            StellarMemo::None => Memo::None,
-            StellarMemo::Text(text) => {
-                let memo = StringM::from_str(text)
-                    .map_err(|e| TransactionError::Message(e.to_string()))?;
-                Memo::Text(memo)
-            }
-            StellarMemo::Id(id) => Memo::Id(*id),
-        };
-
         let tx = Tx {
-            source_account,
+            source_account: from.to_muxed_account()?,
             fee,
             seq_num,
             cond: Preconditions::None,
-            memo,
+            memo: memo.to_memo()?,
             ext: TransactionExt::V0,
             operations: [Operation {
                 source_account: None,
-                body: op_body,
+                body: self.params.to_operation_body()?,
             }]
             .try_into()
             .unwrap(),
@@ -152,7 +343,7 @@ impl Transaction for StellarTransaction {
         match &self.signatures {
             Some(sigs) => {
                 let mut hint = [0u8; 4];
-                let pk = self.params.from.to_array()?;
+                let pk = from.to_array()?;
                 hint.copy_from_slice(&pk[28..]);
                 let hint = SignatureHint(hint);
 
@@ -201,65 +392,16 @@ impl Transaction for StellarTransaction {
 
         match envelope {
             TransactionEnvelope::Tx(TransactionV1Envelope { tx, .. }) => {
-                let source_account = match tx.source_account {
-                    MuxedAccount::Ed25519(Uint256(pk)) => pk,
-                    _ => {
-                        return Err(TransactionError::Message(
-                            "Unsupported source account type".to_string(),
-                        ));
-                    }
-                };
-
-                let (destination, amount, has_account) = match &tx.operations[0].body {
-                    OperationBody::Payment(PaymentOp {
-                        destination,
-                        amount,
-                        ..
-                    }) => match destination {
-                        MuxedAccount::Ed25519(Uint256(pk)) => (pk, *amount, true),
-                        _ => {
-                            return Err(TransactionError::Message(
-                                "Unsupported destination account type".to_string(),
-                            ));
-                        }
-                    },
-                    OperationBody::CreateAccount(CreateAccountOp {
-                        destination,
-                        starting_balance,
-                        ..
-                    }) => match destination {
-                        AccountId(PublicKey::PublicKeyTypeEd25519(Uint256(pk))) => {
-                            (pk, *starting_balance, false)
-                        }
-                    },
-                    _ => {
-                        return Err(TransactionError::Message(
-                            "Unsupported operation type".to_string(),
-                        ));
-                    }
-                };
-
-                let from = StellarAddress::from_array(source_account)
-                    .map_err(|e| TransactionError::Crate("from_bytes", format!("{e:?}")))?;
-                let to = StellarAddress::from_array(*destination)
-                    .map_err(|e| TransactionError::Crate("from_bytes", format!("{e:?}")))?;
-
+                let from = StellarAddress::from_muxed_account(&tx.source_account)?;
+                let (token, to, amount, has_account) =
+                    StellarTransactionParameters::from_operation_body(&tx.operations[0].body)?;
                 let fee = tx.fee;
                 let nonce = tx.seq_num.0 - 1;
-
-                let memo = match &tx.memo {
-                    Memo::None => StellarMemo::None,
-                    Memo::Text(text) => StellarMemo::Text(text.to_string()),
-                    Memo::Id(id) => StellarMemo::Id(*id),
-                    _ => {
-                        return Err(TransactionError::Message(
-                            "Unsupported memo type".to_string(),
-                        ));
-                    }
-                };
+                let memo = StellarMemo::from_memo(&tx.memo)?;
 
                 Ok(Self {
                     params: StellarTransactionParameters {
+                        token,
                         from,
                         to,
                         has_account,
