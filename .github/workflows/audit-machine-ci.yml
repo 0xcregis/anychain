@@ -1,4 +1,4 @@
-name: Audit Matchine CI
+name: Audit Machine CI
 
 on:
   pull_request:
@@ -68,7 +68,7 @@ jobs:
             STATUS=$(jq -r '.status // "error"' auditResponse.json 2>/dev/null || echo "error")
           
             if [ "$STATUS" = "completed" ]; then
-              echo "✅ Audit completed"
+              echo "Audit completed"
               exit 0
             elif [ "$STATUS" = "failed" ]; then
               echo "Audit failed, please check the audit server for details."
@@ -77,7 +77,7 @@ jobs:
           
             sleep 60
           done
-          echo "❌ Polling timed out"
+          echo "Polling timed out"
           exit 1
 
   quality:
