@@ -6,6 +6,7 @@ use {
         str::FromStr,
     },
     curve25519_dalek::Scalar,
+    stellar_xdr::{AccountId, MuxedAccount, PublicKey as LibPublicKey, Uint256},
 };
 
 /// Represents a Solana address
@@ -13,6 +14,29 @@ use {
 pub struct StellarAddress(pub String);
 
 impl StellarAddress {
+    pub fn to_muxed_account(&self) -> Result<MuxedAccount, AddressError> {
+        Ok(MuxedAccount::Ed25519(Uint256(self.to_array()?)))
+    }
+
+    pub fn from_muxed_account(muxed_account: &MuxedAccount) -> Result<Self, AddressError> {
+        match muxed_account {
+            MuxedAccount::Ed25519(pk) => Self::from_array(pk.0),
+            MuxedAccount::MuxedEd25519(muxed) => Self::from_array(muxed.ed25519.0),
+        }
+    }
+
+    pub fn to_account_id(&self) -> Result<AccountId, AddressError> {
+        let array = self.to_array()?;
+        let pk = LibPublicKey::PublicKeyTypeEd25519(Uint256(array));
+        Ok(AccountId(pk))
+    }
+
+    pub fn from_account_id(account_id: &AccountId) -> Result<Self, AddressError> {
+        match &account_id.0 {
+            LibPublicKey::PublicKeyTypeEd25519(pk) => Self::from_array(pk.0),
+        }
+    }
+
     pub fn from_array(pk: [u8; 32]) -> Result<Self, AddressError> {
         let pk = stellar_strkey::ed25519::PublicKey::from_payload(&pk)
             .map_err(|e| AddressError::Crate("from_array", format!("{e:?}")))?;
