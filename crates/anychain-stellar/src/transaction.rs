@@ -90,7 +90,7 @@ pub enum StellarMemo {
 }
 
 impl StellarMemo {
-    pub fn to_memo(&self) -> Result<Memo, TransactionError> {
+    fn to_memo(&self) -> Result<Memo, TransactionError> {
         match self {
             StellarMemo::None => Ok(Memo::None),
             StellarMemo::Text(text) => {
@@ -102,7 +102,7 @@ impl StellarMemo {
         }
     }
 
-    pub fn from_memo(memo: &Memo) -> Result<Self, TransactionError> {
+    fn from_memo(memo: &Memo) -> Result<Self, TransactionError> {
         match memo {
             Memo::None => Ok(StellarMemo::None),
             Memo::Text(text) => Ok(StellarMemo::Text(text.to_string())),
@@ -133,7 +133,7 @@ pub struct StellarTrustLine {
 }
 
 impl StellarTrustLine {
-    pub fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
+    fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
         let trust_line = build_trust_line(&self.asset_code, &self.issuer)?;
         let trust_line = ChangeTrustOp {
             line: trust_line,
