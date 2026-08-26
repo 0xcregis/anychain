@@ -9,17 +9,78 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use core::fmt;
 use std::str::FromStr;
 use stellar_xdr::{
-    AlphaNum12, AlphaNum4, Asset, AssetCode12, AssetCode4, BytesM, ContractId, CreateAccountOp,
-    DecoratedSignature, Hash, HostFunction, InvokeContractArgs, InvokeHostFunctionOp, Limits, Memo,
-    Operation, OperationBody, PaymentOp, Preconditions, ReadXdr, ScAddress, ScSymbol, ScVal,
-    SequenceNumber, Signature, SignatureHint, SorobanAuthorizationEntry, SorobanAuthorizedFunction,
-    SorobanAuthorizedInvocation, SorobanCredentials, StringM, Transaction as Tx,
-    TransactionEnvelope, TransactionExt, TransactionSignaturePayload,
-    TransactionSignaturePayloadTaggedTransaction, TransactionV1Envelope, VecM, WriteXdr,
+    AlphaNum12, AlphaNum4, Asset, AssetCode12, AssetCode4, BytesM, ChangeTrustAsset, ChangeTrustOp,
+    ContractId, CreateAccountOp, DecoratedSignature, Hash, HostFunction, InvokeContractArgs,
+    InvokeHostFunctionOp, Limits, Memo, Operation, OperationBody, PaymentOp, Preconditions,
+    ReadXdr, ScAddress, ScSymbol, ScVal, SequenceNumber, Signature, SignatureHint,
+    SorobanAuthorizationEntry, SorobanAuthorizedFunction, SorobanAuthorizedInvocation,
+    SorobanCredentials, StringM, Transaction as Tx, TransactionEnvelope, TransactionExt,
+    TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
+    TransactionV1Envelope, VecM, WriteXdr,
 };
 
 const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
 const TESTNET_NETWORK_ID: &str = "Test SDF Network ; September 2015";
+
+struct HelperTuple {
+    trust_line: Option<StellarTrustLine>,
+    token: Option<StellarToken>,
+    to: StellarAddress,
+    amount: i64,
+    has_account: bool,
+}
+
+fn asset_code_4(asset_code: &str, issuer: &StellarAddress) -> Result<AlphaNum4, TransactionError> {
+    let code =
+        AssetCode4::from_str(asset_code).map_err(|e| TransactionError::Message(e.to_string()))?;
+    let issuer = issuer.to_account_id()?;
+    Ok(AlphaNum4 {
+        asset_code: code,
+        issuer,
+    })
+}
+
+fn asset_code_12(
+    asset_code: &str,
+    issuer: &StellarAddress,
+) -> Result<AlphaNum12, TransactionError> {
+    let code =
+        AssetCode12::from_str(asset_code).map_err(|e| TransactionError::Message(e.to_string()))?;
+    let issuer = issuer.to_account_id()?;
+    Ok(AlphaNum12 {
+        asset_code: code,
+        issuer,
+    })
+}
+
+fn build_asset(asset_code: &str, issuer: &StellarAddress) -> Result<Asset, TransactionError> {
+    match asset_code.len() {
+        1..=4 => Ok(Asset::CreditAlphanum4(asset_code_4(asset_code, issuer)?)),
+        5..=12 => Ok(Asset::CreditAlphanum12(asset_code_12(asset_code, issuer)?)),
+        _ => Err(TransactionError::Message(format!(
+            "Invalid asset code length: {}",
+            asset_code.len()
+        ))),
+    }
+}
+
+fn build_trust_line(
+    asset_code: &str,
+    issuer: &StellarAddress,
+) -> Result<ChangeTrustAsset, TransactionError> {
+    match asset_code.len() {
+        1..=4 => Ok(ChangeTrustAsset::CreditAlphanum4(asset_code_4(
+            asset_code, issuer,
+        )?)),
+        5..=12 => Ok(ChangeTrustAsset::CreditAlphanum12(asset_code_12(
+            asset_code, issuer,
+        )?)),
+        _ => Err(TransactionError::Message(format!(
+            "Invalid asset code length: {}",
+            asset_code.len()
+        ))),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StellarMemo {
@@ -65,7 +126,26 @@ pub enum StellarToken {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StellarTrustLine {
+    pub asset_code: String,
+    pub issuer: StellarAddress,
+    pub limit: i64,
+}
+
+impl StellarTrustLine {
+    pub fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
+        let trust_line = build_trust_line(&self.asset_code, &self.issuer)?;
+        let trust_line = ChangeTrustOp {
+            line: trust_line,
+            limit: self.limit,
+        };
+        Ok(OperationBody::ChangeTrust(trust_line))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTransactionParameters {
+    pub trust_line: Option<StellarTrustLine>,
     pub token: Option<StellarToken>,
     pub from: StellarAddress,
     pub to: StellarAddress,
@@ -78,38 +158,17 @@ pub struct StellarTransactionParameters {
 }
 
 impl StellarTransactionParameters {
-    pub fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
+    fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
+        if let Some(trustline) = &self.trust_line {
+            return trustline.to_operation_body();
+        }
+
         match &self.token {
             Some(token) => match token {
                 StellarToken::Classic { asset_code, issuer } => {
-                    let issuer = issuer.to_account_id()?;
-                    let asset = match asset_code.len() {
-                        1..=4 => {
-                            let code = AssetCode4::from_str(asset_code)
-                                .map_err(|e| TransactionError::Message(e.to_string()))?;
-                            Asset::CreditAlphanum4(AlphaNum4 {
-                                asset_code: code,
-                                issuer,
-                            })
-                        }
-                        5..=12 => {
-                            let code = AssetCode12::from_str(asset_code)
-                                .map_err(|e| TransactionError::Message(e.to_string()))?;
-                            Asset::CreditAlphanum12(AlphaNum12 {
-                                asset_code: code,
-                                issuer,
-                            })
-                        }
-                        _ => {
-                            return Err(TransactionError::Message(format!(
-                                "Invalid asset code length: {}",
-                                asset_code.len()
-                            )))
-                        }
-                    };
                     Ok(OperationBody::Payment(PaymentOp {
                         destination: self.to.to_muxed_account()?,
-                        asset,
+                        asset: build_asset(asset_code, issuer)?,
                         amount: self.amount,
                     }))
                 }
@@ -174,9 +233,7 @@ impl StellarTransactionParameters {
         }
     }
 
-    pub fn from_operation_body(
-        body: &OperationBody,
-    ) -> Result<(Option<StellarToken>, StellarAddress, i64, bool), TransactionError> {
+    fn from_operation_body(body: &OperationBody) -> Result<HelperTuple, TransactionError> {
         match body {
             OperationBody::Payment(PaymentOp {
                 destination,
@@ -199,7 +256,13 @@ impl StellarTransactionParameters {
                         Some(token)
                     }
                 };
-                Ok((token, to, *amount, true))
+                Ok(HelperTuple {
+                    trust_line: None,
+                    token,
+                    to,
+                    amount: *amount,
+                    has_account: true,
+                })
             }
             OperationBody::CreateAccount(CreateAccountOp {
                 destination,
@@ -207,7 +270,13 @@ impl StellarTransactionParameters {
                 ..
             }) => {
                 let to = StellarAddress::from_account_id(destination)?;
-                Ok((None, to, *starting_balance, false))
+                Ok(HelperTuple {
+                    trust_line: None,
+                    token: None,
+                    to,
+                    amount: *starting_balance,
+                    has_account: false,
+                })
             }
             OperationBody::InvokeHostFunction(op) => {
                 if let HostFunction::InvokeContract(args) = op.host_function.clone() {
@@ -219,7 +288,13 @@ impl StellarTransactionParameters {
                             let to = Self::scval_to_address(to)?;
                             let amount = Self::scval_to_amount(amount)?;
                             let token = StellarToken::Soroban { contract };
-                            Ok((Some(token), to, amount, true))
+                            Ok(HelperTuple {
+                                trust_line: None,
+                                token: Some(token),
+                                to,
+                                amount,
+                                has_account: true,
+                            })
                         }
                         _ => Err(TransactionError::Message(
                             "invalid contract call".to_string(),
@@ -231,6 +306,43 @@ impl StellarTransactionParameters {
                     ))
                 }
             }
+            OperationBody::ChangeTrust(trust_line) => match &trust_line.line {
+                ChangeTrustAsset::CreditAlphanum4(AlphaNum4 { asset_code, issuer }) => {
+                    let asset_code = asset_code.to_string();
+                    let issuer = StellarAddress::from_account_id(issuer)?;
+                    let line = StellarTrustLine {
+                        asset_code,
+                        issuer: issuer.clone(),
+                        limit: trust_line.limit,
+                    };
+                    Ok(HelperTuple {
+                        trust_line: Some(line),
+                        token: None,
+                        to: issuer,
+                        amount: 0,
+                        has_account: true,
+                    })
+                }
+                ChangeTrustAsset::CreditAlphanum12(AlphaNum12 { asset_code, issuer }) => {
+                    let asset_code = asset_code.to_string();
+                    let issuer = StellarAddress::from_account_id(issuer)?;
+                    let line = StellarTrustLine {
+                        asset_code,
+                        issuer: issuer.clone(),
+                        limit: trust_line.limit,
+                    };
+                    Ok(HelperTuple {
+                        trust_line: Some(line),
+                        token: None,
+                        to: issuer,
+                        amount: 0,
+                        has_account: true,
+                    })
+                }
+                _ => Err(TransactionError::Message(
+                    "Unsupported trust asset type".to_string(),
+                )),
+            },
             _ => Err(TransactionError::Message(
                 "Unsupported operation type".to_string(),
             )),
@@ -393,7 +505,7 @@ impl Transaction for StellarTransaction {
         match envelope {
             TransactionEnvelope::Tx(TransactionV1Envelope { tx, .. }) => {
                 let from = StellarAddress::from_muxed_account(&tx.source_account)?;
-                let (token, to, amount, has_account) =
+                let tuple =
                     StellarTransactionParameters::from_operation_body(&tx.operations[0].body)?;
                 let fee = tx.fee;
                 let nonce = tx.seq_num.0 - 1;
@@ -401,11 +513,12 @@ impl Transaction for StellarTransaction {
 
                 Ok(Self {
                     params: StellarTransactionParameters {
-                        token,
+                        trust_line: tuple.trust_line,
+                        token: tuple.token,
                         from,
-                        to,
-                        has_account,
-                        amount,
+                        to: tuple.to,
+                        has_account: tuple.has_account,
+                        amount: tuple.amount,
                         fee,
                         nonce,
                         memo,
