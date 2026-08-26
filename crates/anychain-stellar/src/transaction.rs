@@ -11,12 +11,12 @@ use std::str::FromStr;
 use stellar_xdr::{
     AlphaNum12, AlphaNum4, Asset, AssetCode12, AssetCode4, BytesM, ChangeTrustAsset, ChangeTrustOp,
     ContractId, CreateAccountOp, DecoratedSignature, Hash, HostFunction, InvokeContractArgs,
-    InvokeHostFunctionOp, Limits, Memo, Operation, OperationBody, PaymentOp, Preconditions,
-    ReadXdr, ScAddress, ScSymbol, ScVal, SequenceNumber, Signature, SignatureHint,
+    InvokeHostFunctionOp, LedgerFootprint, Limits, Memo, Operation, OperationBody, PaymentOp,
+    Preconditions, ReadXdr, ScAddress, ScSymbol, ScVal, SequenceNumber, Signature, SignatureHint,
     SorobanAuthorizationEntry, SorobanAuthorizedFunction, SorobanAuthorizedInvocation,
-    SorobanCredentials, StringM, Transaction as Tx, TransactionEnvelope, TransactionExt,
-    TransactionSignaturePayload, TransactionSignaturePayloadTaggedTransaction,
-    TransactionV1Envelope, VecM, WriteXdr,
+    SorobanCredentials, SorobanResources, SorobanTransactionData, SorobanTransactionDataExt,
+    StringM, Transaction as Tx, TransactionEnvelope, TransactionExt, TransactionSignaturePayload,
+    TransactionSignaturePayloadTaggedTransaction, TransactionV1Envelope, VecM, WriteXdr,
 };
 
 const MAINNET_NETWORK_ID: &str = "Public Global Stellar Network ; September 2015";
@@ -124,6 +124,8 @@ pub enum StellarToken {
         contract: String,
     },
 }
+
+impl StellarToken {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StellarTrustLine {
@@ -375,6 +377,28 @@ impl StellarTransactionParameters {
             "scval cannot convert to amount".to_string(),
         ))
     }
+
+    fn get_transaction_ext(&self) -> Result<TransactionExt, TransactionError> {
+        match &self.token {
+            Some(_) => {
+                let resources = SorobanResources {
+                    footprint: LedgerFootprint {
+                        read_only: VecM::default(),
+                        read_write: VecM::default(),
+                    },
+                    instructions: 10000,
+                    disk_read_bytes: 100000,
+                    write_bytes: 100000,
+                };
+                Ok(TransactionExt::V1(SorobanTransactionData {
+                    ext: SorobanTransactionDataExt::V0,
+                    resources,
+                    resource_fee: (self.fee * 4 / 5) as i64,
+                }))
+            }
+            None => Ok(TransactionExt::V0),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -443,7 +467,7 @@ impl Transaction for StellarTransaction {
             seq_num,
             cond: Preconditions::None,
             memo: memo.to_memo()?,
-            ext: TransactionExt::V0,
+            ext: self.params.get_transaction_ext()?,
             operations: [Operation {
                 source_account: None,
                 body: self.params.to_operation_body()?,
