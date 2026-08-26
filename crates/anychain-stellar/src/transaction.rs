@@ -349,7 +349,7 @@ impl StellarTransactionParameters {
         }
     }
 
-    pub fn scaddress_to_contract(addr: &ScAddress) -> Result<String, TransactionError> {
+    fn scaddress_to_contract(addr: &ScAddress) -> Result<String, TransactionError> {
         if let ScAddress::Contract(contract) = addr {
             return Ok(contract.to_string());
         }
@@ -358,7 +358,7 @@ impl StellarTransactionParameters {
         ))
     }
 
-    pub fn scval_to_address(val: &ScVal) -> Result<StellarAddress, TransactionError> {
+    fn scval_to_address(val: &ScVal) -> Result<StellarAddress, TransactionError> {
         if let ScVal::Address(ScAddress::Account(account)) = val {
             return Ok(StellarAddress::from_account_id(account)?);
         }
@@ -367,7 +367,7 @@ impl StellarTransactionParameters {
         ))
     }
 
-    pub fn scval_to_amount(val: &ScVal) -> Result<i64, TransactionError> {
+    fn scval_to_amount(val: &ScVal) -> Result<i64, TransactionError> {
         if let ScVal::I64(amount) = val {
             return Ok(*amount);
         }
