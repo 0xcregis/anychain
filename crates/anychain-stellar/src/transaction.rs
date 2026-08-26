@@ -159,8 +159,8 @@ pub struct StellarTransactionParameters {
 
 impl StellarTransactionParameters {
     fn to_operation_body(&self) -> Result<OperationBody, TransactionError> {
-        if let Some(trustline) = &self.trust_line {
-            return trustline.to_operation_body();
+        if let Some(trust_line) = &self.trust_line {
+            return trust_line.to_operation_body();
         }
 
         match &self.token {
