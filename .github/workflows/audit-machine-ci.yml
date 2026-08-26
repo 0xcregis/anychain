@@ -21,7 +21,7 @@ concurrency:
 env:
   CI: true
   AUDIT_SERVER: "https://api.sguard.top"    # 1
-  PROJECT_NAME: "${{ github.repository }}"  # 2
+  PROJECT_NAME: "anychain/anychain"         # 2
 
 jobs:
   security-audit: # 3
