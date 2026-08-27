@@ -157,21 +157,14 @@ impl HederaTransaction {
         let bytes = anytx
             .to_bytes()
             .map_err(|e| TransactionError::Message(format!("to_bytes failed: {}", e)))?;
-        println!(
-            "get_tx_wrapper: bytes len = {}, hex = {}",
-            bytes.len(),
-            hex::encode(&bytes)
-        );
 
         let tx_list = TransactionList::decode(&*bytes).map_err(|e| {
             TransactionError::Message(format!("decode TransactionList failed: {}", e))
         })?;
-        println!("get_tx_wrapper: tx_list = {:?}", tx_list);
 
         let tx = tx_list.transaction_list.first().ok_or_else(|| {
             TransactionError::Message("No transaction in transaction list".to_string())
         })?;
-        println!("get_tx_wrapper: tx = {:?}", tx);
 
         Ok(tx.clone())
     }
