@@ -418,7 +418,7 @@ mod tests {
 
     const END_POINT: &str = "http://0.testnet.hedera.com:50211/proto.CryptoService/cryptoTransfer";
     const USDC: &str = "0.0.429274";
-    
+
     const PRIVATE_HEX_ALICE: &str =
         "0e4fd0cf299f45f27e269e92736f9d70a67df8bec332d0f3841d2d3f46379e2f";
     const PRIVATE_HEX_BOB: &str =
