@@ -2,7 +2,7 @@ use {
     crate::{
         address::HederaAddress,
         format::HederaFormat,
-        protobuf::{SignedTransaction, TransactionList, Transaction as TransactionWrapper},
+        protobuf::{SignedTransaction, TransactionList, Transaction as TransactionWrapper, TransactionBody},
         public_key::HederaPublicKey
     },
     anychain_core::{Transaction, TransactionError, TransactionId},
@@ -30,6 +30,17 @@ impl Display for HederaTransactionId {
 
 fn get_account_id(s: &str) -> Result<AccountId, TransactionError> {
     AccountId::from_str(s).map_err(|e| TransactionError::Message(e.to_string()))
+}
+
+fn format_account_id(id: &crate::protobuf::AccountId) -> Result<String, TransactionError> {
+    let account_part = match &id.account {
+        Some(crate::protobuf::account_id::Account::AccountNum(num)) => num.to_string(),
+        Some(crate::protobuf::account_id::Account::Alias(bytes)) => {
+            hex::encode(bytes)
+        }
+        None => return Err(TransactionError::Message("AccountId missing account field".to_string())),
+    };
+    Ok(format!("{}.{}.{}", id.shard_num, id.realm_num, account_part))
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -196,8 +207,120 @@ impl Transaction for HederaTransaction {
         }
     }
 
-    fn from_bytes(_bytes: &[u8]) -> Result<Self, TransactionError> {
-        todo!()
+    fn from_bytes(bytes: &[u8]) -> Result<Self, TransactionError> {
+        let mut body_bytes: Option<Vec<u8>> = None;
+        let mut sig_map_opt: Option<crate::protobuf::SignatureMap> = None;
+
+        // Try decoding as gRPC-prefixed Transaction first.
+        if bytes.len() >= 5 && bytes[0] == 0 {
+            let len = u32::from_be_bytes(bytes[1..5].try_into().unwrap()) as usize;
+            if bytes.len() >= 5 + len {
+                if let Ok(tx) = TransactionWrapper::decode(&bytes[5..5 + len]) {
+                    if let Ok(signed_tx) = SignedTransaction::decode(&*tx.signed_transaction_bytes) {
+                        body_bytes = Some(signed_tx.body_bytes);
+                        sig_map_opt = signed_tx.sig_map;
+                    }
+                }
+            }
+        }
+
+        // Maybe it's already body_bytes (TransactionBody)
+        let tx_body_bytes = match body_bytes {
+            Some(b) => b,
+            None => bytes.to_vec(),
+        };
+
+        // Now decode TransactionBody
+        let body = TransactionBody::decode(&*tx_body_bytes)
+            .map_err(|e| TransactionError::Message(format!("decode TransactionBody failed: {}", e)))?;
+
+        let tx_id = body.transaction_id.clone().ok_or_else(|| {
+            TransactionError::Message("Missing transaction ID in body".to_string())
+        })?;
+        let from_account_id = tx_id.account_id.clone().ok_or_else(|| {
+            TransactionError::Message("Missing account ID in transaction ID".to_string())
+        })?;
+        let from = format_account_id(&from_account_id)?;
+
+        let valid_start = tx_id.transaction_valid_start.ok_or_else(|| {
+            TransactionError::Message("Missing transaction valid start time".to_string())
+        })?;
+        let now = valid_start.seconds;
+
+        let fee = body.transaction_fee;
+        let memo = body.memo.clone();
+
+        let node_id = body.node_account_id.ok_or_else(|| {
+            TransactionError::Message("Missing node account ID in body".to_string())
+        })?;
+        let node = format_account_id(&node_id)?;
+
+        let mut to = String::new();
+        let mut amount = 0i64;
+
+        if let Some(data) = body.data {
+            match data {
+                crate::protobuf::transaction_body::Data::CryptoCreateAccount(create_body) => {
+                    if let Some(key_wrapper) = create_body.key {
+                        if let Some(k) = key_wrapper.key {
+                            match k {
+                                crate::protobuf::key::Key::Ed25519(bytes) => {
+                                    to = hex::encode(bytes);
+                                }
+                                crate::protobuf::key::Key::EcdsaSecp256k1(bytes) => {
+                                    to = hex::encode(bytes);
+                                }
+                            }
+                        }
+                    }
+                    amount = create_body.initial_balance as i64;
+                }
+                crate::protobuf::transaction_body::Data::CryptoTransfer(transfer_body) => {
+                    if let Some(transfers) = transfer_body.transfers {
+                        for aa in transfers.account_amounts {
+                            if aa.amount > 0 {
+                                if let Some(acc_id) = aa.account_id {
+                                    to = format_account_id(&acc_id)?;
+                                }
+                                amount = aa.amount;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut signature = None;
+        let mut public_key = Vec::new();
+
+        if let Some(sig_map) = sig_map_opt {
+            if let Some(sig_pair) = sig_map.sig_pair.first() {
+                public_key = sig_pair.pub_key_prefix.clone();
+                if let Some(sig) = &sig_pair.signature {
+                    match sig {
+                        crate::protobuf::signature_pair::Signature::Ed25519(sig_bytes) => {
+                            signature = Some(sig_bytes.clone());
+                        }
+                        crate::protobuf::signature_pair::Signature::EcdsaSecp256k1(sig_bytes) => {
+                            signature = Some(sig_bytes.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        let params = HederaTransactionParameters {
+            from,
+            to,
+            amount,
+            fee,
+            now,
+            memo,
+            public_key,
+            node,
+        };
+
+        Ok(HederaTransaction { params, signature })
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -310,5 +433,97 @@ mod tests {
         );
 
         println!("{}", curl_command);
+    }
+
+    #[test]
+    fn test_from_bytes_unsigned_transfer() {
+        let params = HederaTransactionParameters {
+            from: "0.0.12345".to_string(),
+            to: "0.0.67890".to_string(),
+            amount: 500_000,
+            fee: 10_000,
+            now: 1620000000,
+            memo: "test memo".to_string(),
+            public_key: vec![],
+            node: "0.0.3".to_string(),
+        };
+
+        let tx = HederaTransaction::new(&params).unwrap();
+        let bytes = tx.to_bytes().unwrap();
+
+        let decoded_tx = HederaTransaction::from_bytes(&bytes).unwrap();
+        
+        assert_eq!(decoded_tx.params.from, params.from);
+        assert_eq!(decoded_tx.params.to, params.to);
+        assert_eq!(decoded_tx.params.amount, params.amount);
+        assert_eq!(decoded_tx.params.fee, params.fee);
+        assert_eq!(decoded_tx.params.now, params.now);
+        assert_eq!(decoded_tx.params.memo, params.memo);
+        assert_eq!(decoded_tx.params.node, params.node);
+        assert!(decoded_tx.signature.is_none());
+    }
+
+    #[test]
+    fn test_from_bytes_signed_transfer() {
+        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
+        let pk_bob = sk_bob.public_key().to_bytes().to_vec();
+        let params = HederaTransactionParameters {
+            from: "0.0.12345".to_string(),
+            to: "0.0.67890".to_string(),
+            amount: 500_000,
+            fee: 10_000,
+            now: 1620000000,
+            memo: "test memo".to_string(),
+            public_key: pk_bob,
+            node: "0.0.3".to_string(),
+        };
+
+        let mut tx = HederaTransaction::new(&params).unwrap();
+        let signature = vec![2u8; 64];
+        let signed_bytes = tx.sign(signature.clone(), 0).unwrap();
+
+        let decoded_tx = HederaTransaction::from_bytes(&signed_bytes).unwrap();
+        
+        assert_eq!(decoded_tx.params.from, params.from);
+        assert_eq!(decoded_tx.params.to, params.to);
+        assert_eq!(decoded_tx.params.amount, params.amount);
+        assert_eq!(decoded_tx.params.fee, params.fee);
+        assert_eq!(decoded_tx.params.now, params.now);
+        assert_eq!(decoded_tx.params.memo, params.memo);
+        assert_eq!(decoded_tx.params.node, params.node);
+        
+        // In the signed bytes, we extract public key and signature
+        assert_eq!(decoded_tx.params.public_key, params.public_key);
+        assert_eq!(decoded_tx.signature, Some(signature));
+    }
+
+    #[test]
+    fn test_from_bytes_unsigned_create_account() {
+        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
+        let to_pk_hex = hex::encode(sk_bob.public_key().to_bytes());
+        let params = HederaTransactionParameters {
+            from: "0.0.12345".to_string(),
+            to: to_pk_hex.clone(),
+            amount: 500_000,
+            fee: 10_000,
+            now: 1620000000,
+            memo: "create account memo".to_string(),
+            public_key: vec![],
+            node: "0.0.3".to_string(),
+        };
+
+        let tx = HederaTransaction::new(&params).unwrap();
+        let bytes = tx.to_bytes().unwrap();
+
+        let decoded_tx = HederaTransaction::from_bytes(&bytes).unwrap();
+        
+        assert_eq!(decoded_tx.params.from, params.from);
+        assert_eq!(decoded_tx.params.to, params.to);
+        assert_eq!(decoded_tx.params.amount, params.amount);
+        assert_eq!(decoded_tx.params.fee, params.fee);
+        assert_eq!(decoded_tx.params.now, params.now);
+        assert_eq!(decoded_tx.params.memo, params.memo);
+        assert_eq!(decoded_tx.params.node, params.node);
+        assert!(decoded_tx.signature.is_none());
     }
 }
