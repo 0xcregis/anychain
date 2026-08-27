@@ -218,7 +218,6 @@ impl Transaction for HederaTransaction {
                     SignedTransaction::decode(&*tx.signed_transaction_bytes).map_err(|e| {
                         TransactionError::Message(format!("decode SignedTransaction failed: {}", e))
                     })?;
-                println!("to_bytes: signed_tx = {:?}", signed_tx);
                 Ok(signed_tx.body_bytes)
             }
         }
@@ -418,10 +417,14 @@ mod tests {
     use std::str::FromStr;
 
     const END_POINT: &str = "http://0.testnet.hedera.com:50211/proto.CryptoService/cryptoTransfer";
+    const USDC: &str = "0.0.429274";
+    
     const PRIVATE_HEX_ALICE: &str =
         "0e4fd0cf299f45f27e269e92736f9d70a67df8bec332d0f3841d2d3f46379e2f";
     const PRIVATE_HEX_BOB: &str =
         "be16996c9f6731347d11eb59c498d8908d7ff2b0d0bef860552c6ee1da66fd3a";
+    const PRIVATE_HEX_CARO: &str =
+        "a66be16996c98d8908d7ff2b0d0bef86f6731347d11eb59c490552c6ee1dfd3a";
 
     #[ignore]
     #[tokio::test]
@@ -464,7 +467,6 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_transfer_bob_to_alice() {
-        let usdc = "0.0.429274".to_string();
         let id_bob = "0.0.9549757".to_string();
         let id_alice = "0.0.8007608".to_string();
 
@@ -474,13 +476,104 @@ mod tests {
         let now = time::OffsetDateTime::now_utc().unix_timestamp() - 10;
 
         let params = HederaTransactionParameters {
-            token: Some(usdc),
+            token: None,
             from: id_bob,
             to: id_alice,
             amount: 100_000_000,
             fee: 2_000_000,
             now,
             memo: "transfer".to_string(),
+            public_key: pk_bob,
+            node: "0.0.3".to_string(),
+        };
+
+        let mut hedera_tx = HederaTransaction::new(&params).unwrap();
+        let body_bytes = hedera_tx.to_bytes().unwrap();
+
+        let private_arr: [u8; 32] = sk_bob.to_bytes().try_into().unwrap();
+        let signing_key = SigningKey::from_bytes(&private_arr);
+        let signature = signing_key.sign(&body_bytes);
+        let signature_bytes = signature.to_bytes().to_vec();
+
+        let tx = hedera_tx.sign(signature_bytes, 0).unwrap();
+
+        let tx = hex::encode(tx);
+
+        // Assemble the curl command to send the transaction to the Hedera network
+        let curl_command = format!(
+            "echo \"{}\" | xxd -r -p | curl --verbose --proxytunnel --noproxy \"*\" --http2-prior-knowledge -H \"Content-Type: application/grpc\" -H \"TE: trailers\" --data-binary @- --output - {}",
+            tx, END_POINT
+        );
+
+        println!("{}", curl_command);
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_transfer_bob_to_caro() {
+        let id_bob = "0.0.9549757".to_string();
+
+        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
+        let pk_bob = sk_bob.public_key().to_bytes();
+
+        let sk_caro = PrivateKey::from_str_ed25519(PRIVATE_HEX_CARO).unwrap();
+        let pk_caro = sk_caro.public_key().to_bytes();
+        let pk_caro = hex::encode(pk_caro);
+
+        let now = time::OffsetDateTime::now_utc().unix_timestamp() - 10;
+
+        let params = HederaTransactionParameters {
+            token: None,
+            from: id_bob,
+            to: pk_caro,
+            amount: 100_000_000,
+            fee: 200_000_000,
+            now,
+            memo: "create caro account".to_string(),
+            public_key: pk_bob,
+            node: "0.0.3".to_string(),
+        };
+
+        let mut hedera_tx = HederaTransaction::new(&params).unwrap();
+        let body_bytes = hedera_tx.to_bytes().unwrap();
+
+        let private_arr: [u8; 32] = sk_bob.to_bytes().try_into().unwrap();
+        let signing_key = SigningKey::from_bytes(&private_arr);
+        let signature = signing_key.sign(&body_bytes);
+        let signature_bytes = signature.to_bytes().to_vec();
+
+        let tx = hedera_tx.sign(signature_bytes, 0).unwrap();
+
+        let tx = hex::encode(tx);
+
+        // Assemble the curl command to send the transaction to the Hedera network
+        let curl_command = format!(
+            "echo \"{}\" | xxd -r -p | curl --verbose --proxytunnel --noproxy \"*\" --http2-prior-knowledge -H \"Content-Type: application/grpc\" -H \"TE: trailers\" --data-binary @- --output - {}",
+            tx, END_POINT
+        );
+
+        println!("{}", curl_command);
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_transfer_bob_to_caro_usdc() {
+        let id_bob = "0.0.9549757".to_string();
+        let id_caro = "0.0.10248559".to_string();
+
+        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
+        let pk_bob = sk_bob.public_key().to_bytes();
+
+        let now = time::OffsetDateTime::now_utc().unix_timestamp() - 10;
+
+        let params = HederaTransactionParameters {
+            token: Some(USDC.to_string()),
+            from: id_bob,
+            to: id_caro,
+            amount: 10_000_000,
+            fee: 200_000_000,
+            now,
+            memo: "create caro account".to_string(),
             public_key: pk_bob,
             node: "0.0.3".to_string(),
         };
