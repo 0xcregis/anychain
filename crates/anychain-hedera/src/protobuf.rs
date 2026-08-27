@@ -108,10 +108,30 @@ pub struct TransferList {
     pub account_amounts: ::prost::alloc::vec::Vec<AccountAmount>,
 }
 
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct TokenId {
+    #[prost(int64, tag = "1")]
+    pub shard_num: i64,
+    #[prost(int64, tag = "2")]
+    pub realm_num: i64,
+    #[prost(int64, tag = "3")]
+    pub token_num: i64,
+}
+
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TokenTransferList {
+    #[prost(message, optional, tag = "1")]
+    pub token: ::core::option::Option<TokenId>,
+    #[prost(message, repeated, tag = "2")]
+    pub transfers: ::prost::alloc::vec::Vec<AccountAmount>,
+}
+
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CryptoTransferTransactionBody {
     #[prost(message, optional, tag = "1")]
     pub transfers: ::core::option::Option<TransferList>,
+    #[prost(message, repeated, tag = "2")]
+    pub token_transfers: ::prost::alloc::vec::Vec<TokenTransferList>,
 }
 
 #[derive(Clone, PartialEq, ::prost::Message)]

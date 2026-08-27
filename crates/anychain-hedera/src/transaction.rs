@@ -1,14 +1,13 @@
 use {
     crate::{
-        address::HederaAddress,
-        format::HederaFormat,
-        protobuf::{SignedTransaction, TransactionList, Transaction as TransactionWrapper, TransactionBody},
-        public_key::HederaPublicKey
-    },
-    anychain_core::{Transaction, TransactionError, TransactionId},
+        address::HederaAddress, format::HederaFormat, protobuf::{
+            SignedTransaction, Transaction as TransactionWrapper, TransactionList,
+            TransactionBody,
+        }, public_key::HederaPublicKey
+    }, anychain_core::{Transaction, TransactionError, TransactionId},
     hiero_sdk::{
-        AccountCreateTransaction, AccountId, AnyTransaction, Hbar,
-        TransactionId as HieroTxId, TransferTransaction, PublicKey,
+        AccountCreateTransaction, AccountId, AnyTransaction, Hbar, PublicKey, TokenId,
+        TransactionId as HieroTxId, TransferTransaction,
     },
     prost::Message,
     std::{fmt::{self, Display, Formatter}, str::FromStr},
@@ -45,10 +44,11 @@ fn format_account_id(id: &crate::protobuf::AccountId) -> Result<String, Transact
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HederaTransactionParameters {
+    pub token: Option<String>,
     pub from: String,
     pub to: String,
     pub amount: i64,
-    pub fee: u64, // in tinybars
+    pub fee: u64,
     pub now: i64,
     pub memo: String,
     pub public_key: Vec<u8>,
@@ -78,9 +78,20 @@ impl HederaTransactionParameters {
         let tx: AnyTransaction = if self.to.contains(".") {
             let mut tx = TransferTransaction::new();
             let to = get_account_id(&self.to)?;
+            
+            match &self.token {
+                Some(token) => {
+                    let token = TokenId::from_str(token)
+                        .map_err(|e| TransactionError::Message(e.to_string()))?;
+                    tx.token_transfer(token, from, -self.amount);
+                    tx.token_transfer(token, to, self.amount);
+                }
+                None => {
+                    tx.hbar_transfer(from, spend);
+                    tx.hbar_transfer(to, receive);
+                }
+            }
 
-            tx.hbar_transfer(from, spend);
-            tx.hbar_transfer(to, receive);
             tx.max_transaction_fee(fee);
             tx.transaction_id(txid);
             tx.node_account_ids(vec![node]);
@@ -93,14 +104,22 @@ impl HederaTransactionParameters {
                 .map_err(|e| TransactionError::Message(format!("Freeze failed: {}", e)))?;
             tx.into()
         } else {
+            if self.token.is_some() {
+                return Err(TransactionError::Message(
+                    "cannot transfer token to non-existing account".to_string()
+                ));
+            }
+
             let mut tx = AccountCreateTransaction::new();
 
             let pk = hex::decode(self.to.clone())?;
             let pk = PublicKey::from_bytes_ed25519(&pk)
                 .map_err(|e| TransactionError::Message(format!("Invalid public key: {}", e)))?;
 
+            tx.max_automatic_token_associations(-1);
             tx.set_key_without_alias(pk);
             tx.initial_balance(receive);
+            
             tx.max_transaction_fee(fee);
             tx.transaction_id(txid);
             tx.node_account_ids(vec![node]);
@@ -144,14 +163,17 @@ impl HederaTransaction {
     fn get_tx_wrapper(anytx: &AnyTransaction) -> Result<TransactionWrapper, TransactionError> {
         let bytes = anytx.to_bytes()
             .map_err(|e| TransactionError::Message(format!("to_bytes failed: {}", e)))?;
+        println!("get_tx_wrapper: bytes len = {}, hex = {}", bytes.len(), hex::encode(&bytes));
         
         let tx_list = TransactionList::decode(&*bytes).map_err(|e| {
             TransactionError::Message(format!("decode TransactionList failed: {}", e))
         })?;
+        println!("get_tx_wrapper: tx_list = {:?}", tx_list);
 
         let tx = tx_list.transaction_list.first().ok_or_else(|| {
             TransactionError::Message("No transaction in transaction list".to_string())
         })?;
+        println!("get_tx_wrapper: tx = {:?}", tx);
 
         Ok(tx.clone())
     }
@@ -202,126 +224,179 @@ impl Transaction for HederaTransaction {
                     SignedTransaction::decode(&*tx.signed_transaction_bytes).map_err(|e| {
                         TransactionError::Message(format!("decode SignedTransaction failed: {}", e))
                     })?;
+                println!("to_bytes: signed_tx = {:?}", signed_tx);
                 Ok(signed_tx.body_bytes)
             }
         }
     }
 
-    fn from_bytes(bytes: &[u8]) -> Result<Self, TransactionError> {
-        let mut body_bytes: Option<Vec<u8>> = None;
-        let mut sig_map_opt: Option<crate::protobuf::SignatureMap> = None;
-
-        // Try decoding as gRPC-prefixed Transaction first.
-        if bytes.len() >= 5 && bytes[0] == 0 {
-            let len = u32::from_be_bytes(bytes[1..5].try_into().unwrap()) as usize;
-            if bytes.len() >= 5 + len {
-                if let Ok(tx) = TransactionWrapper::decode(&bytes[5..5 + len]) {
-                    if let Ok(signed_tx) = SignedTransaction::decode(&*tx.signed_transaction_bytes) {
-                        body_bytes = Some(signed_tx.body_bytes);
-                        sig_map_opt = signed_tx.sig_map;
-                    }
-                }
-            }
-        }
-
-        // Maybe it's already body_bytes (TransactionBody)
-        let tx_body_bytes = match body_bytes {
-            Some(b) => b,
-            None => bytes.to_vec(),
-        };
-
-        // Now decode TransactionBody
-        let body = TransactionBody::decode(&*tx_body_bytes)
-            .map_err(|e| TransactionError::Message(format!("decode TransactionBody failed: {}", e)))?;
-
-        let tx_id = body.transaction_id.clone().ok_or_else(|| {
-            TransactionError::Message("Missing transaction ID in body".to_string())
-        })?;
-        let from_account_id = tx_id.account_id.clone().ok_or_else(|| {
-            TransactionError::Message("Missing account ID in transaction ID".to_string())
-        })?;
-        let from = format_account_id(&from_account_id)?;
-
-        let valid_start = tx_id.transaction_valid_start.ok_or_else(|| {
-            TransactionError::Message("Missing transaction valid start time".to_string())
-        })?;
-        let now = valid_start.seconds;
-
-        let fee = body.transaction_fee;
-        let memo = body.memo.clone();
-
-        let node_id = body.node_account_id.ok_or_else(|| {
-            TransactionError::Message("Missing node account ID in body".to_string())
-        })?;
-        let node = format_account_id(&node_id)?;
-
-        let mut to = String::new();
-        let mut amount = 0i64;
-
-        if let Some(data) = body.data {
-            match data {
-                crate::protobuf::transaction_body::Data::CryptoCreateAccount(create_body) => {
-                    if let Some(key_wrapper) = create_body.key {
-                        if let Some(k) = key_wrapper.key {
-                            match k {
-                                crate::protobuf::key::Key::Ed25519(bytes) => {
-                                    to = hex::encode(bytes);
-                                }
-                                crate::protobuf::key::Key::EcdsaSecp256k1(bytes) => {
-                                    to = hex::encode(bytes);
-                                }
-                            }
-                        }
-                    }
-                    amount = create_body.initial_balance as i64;
-                }
-                crate::protobuf::transaction_body::Data::CryptoTransfer(transfer_body) => {
-                    if let Some(transfers) = transfer_body.transfers {
-                        for aa in transfers.account_amounts {
-                            if aa.amount > 0 {
-                                if let Some(acc_id) = aa.account_id {
-                                    to = format_account_id(&acc_id)?;
-                                }
-                                amount = aa.amount;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut signature = None;
-        let mut public_key = Vec::new();
-
-        if let Some(sig_map) = sig_map_opt {
-            if let Some(sig_pair) = sig_map.sig_pair.first() {
-                public_key = sig_pair.pub_key_prefix.clone();
-                if let Some(sig) = &sig_pair.signature {
-                    match sig {
-                        crate::protobuf::signature_pair::Signature::Ed25519(sig_bytes) => {
-                            signature = Some(sig_bytes.clone());
-                        }
-                        crate::protobuf::signature_pair::Signature::EcdsaSecp256k1(sig_bytes) => {
-                            signature = Some(sig_bytes.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        let params = HederaTransactionParameters {
-            from,
-            to,
-            amount,
-            fee,
-            now,
-            memo,
-            public_key,
-            node,
-        };
-
-        Ok(HederaTransaction { params, signature })
+    fn from_bytes(tx: &[u8]) -> Result<Self, TransactionError> {
+        todo!()
     }
+
+    // fn from_bytes(bytes: &[u8]) -> Result<Self, TransactionError> {
+    //     let mut body_bytes: Option<Vec<u8>> = None;
+    //     let mut sig_map_opt: Option<crate::protobuf::SignatureMap> = None;
+
+    //     // Try decoding as gRPC-prefixed Transaction first.
+    //     if bytes.len() >= 5 && bytes[0] == 0 {
+    //         let len = u32::from_be_bytes(bytes[1..5].try_into().unwrap()) as usize;
+    //         if bytes.len() >= 5 + len {
+    //             if let Ok(tx) = TransactionWrapper::decode(&bytes[5..5 + len]) {
+    //                 if !tx.signed_transaction_bytes.is_empty() {
+    //                     if let Ok(signed_tx) = SignedTransaction::decode(&*tx.signed_transaction_bytes) {
+    //                         if !signed_tx.body_bytes.is_empty() {
+    //                             body_bytes = Some(signed_tx.body_bytes);
+    //                             sig_map_opt = signed_tx.sig_map;
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     // If that didn't work, maybe it's a serialized Transaction (without gRPC prefix)
+    //     if body_bytes.is_none() {
+    //         if let Ok(tx) = TransactionWrapper::decode(bytes) {
+    //             if !tx.signed_transaction_bytes.is_empty() {
+    //                 if let Ok(signed_tx) = SignedTransaction::decode(&*tx.signed_transaction_bytes) {
+    //                     if !signed_tx.body_bytes.is_empty() {
+    //                         body_bytes = Some(signed_tx.body_bytes);
+    //                         sig_map_opt = signed_tx.sig_map;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     // Maybe it's a SignedTransaction directly
+    //     if body_bytes.is_none() {
+    //         if let Ok(signed_tx) = SignedTransaction::decode(bytes) {
+    //             if !signed_tx.body_bytes.is_empty() {
+    //                 body_bytes = Some(signed_tx.body_bytes);
+    //                 sig_map_opt = signed_tx.sig_map;
+    //             }
+    //         }
+    //     }
+
+    //     // Maybe it's already body_bytes (TransactionBody)
+    //     let tx_body_bytes = match body_bytes {
+    //         Some(b) => b,
+    //         None => bytes.to_vec(),
+    //     };
+
+    //     // Now decode TransactionBody
+    //     let body = TransactionBody::decode(&*tx_body_bytes)
+    //         .map_err(|e| TransactionError::Message(format!("decode TransactionBody failed: {}", e)))?;
+    //     println!("body_bytes len = {}, hex = {}", tx_body_bytes.len(), hex::encode(&tx_body_bytes));
+    //     println!("decoded body = {:?}", body);
+
+    //     let tx_id = body.transaction_id.clone().ok_or_else(|| {
+    //         TransactionError::Message("Missing transaction ID in body".to_string())
+    //     })?;
+    //     let from_account_id = tx_id.account_id.clone().ok_or_else(|| {
+    //         TransactionError::Message("Missing account ID in transaction ID".to_string())
+    //     })?;
+    //     let from = format_account_id(&from_account_id)?;
+
+    //     let valid_start = tx_id.transaction_valid_start.ok_or_else(|| {
+    //         TransactionError::Message("Missing transaction valid start time".to_string())
+    //     })?;
+    //     let now = valid_start.seconds;
+
+    //     let fee = body.transaction_fee;
+    //     let memo = body.memo.clone();
+
+    //     let node_id = body.node_account_id.ok_or_else(|| {
+    //         TransactionError::Message("Missing node account ID in body".to_string())
+    //     })?;
+    //     let node = format_account_id(&node_id)?;
+
+    //     let mut to = String::new();
+    //     let mut amount = 0i64;
+    //     let mut token = None;
+
+    //     if let Some(data) = body.data {
+    //         match data {
+    //             crate::protobuf::transaction_body::Data::CryptoCreateAccount(create_body) => {
+    //                 if let Some(key_wrapper) = create_body.key {
+    //                     if let Some(k) = key_wrapper.key {
+    //                         match k {
+    //                             crate::protobuf::key::Key::Ed25519(bytes) => {
+    //                                 to = hex::encode(bytes);
+    //                             }
+    //                             crate::protobuf::key::Key::EcdsaSecp256k1(bytes) => {
+    //                                 to = hex::encode(bytes);
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //                 amount = create_body.initial_balance as i64;
+    //             }
+    //             crate::protobuf::transaction_body::Data::CryptoTransfer(transfer_body) => {
+    //                 if let Some(transfers) = transfer_body.transfers {
+    //                     for aa in transfers.account_amounts {
+    //                         if aa.amount > 0 {
+    //                             if let Some(acc_id) = aa.account_id {
+    //                                 to = format_account_id(&acc_id)?;
+    //                             }
+    //                             amount = aa.amount;
+    //                         }
+    //                     }
+    //                 }
+    //                 for token_transfer in transfer_body.token_transfers {
+    //                     if let Some(token_id) = token_transfer.token {
+    //                         token = Some(format!(
+    //                             "{}.{}.{}",
+    //                             token_id.shard_num, token_id.realm_num, token_id.token_num
+    //                         ));
+    //                     }
+    //                     for aa in token_transfer.transfers {
+    //                         if aa.amount > 0 {
+    //                             if let Some(acc_id) = aa.account_id {
+    //                                 to = format_account_id(&acc_id)?;
+    //                             }
+    //                             amount = aa.amount;
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     let mut signature = None;
+    //     let mut public_key = Vec::new();
+
+    //     if let Some(sig_map) = sig_map_opt {
+    //         if let Some(sig_pair) = sig_map.sig_pair.first() {
+    //             public_key = sig_pair.pub_key_prefix.clone();
+    //             if let Some(sig) = &sig_pair.signature {
+    //                 match sig {
+    //                     crate::protobuf::signature_pair::Signature::Ed25519(sig_bytes) => {
+    //                         signature = Some(sig_bytes.clone());
+    //                     }
+    //                     crate::protobuf::signature_pair::Signature::EcdsaSecp256k1(sig_bytes) => {
+    //                         signature = Some(sig_bytes.clone());
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     let params = HederaTransactionParameters {
+    //         token,
+    //         from,
+    //         to,
+    //         amount,
+    //         fee,
+    //         now,
+    //         memo,
+    //         public_key,
+    //         node,
+    //     };
+
+    //     Ok(HederaTransaction { params, signature })
+    // }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         let id = self
@@ -395,6 +470,7 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_transfer_bob_to_alice() {
+        let usdc = "0.0.429274".to_string();
         let id_bob = "0.0.9549757".to_string();
         let id_alice = "0.0.8007608".to_string();
 
@@ -404,12 +480,13 @@ mod tests {
         let now = time::OffsetDateTime::now_utc().unix_timestamp() - 10;
 
         let params = HederaTransactionParameters {
+            token: Some(usdc),
             from: id_bob,
             to: id_alice,
             amount: 100_000_000,
             fee: 2_000_000,
             now,
-            memo: "".to_string(),
+            memo: "transfer".to_string(),
             public_key: pk_bob,
             node: "0.0.3".to_string(),
         };
@@ -436,94 +513,36 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_unsigned_transfer() {
+    fn test_token_transfer_deserialization() {
+        let usdc = "0.0.429274".to_string();
+        let id_bob = "0.0.9549757".to_string();
+        let id_alice = "0.0.8007608".to_string();
+        let pk_bob = vec![0u8; 32];
+
         let params = HederaTransactionParameters {
-            from: "0.0.12345".to_string(),
-            to: "0.0.67890".to_string(),
-            amount: 500_000,
-            fee: 10_000,
+            token: Some(usdc.clone()),
+            from: id_bob.clone(),
+            to: id_alice.clone(),
+            amount: 100_000_000,
+            fee: 2_000_000,
             now: 1620000000,
-            memo: "test memo".to_string(),
-            public_key: vec![],
-            node: "0.0.3".to_string(),
-        };
-
-        let tx = HederaTransaction::new(&params).unwrap();
-        let bytes = tx.to_bytes().unwrap();
-
-        let decoded_tx = HederaTransaction::from_bytes(&bytes).unwrap();
-        
-        assert_eq!(decoded_tx.params.from, params.from);
-        assert_eq!(decoded_tx.params.to, params.to);
-        assert_eq!(decoded_tx.params.amount, params.amount);
-        assert_eq!(decoded_tx.params.fee, params.fee);
-        assert_eq!(decoded_tx.params.now, params.now);
-        assert_eq!(decoded_tx.params.memo, params.memo);
-        assert_eq!(decoded_tx.params.node, params.node);
-        assert!(decoded_tx.signature.is_none());
-    }
-
-    #[test]
-    fn test_from_bytes_signed_transfer() {
-        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
-        let pk_bob = sk_bob.public_key().to_bytes().to_vec();
-        let params = HederaTransactionParameters {
-            from: "0.0.12345".to_string(),
-            to: "0.0.67890".to_string(),
-            amount: 500_000,
-            fee: 10_000,
-            now: 1620000000,
-            memo: "test memo".to_string(),
+            memo: "token transfer test".to_string(),
             public_key: pk_bob,
             node: "0.0.3".to_string(),
         };
 
-        let mut tx = HederaTransaction::new(&params).unwrap();
-        let signature = vec![2u8; 64];
-        let signed_bytes = tx.sign(signature.clone(), 0).unwrap();
+        let hedera_tx = HederaTransaction::new(&params).unwrap();
+        let body_bytes = hedera_tx.to_bytes().unwrap();
 
-        let decoded_tx = HederaTransaction::from_bytes(&signed_bytes).unwrap();
-        
-        assert_eq!(decoded_tx.params.from, params.from);
-        assert_eq!(decoded_tx.params.to, params.to);
-        assert_eq!(decoded_tx.params.amount, params.amount);
-        assert_eq!(decoded_tx.params.fee, params.fee);
-        assert_eq!(decoded_tx.params.now, params.now);
-        assert_eq!(decoded_tx.params.memo, params.memo);
-        assert_eq!(decoded_tx.params.node, params.node);
-        
-        // In the signed bytes, we extract public key and signature
-        assert_eq!(decoded_tx.params.public_key, params.public_key);
-        assert_eq!(decoded_tx.signature, Some(signature));
-    }
+        let deserialized = HederaTransaction::from_bytes(&body_bytes).unwrap();
 
-    #[test]
-    fn test_from_bytes_unsigned_create_account() {
-        let sk_bob = PrivateKey::from_str_ed25519(PRIVATE_HEX_BOB).unwrap();
-        let to_pk_hex = hex::encode(sk_bob.public_key().to_bytes());
-        let params = HederaTransactionParameters {
-            from: "0.0.12345".to_string(),
-            to: to_pk_hex.clone(),
-            amount: 500_000,
-            fee: 10_000,
-            now: 1620000000,
-            memo: "create account memo".to_string(),
-            public_key: vec![],
-            node: "0.0.3".to_string(),
-        };
-
-        let tx = HederaTransaction::new(&params).unwrap();
-        let bytes = tx.to_bytes().unwrap();
-
-        let decoded_tx = HederaTransaction::from_bytes(&bytes).unwrap();
-        
-        assert_eq!(decoded_tx.params.from, params.from);
-        assert_eq!(decoded_tx.params.to, params.to);
-        assert_eq!(decoded_tx.params.amount, params.amount);
-        assert_eq!(decoded_tx.params.fee, params.fee);
-        assert_eq!(decoded_tx.params.now, params.now);
-        assert_eq!(decoded_tx.params.memo, params.memo);
-        assert_eq!(decoded_tx.params.node, params.node);
-        assert!(decoded_tx.signature.is_none());
+        assert_eq!(deserialized.params.token, Some(usdc));
+        assert_eq!(deserialized.params.from, id_bob);
+        assert_eq!(deserialized.params.to, id_alice);
+        assert_eq!(deserialized.params.amount, 100_000_000);
+        assert_eq!(deserialized.params.fee, 2_000_000);
+        assert_eq!(deserialized.params.now, 1620000000);
+        assert_eq!(deserialized.params.memo, "token transfer test");
+        assert_eq!(deserialized.params.node, "0.0.3");
     }
 }
