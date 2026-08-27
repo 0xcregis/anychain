@@ -573,7 +573,7 @@ mod tests {
             amount: 10_000_000,
             fee: 200_000_000,
             now,
-            memo: "create caro account".to_string(),
+            memo: "to Caro USDC".to_string(),
             public_key: pk_bob,
             node: "0.0.3".to_string(),
         };
