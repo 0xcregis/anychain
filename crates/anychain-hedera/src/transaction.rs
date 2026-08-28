@@ -255,7 +255,12 @@ impl Transaction for HederaTransaction {
             }
             Data::CryptoTransfer(body) => {
                 if body.transfers.is_some() {
-                    let transfers = body.transfers.unwrap();
+                    let transfers = match body.transfers {
+                        Some(transfers) => transfers,
+                        None => {
+                            return Err(TransactionError::Message("empty transfers".to_string()))
+                        }
+                    };
                     let transfers = transfers.account_amounts;
                     let transfer = transfers[1].clone();
                     let to = transfer.account_id.unwrap().to_string()?;
