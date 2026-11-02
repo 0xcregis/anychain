@@ -1,0 +1,40 @@
+[package]
+name = "anychain-solana"
+description = "A Rust library for Solana-focused cryptocurrency wallets, enabling seamless transactions on the Solana blockchain"
+version = "0.1.23"
+keywords = ["solana", "blockchain", "wallet", "transactions"]
+categories = ["cryptography::cryptocurrencies"]
+
+# Workspace inherited keys
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[[example]]
+name = "create-account"
+path = "examples/create-account.rs"
+
+[dependencies]
+anychain-core = { path = "../anychain-core", version = "0.1.8" }
+curve25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true }
+bs58 = { workspace = true }
+serde = { workspace = true }
+solana-sdk = { workspace = true }
+solana-sdk-ids = { workspace = true }
+solana-system-interface = { workspace = true }
+bincode = { workspace = true }
+
+spl-token = { workspace = true }
+spl-token-2022 = { workspace = true }
+spl-associated-token-account = { workspace = true }
+spl-token-group-interface = { workspace = true }
+group = { workspace = true }
+
+[dev-dependencies]
+solana-rpc-client = "3.0.0"
+solana-rpc-client-api = "3.1.11"
+anyhow = "1.0"
+tiny-bip39 = "2.0.0"
