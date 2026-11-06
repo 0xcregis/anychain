@@ -21,6 +21,9 @@ pub const RLUSD_MAINNET_ISSUER: &str = "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De";
 /// Official Ripple RLUSD issuer address on XRPL Testnet.
 pub const RLUSD_TESTNET_ISSUER: &str = "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV";
 
+/// Default decimal places used for XRPL issued currencies (e.g., RLUSD) when decoding from binary.
+pub const DEFAULT_TOKEN_DECIMALS: u8 = 6;
+
 /// Common XRPL TrustSet transaction flags.
 pub mod trust_set_flags {
     /// Authorize the other party to hold currency issued by this account.
@@ -82,6 +85,79 @@ pub fn encode_currency_code(code: &str) -> Result<[u8; 20], TransactionError> {
     }
 }
 
+/// Represents an Issued Currency (IOU) token configuration on the XRP Ledger (e.g., RLUSD).
+///
+/// Any amount associated with this token is expressed as an integer in its smallest currency unit,
+/// such that the on-chain token value is `amount * 10^(-decimals)`.
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct RippleToken {
+    pub currency: [u8; 20],
+    pub issuer: [u8; 20],
+    pub decimals: u8,
+}
+
+impl RippleToken {
+    /// Creates a `RippleToken` from a currency code string, 20-byte issuer AccountID, and `decimals`.
+    pub fn new(currency: &str, issuer: [u8; 20], decimals: u8) -> Result<Self, TransactionError> {
+        let currency_bytes = encode_currency_code(currency)?;
+        Ok(Self {
+            currency: currency_bytes,
+            issuer,
+            decimals,
+        })
+    }
+
+    /// Creates a `RippleToken` from raw 20-byte currency code, 20-byte issuer AccountID, and `decimals`.
+    pub fn with_currency_bytes(currency: [u8; 20], issuer: [u8; 20], decimals: u8) -> Self {
+        Self {
+            currency,
+            issuer,
+            decimals,
+        }
+    }
+
+    /// Creates an RLUSD `RippleToken` with the specified issuer AccountID and `decimals`.
+    pub fn rlusd(issuer: [u8; 20], decimals: u8) -> Self {
+        Self {
+            currency: RLUSD_CURRENCY_CODE,
+            issuer,
+            decimals,
+        }
+    }
+
+    /// Creates an official Mainnet RLUSD `RippleToken` (`rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De`).
+    pub fn rlusd_mainnet(decimals: u8) -> Result<Self, TransactionError> {
+        let issuer = RippleAddress::from_str(RLUSD_MAINNET_ISSUER)
+            .map_err(|e| TransactionError::Message(format!("Invalid RLUSD mainnet issuer: {}", e)))?
+            .to_hash160()
+            .map_err(|e| {
+                TransactionError::Message(format!("Invalid RLUSD mainnet issuer: {}", e))
+            })?;
+        Ok(Self::rlusd(issuer, decimals))
+    }
+
+    /// Creates an official Testnet RLUSD `RippleToken` (`rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV`).
+    pub fn rlusd_testnet(decimals: u8) -> Result<Self, TransactionError> {
+        let issuer = RippleAddress::from_str(RLUSD_TESTNET_ISSUER)
+            .map_err(|e| TransactionError::Message(format!("Invalid RLUSD testnet issuer: {}", e)))?
+            .to_hash160()
+            .map_err(|e| {
+                TransactionError::Message(format!("Invalid RLUSD testnet issuer: {}", e))
+            })?;
+        Ok(Self::rlusd(issuer, decimals))
+    }
+
+    /// Converts an integer amount in smallest currency units (`amount * 10^(-decimals)`) into an `IssuedAmount`.
+    pub fn to_issued_amount(&self, amount: u64) -> Result<IssuedAmount, TransactionError> {
+        IssuedAmount::from_smallest_unit_with_currency_bytes(
+            amount,
+            self.decimals,
+            self.currency,
+            self.issuer,
+        )
+    }
+}
+
 /// Represents a non-XRP Issued Currency (IOU) amount on the XRP Ledger (e.g., RLUSD).
 ///
 /// Value is stored as `mantissa * 10^exponent` where non-zero amounts are normalized such that:
@@ -120,13 +196,6 @@ impl IssuedAmount {
             });
         }
 
-        while mantissa < Self::MIN_MANTISSA {
-            mantissa = mantissa.checked_mul(10).ok_or_else(|| {
-                TransactionError::Message("IssuedAmount mantissa overflow".to_string())
-            })?;
-            exponent -= 1;
-        }
-
         while mantissa > Self::MAX_MANTISSA {
             if !mantissa.is_multiple_of(10) {
                 return Err(TransactionError::Message(
@@ -135,6 +204,13 @@ impl IssuedAmount {
             }
             mantissa /= 10;
             exponent += 1;
+        }
+
+        while mantissa < Self::MIN_MANTISSA {
+            mantissa = mantissa.checked_mul(10).ok_or_else(|| {
+                TransactionError::Message("IssuedAmount mantissa overflow".to_string())
+            })?;
+            exponent -= 1;
         }
 
         if !(Self::MIN_EXPONENT as i32..=Self::MAX_EXPONENT as i32).contains(&exponent) {
@@ -153,46 +229,43 @@ impl IssuedAmount {
         })
     }
 
-    /// Parses a decimal string (e.g., `"100.50"`, `"1000000"`, `"1.5e-4"`) along with a currency code and issuer.
-    pub fn from_decimal_str(
-        value: &str,
+    /// Creates an `IssuedAmount` from an integer `amount` in smallest currency units (`amount * 10^(-decimals)`).
+    pub fn from_smallest_unit(
+        amount: u64,
+        decimals: u8,
         currency: &str,
         issuer: [u8; 20],
     ) -> Result<Self, TransactionError> {
         let currency_bytes = encode_currency_code(currency)?;
-        Self::from_decimal_str_with_currency_bytes(value, currency_bytes, issuer)
+        Self::from_smallest_unit_with_currency_bytes(amount, decimals, currency_bytes, issuer)
     }
 
-    /// Creates an RLUSD `IssuedAmount` from a decimal string and the RLUSD issuer's 20-byte AccountID.
-    pub fn rlusd(value: &str, issuer: [u8; 20]) -> Result<Self, TransactionError> {
-        Self::from_decimal_str_with_currency_bytes(value, RLUSD_CURRENCY_CODE, issuer)
+    /// Creates an `IssuedAmount` from an integer `amount` in smallest currency units (`amount * 10^(-decimals)`)
+    /// with a raw 20-byte currency code and 20-byte issuer AccountID.
+    pub fn from_smallest_unit_with_currency_bytes(
+        amount: u64,
+        decimals: u8,
+        currency: [u8; 20],
+        issuer: [u8; 20],
+    ) -> Result<Self, TransactionError> {
+        Self::new(false, amount, -(decimals as i32), currency, issuer)
     }
 
-    /// Creates an official Mainnet RLUSD `IssuedAmount` (`rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De`).
-    pub fn rlusd_mainnet(value: &str) -> Result<Self, TransactionError> {
-        let issuer = RippleAddress::from_str(RLUSD_MAINNET_ISSUER)
-            .map_err(|e| TransactionError::Message(format!("Invalid RLUSD mainnet issuer: {}", e)))?
-            .to_hash160()
-            .map_err(|e| {
-                TransactionError::Message(format!("Invalid RLUSD mainnet issuer: {}", e))
-            })?;
-        Self::rlusd(value, issuer)
-    }
-
-    /// Creates an official Testnet RLUSD `IssuedAmount` (`rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV`).
-    pub fn rlusd_testnet(value: &str) -> Result<Self, TransactionError> {
-        let issuer = RippleAddress::from_str(RLUSD_TESTNET_ISSUER)
-            .map_err(|e| TransactionError::Message(format!("Invalid RLUSD testnet issuer: {}", e)))?
-            .to_hash160()
-            .map_err(|e| {
-                TransactionError::Message(format!("Invalid RLUSD testnet issuer: {}", e))
-            })?;
-        Self::rlusd(value, issuer)
-    }
-
-    /// Parses a decimal string with a raw 20-byte currency code and 20-byte issuer AccountID.
-    pub fn from_decimal_str_with_currency_bytes(
+    /// Parses an integer string in smallest currency units (`value * 10^(-decimals)`) along with a currency code and issuer.
+    pub fn from_smallest_unit_str(
         value: &str,
+        decimals: u8,
+        currency: &str,
+        issuer: [u8; 20],
+    ) -> Result<Self, TransactionError> {
+        let currency_bytes = encode_currency_code(currency)?;
+        Self::from_smallest_unit_str_with_currency_bytes(value, decimals, currency_bytes, issuer)
+    }
+
+    /// Parses an integer string in smallest currency units (`value * 10^(-decimals)`) with a raw 20-byte currency code.
+    pub fn from_smallest_unit_str_with_currency_bytes(
+        value: &str,
+        decimals: u8,
         currency: [u8; 20],
         issuer: [u8; 20],
     ) -> Result<Self, TransactionError> {
@@ -211,45 +284,14 @@ impl IssuedAmount {
             (false, s)
         };
 
-        let (num_part, exp_part) = if let Some((n, e)) = s.split_once(['e', 'E']) {
-            let parsed_exp = e.parse::<i32>().map_err(|_| {
-                TransactionError::Message(format!("Invalid exponent in amount '{}'", value))
-            })?;
-            (n, parsed_exp)
-        } else {
-            (s, 0i32)
-        };
-
-        let (int_part, frac_part) = if let Some((i, f)) = num_part.split_once('.') {
-            if f.contains('.') {
-                return Err(TransactionError::Message(format!(
-                    "Invalid decimal amount '{}'",
-                    value
-                )));
-            }
-            (i, f)
-        } else {
-            (num_part, "")
-        };
-
-        if int_part.is_empty() && frac_part.is_empty() {
+        if s.is_empty() || !s.chars().all(|c| c.is_ascii_digit()) {
             return Err(TransactionError::Message(format!(
-                "Invalid decimal amount '{}'",
+                "Invalid smallest-unit integer amount '{}'",
                 value
             )));
         }
 
-        if !int_part.chars().all(|c| c.is_ascii_digit())
-            || !frac_part.chars().all(|c| c.is_ascii_digit())
-        {
-            return Err(TransactionError::Message(format!(
-                "Invalid characters in decimal amount '{}'",
-                value
-            )));
-        }
-
-        let combined = format!("{}{}", int_part, frac_part);
-        let trimmed_leading = combined.trim_start_matches('0');
+        let trimmed_leading = s.trim_start_matches('0');
         if trimmed_leading.is_empty() {
             return Self::new(false, 0, 0, currency, issuer);
         }
@@ -261,8 +303,114 @@ impl IssuedAmount {
             TransactionError::Message(format!("Significant digits overflow in amount '{}'", value))
         })?;
 
-        let exponent = exp_part - (frac_part.len() as i32) + (trailing_zeros as i32);
+        let exponent = -(decimals as i32) + (trailing_zeros as i32);
         Self::new(is_negative, mantissa, exponent, currency, issuer)
+    }
+
+    /// Creates an RLUSD `IssuedAmount` from an integer `amount` in smallest currency units (`amount * 10^(-decimals)`).
+    pub fn rlusd(amount: u64, decimals: u8, issuer: [u8; 20]) -> Result<Self, TransactionError> {
+        Self::from_smallest_unit_with_currency_bytes(amount, decimals, RLUSD_CURRENCY_CODE, issuer)
+    }
+
+    /// Creates an official Mainnet RLUSD `IssuedAmount` (`rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De`) from smallest units.
+    pub fn rlusd_mainnet(amount: u64, decimals: u8) -> Result<Self, TransactionError> {
+        let token = RippleToken::rlusd_mainnet(decimals)?;
+        token.to_issued_amount(amount)
+    }
+
+    /// Creates an official Testnet RLUSD `IssuedAmount` (`rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV`) from smallest units.
+    pub fn rlusd_testnet(amount: u64, decimals: u8) -> Result<Self, TransactionError> {
+        let token = RippleToken::rlusd_testnet(decimals)?;
+        token.to_issued_amount(amount)
+    }
+
+    /// Converts this `IssuedAmount` into an integer amount in smallest units for a given `decimals` (`value * 10^decimals`).
+    pub fn to_smallest_unit(&self, decimals: u8) -> Result<u64, TransactionError> {
+        if self.is_negative {
+            return Err(TransactionError::Message(
+                "Negative issued amount cannot be converted to u64 smallest unit".to_string(),
+            ));
+        }
+        if self.mantissa == 0 {
+            return Ok(0);
+        }
+
+        let shift = (self.exponent as i32) + (decimals as i32);
+        let mut val = self.mantissa;
+
+        if shift > 0 {
+            for _ in 0..shift {
+                val = val.checked_mul(10).ok_or_else(|| {
+                    TransactionError::Message(
+                        "IssuedAmount overflow when converting to smallest unit".to_string(),
+                    )
+                })?;
+            }
+        } else if shift < 0 {
+            for _ in 0..(-shift) {
+                if !val.is_multiple_of(10) {
+                    return Err(TransactionError::Message(format!(
+                        "IssuedAmount precision exceeds {} decimals",
+                        decimals
+                    )));
+                }
+                val /= 10;
+            }
+        }
+
+        Ok(val)
+    }
+
+    /// Converts this `IssuedAmount` into a `(RippleToken, u64)` pair using `default_decimals` if possible,
+    /// or falling back to the minimal decimals required to preserve exact integer smallest units.
+    pub fn to_token_and_amount(
+        &self,
+        default_decimals: u8,
+    ) -> Result<(RippleToken, u64), TransactionError> {
+        if let Ok(amount) = self.to_smallest_unit(default_decimals) {
+            return Ok((
+                RippleToken {
+                    currency: self.currency,
+                    issuer: self.issuer,
+                    decimals: default_decimals,
+                },
+                amount,
+            ));
+        }
+
+        if self.is_negative {
+            return Err(TransactionError::Message(
+                "Negative issued amount cannot be converted to u64".to_string(),
+            ));
+        }
+
+        let mut sig = self.mantissa;
+        let mut exp = self.exponent as i32;
+        while sig > 0 && sig.is_multiple_of(10) {
+            sig /= 10;
+            exp += 1;
+        }
+
+        let decimals = if exp < 0 {
+            u8::try_from(-exp).map_err(|_| {
+                TransactionError::Message(format!(
+                    "IssuedAmount exponent {} requires decimals > u8::MAX",
+                    self.exponent
+                ))
+            })?
+        } else {
+            0u8
+        };
+
+        let amount = self.to_smallest_unit(decimals)?;
+        Ok((
+            RippleToken {
+                currency: self.currency,
+                issuer: self.issuer,
+                decimals,
+            },
+            amount,
+        ))
     }
 
     /// Encodes the 64-bit value header (first 8 bytes of the 48-byte XRPL IOU Amount).
@@ -326,13 +474,13 @@ impl IssuedAmount {
     }
 }
 
-/// Represents either a native XRP amount (in drops) or an Issued Currency (IOU) amount (such as RLUSD).
+/// Represents either a native XRP amount (in drops) or an Issued Currency (IOU) token amount (in smallest units).
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum RippleAmount {
     /// Native XRP amount in drops.
     Xrp(u64),
-    /// Issued Currency (IOU) amount (e.g., RLUSD).
-    Issued(IssuedAmount),
+    /// Issued Currency (IOU) token and its amount in smallest units (`amount * 10^(-decimals)`).
+    Issued { token: RippleToken, amount: u64 },
 }
 
 /// Supported XRPL transaction types.
@@ -353,7 +501,7 @@ pub struct RippleTransactionParameters {
     pub sequence: u32,
     pub destination_tag: u32,
     pub amount: u64,
-    pub issued_amount: Option<IssuedAmount>,
+    pub token: Option<RippleToken>,
     pub send_max: Option<RippleAmount>,
     pub flags: Option<u32>,
     pub quality_in: Option<u32>,
@@ -363,7 +511,7 @@ pub struct RippleTransactionParameters {
 }
 
 impl RippleTransactionParameters {
-    /// Creates parameters for a native XRP `Payment` transaction.
+    /// Creates parameters for a native XRP `Payment` transaction (`amount` in drops).
     pub fn new_xrp_payment(
         destination: [u8; 20],
         fee: u32,
@@ -380,7 +528,7 @@ impl RippleTransactionParameters {
             sequence,
             destination_tag,
             amount,
-            issued_amount: None,
+            token: None,
             send_max: None,
             flags: None,
             quality_in: None,
@@ -390,13 +538,14 @@ impl RippleTransactionParameters {
         }
     }
 
-    /// Creates parameters for an Issued Currency (e.g., RLUSD) `Payment` transaction.
+    /// Creates parameters for an Issued Currency (e.g., RLUSD) `Payment` transaction
+    /// (`amount` in smallest units: `amount * 10^(-token.decimals)`).
     pub fn new_issued_payment(
         destination: [u8; 20],
         fee: u32,
         sequence: u32,
         destination_tag: u32,
-        issued_amount: IssuedAmount,
+        (token, amount): (RippleToken, u64),
         memos: Vec<String>,
         public_key: [u8; 33],
     ) -> Self {
@@ -406,8 +555,8 @@ impl RippleTransactionParameters {
             fee,
             sequence,
             destination_tag,
-            amount: 0,
-            issued_amount: Some(issued_amount),
+            amount,
+            token: Some(token),
             send_max: None,
             flags: None,
             quality_in: None,
@@ -417,11 +566,13 @@ impl RippleTransactionParameters {
         }
     }
 
-    /// Creates parameters for a `TrustSet` transaction (e.g., establishing an RLUSD trust line).
+    /// Creates parameters for a `TrustSet` transaction (e.g., establishing an RLUSD trust line,
+    /// with `limit_amount` in smallest units: `limit_amount * 10^(-token.decimals)`).
     pub fn new_trust_set(
         fee: u32,
         sequence: u32,
-        limit_amount: IssuedAmount,
+        limit_amount: u64,
+        token: RippleToken,
         flags: Option<u32>,
         memos: Vec<String>,
         public_key: [u8; 33],
@@ -432,8 +583,8 @@ impl RippleTransactionParameters {
             fee,
             sequence,
             destination_tag: 0,
-            amount: 0,
-            issued_amount: Some(limit_amount),
+            amount: limit_amount,
+            token: Some(token),
             send_max: None,
             flags,
             quality_in: None,
@@ -586,8 +737,8 @@ impl RippleTransaction {
                     field_value: 14,
                     value: self.params.destination_tag,
                 };
-                let amount_value = match &self.params.issued_amount {
-                    Some(issued) => AmountValue::Issued(issued.clone()),
+                let amount_value = match &self.params.token {
+                    Some(token) => AmountValue::Issued(token.to_issued_amount(self.params.amount)?),
                     None => AmountValue::Xrp(self.params.amount | 0x4000000000000000),
                 };
                 let amount = SerializedType::Amount {
@@ -601,7 +752,9 @@ impl RippleTransaction {
                 if let Some(send_max) = &self.params.send_max {
                     let sm_val = match send_max {
                         RippleAmount::Xrp(drops) => AmountValue::Xrp(*drops | 0x4000000000000000),
-                        RippleAmount::Issued(iou) => AmountValue::Issued(iou.clone()),
+                        RippleAmount::Issued { token, amount } => {
+                            AmountValue::Issued(token.to_issued_amount(*amount)?)
+                        }
                     };
                     members.push(SerializedType::Amount {
                         field_value: 9,
@@ -610,14 +763,15 @@ impl RippleTransaction {
                 }
             }
             RippleTransactionType::TrustSet => {
-                let limit_issued = self.params.issued_amount.as_ref().ok_or_else(|| {
+                let token = self.params.token.as_ref().ok_or_else(|| {
                     TransactionError::Message(
-                        "TrustSet transaction requires an issued_amount (LimitAmount)".to_string(),
+                        "TrustSet transaction requires a token (LimitAmount)".to_string(),
                     )
                 })?;
+                let limit_issued = token.to_issued_amount(self.params.amount)?;
                 let limit_amount = SerializedType::Amount {
                     field_value: 3,
-                    value: AmountValue::Issued(limit_issued.clone()),
+                    value: AmountValue::Issued(limit_issued),
                 };
                 members.push(limit_amount);
 
@@ -697,7 +851,7 @@ impl RippleTransaction {
             let mut sequence = 0;
             let mut destination_tag = 0;
             let mut amount = 0;
-            let mut issued_amount: Option<IssuedAmount> = None;
+            let mut token: Option<RippleToken> = None;
             let mut send_max: Option<RippleAmount> = None;
             let mut flags: Option<u32> = None;
             let mut quality_in: Option<u32> = None;
@@ -734,14 +888,20 @@ impl RippleTransaction {
                                     amount = *v & !0x4000000000000000;
                                 }
                                 AmountValue::Issued(iou) => {
-                                    issued_amount = Some(iou.clone());
+                                    let (decoded_token, decoded_amount) =
+                                        iou.to_token_and_amount(DEFAULT_TOKEN_DECIMALS)?;
+                                    token = Some(decoded_token);
+                                    amount = decoded_amount;
                                 }
                             }
                         } else if *field_value == 3 {
                             // LimitAmount for TrustSet
                             match value {
                                 AmountValue::Issued(iou) => {
-                                    issued_amount = Some(iou.clone());
+                                    let (decoded_token, decoded_amount) =
+                                        iou.to_token_and_amount(DEFAULT_TOKEN_DECIMALS)?;
+                                    token = Some(decoded_token);
+                                    amount = decoded_amount;
                                 }
                                 AmountValue::Xrp(_) => {
                                     return Err(TransactionError::Message(
@@ -766,7 +926,12 @@ impl RippleTransaction {
                                     send_max = Some(RippleAmount::Xrp(*v & !0x4000000000000000));
                                 }
                                 AmountValue::Issued(iou) => {
-                                    send_max = Some(RippleAmount::Issued(iou.clone()));
+                                    let (decoded_token, decoded_amount) =
+                                        iou.to_token_and_amount(DEFAULT_TOKEN_DECIMALS)?;
+                                    send_max = Some(RippleAmount::Issued {
+                                        token: decoded_token,
+                                        amount: decoded_amount,
+                                    });
                                 }
                             }
                         } else {
@@ -920,7 +1085,7 @@ impl RippleTransaction {
                 sequence,
                 destination_tag,
                 amount,
-                issued_amount,
+                token,
                 send_max,
                 flags,
                 quality_in,
@@ -1413,8 +1578,8 @@ impl SerializedType {
 mod tests {
     use crate::{
         encode_currency_code, trust_set_flags, IssuedAmount, RippleAddress, RippleAmount,
-        RippleFormat, RipplePublicKey, RippleTransactionType, RLUSD_CURRENCY_CODE,
-        RLUSD_MAINNET_ISSUER, RLUSD_TESTNET_ISSUER,
+        RippleFormat, RipplePublicKey, RippleToken, RippleTransactionType, DEFAULT_TOKEN_DECIMALS,
+        RLUSD_CURRENCY_CODE, RLUSD_MAINNET_ISSUER, RLUSD_TESTNET_ISSUER,
     };
 
     use super::{RippleTransaction, RippleTransactionParameters};
@@ -1487,7 +1652,7 @@ mod tests {
         assert_eq!(tx.params.sequence, 39998031);
         assert_eq!(tx.params.destination_tag, 50);
         assert_eq!(tx.params.amount, 100000000);
-        assert!(tx.params.issued_amount.is_none());
+        assert!(tx.params.token.is_none());
         assert_eq!(tx.params.memos.len(), 1);
         assert_eq!(
             tx.params.public_key,
@@ -1552,20 +1717,42 @@ mod tests {
             .to_hash160()
             .unwrap();
 
-        // 100.50 RLUSD -> 1005000000000000 * 10^-13 -> biased exp = 84 (0x54)
-        let amt = IssuedAmount::rlusd_mainnet("100.50").unwrap();
+        // 100.50 RLUSD with 6 decimals = 100_500_000 smallest units -> 1005000000000000 * 10^-13
+        let amt = IssuedAmount::rlusd_mainnet(100_500_000, DEFAULT_TOKEN_DECIMALS).unwrap();
         assert!(!amt.is_negative);
         assert_eq!(amt.mantissa, 1_005_000_000_000_000);
         assert_eq!(amt.exponent, -13);
         assert_eq!(amt.currency, RLUSD_CURRENCY_CODE);
         assert_eq!(amt.issuer, issuer);
+        assert_eq!(
+            amt.to_smallest_unit(DEFAULT_TOKEN_DECIMALS).unwrap(),
+            100_500_000
+        );
+
+        let amt_from_str = IssuedAmount::from_smallest_unit_str(
+            "100500000",
+            DEFAULT_TOKEN_DECIMALS,
+            "RLUSD",
+            issuer,
+        )
+        .unwrap();
+        assert_eq!(amt, amt_from_str);
+
+        // Decimal points in strings must be rejected (strings must represent integer smallest units)
+        assert!(IssuedAmount::from_smallest_unit_str(
+            "100.50",
+            DEFAULT_TOKEN_DECIMALS,
+            "RLUSD",
+            issuer
+        )
+        .is_err());
 
         let bytes = amt.to_bytes();
         let decoded = IssuedAmount::from_bytes(&bytes).unwrap();
         assert_eq!(amt, decoded);
 
         // Zero amount test (used to remove a trust line)
-        let zero_amt = IssuedAmount::rlusd_mainnet("0").unwrap();
+        let zero_amt = IssuedAmount::rlusd_mainnet(0, DEFAULT_TOKEN_DECIMALS).unwrap();
         assert_eq!(zero_amt.mantissa, 0);
         assert_eq!(zero_amt.encode_value_bits(), 0x8000_0000_0000_0000);
         let zero_decoded = IssuedAmount::from_bytes(&zero_amt.to_bytes()).unwrap();
@@ -1590,14 +1777,16 @@ mod tests {
         let pk_to = RipplePublicKey::from_secret_key(&sk_to);
         let to = pk_to.to_address(&RippleFormat::Standard).unwrap();
 
-        let rlusd_amount = IssuedAmount::rlusd_mainnet("25.75").unwrap();
+        // 25.75 RLUSD with 6 decimals = 25_750_000 smallest units
+        let rlusd_token = RippleToken::rlusd_mainnet(DEFAULT_TOKEN_DECIMALS).unwrap();
+        let rlusd_amount = 25_750_000;
 
         let params = RippleTransactionParameters::new_issued_payment(
             to.to_hash160().unwrap(),
             12,
             100,
             42,
-            rlusd_amount.clone(),
+            (rlusd_token.clone(), rlusd_amount),
             vec!["rlusd-payment".to_string()],
             pk_from.serialize().try_into().unwrap(),
         );
@@ -1618,7 +1807,8 @@ mod tests {
         assert_eq!(decoded_tx.params.fee, 12);
         assert_eq!(decoded_tx.params.sequence, 100);
         assert_eq!(decoded_tx.params.destination_tag, 42);
-        assert_eq!(decoded_tx.params.issued_amount, Some(rlusd_amount));
+        assert_eq!(decoded_tx.params.amount, rlusd_amount);
+        assert_eq!(decoded_tx.params.token, Some(rlusd_token));
         assert_eq!(decoded_tx.params.memos, vec!["rlusd-payment".to_string()]);
         assert_eq!(decoded_tx.signature, Some(sig));
     }
@@ -1632,12 +1822,15 @@ mod tests {
         let sk_from = SecretKey::parse(&sk_from).unwrap();
         let pk_from = RipplePublicKey::from_secret_key(&sk_from);
 
-        let limit_amount = IssuedAmount::rlusd_mainnet("1000000000").unwrap();
+        // 1,000,000,000 RLUSD with 6 decimals = 1_000_000_000_000_000 smallest units
+        let rlusd_token = RippleToken::rlusd_mainnet(DEFAULT_TOKEN_DECIMALS).unwrap();
+        let limit_amount = 1_000_000_000_000_000;
 
         let params = RippleTransactionParameters::new_trust_set(
             12,
             101,
-            limit_amount.clone(),
+            limit_amount,
+            rlusd_token.clone(),
             Some(trust_set_flags::TF_SET_NO_RIPPLE),
             vec![],
             pk_from.serialize().try_into().unwrap(),
@@ -1657,7 +1850,8 @@ mod tests {
         );
         assert_eq!(decoded_tx.params.fee, 12);
         assert_eq!(decoded_tx.params.sequence, 101);
-        assert_eq!(decoded_tx.params.issued_amount, Some(limit_amount));
+        assert_eq!(decoded_tx.params.amount, limit_amount);
+        assert_eq!(decoded_tx.params.token, Some(rlusd_token));
         assert_eq!(
             decoded_tx.params.flags,
             Some(trust_set_flags::TF_SET_NO_RIPPLE)
@@ -1795,8 +1989,11 @@ mod tests {
         let mut seq_a = get_sequence(&addr_holder_a);
         let mut seq_b = get_sequence(&addr_holder_b);
 
+        let rlusd_token = RippleToken::rlusd_testnet(DEFAULT_TOKEN_DECIMALS).unwrap();
+
         // Step 1: Both Holder A and Holder B establish a TrustSet to the official RLUSD Testnet issuer (`rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV`)
-        let official_limit = IssuedAmount::rlusd_testnet("1000000").unwrap();
+        // 1,000,000 RLUSD with 6 decimals = 1_000_000_000_000 smallest units
+        let official_limit = 1_000_000_000_000;
         let initial_lines_a = get_account_lines(&addr_holder_a);
         let initial_lines_b = get_account_lines(&addr_holder_b);
         println!(
@@ -1828,7 +2025,8 @@ mod tests {
                 let trust_params = RippleTransactionParameters::new_trust_set(
                     12,
                     seq,
-                    official_limit.clone(),
+                    official_limit,
+                    rlusd_token.clone(),
                     Some(trust_set_flags::TF_SET_NO_RIPPLE),
                     vec!["official-rlusd-trustset".to_string()],
                     pk.serialize().try_into().unwrap(),
@@ -1859,13 +2057,14 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_secs(6));
 
             // Step 2: Holder A acquires official Testnet RLUSD from the XRPL Testnet DEX/AMM
-            let acquire_amount = IssuedAmount::rlusd_testnet("100").unwrap();
+            // 100 RLUSD with 6 decimals = 100_000_000 smallest units
+            let acquire_amount = 100_000_000;
             let mut acquire_params = RippleTransactionParameters::new_issued_payment(
                 addr_holder_a.to_hash160().unwrap(),
                 12,
                 seq_a,
                 100,
-                acquire_amount,
+                (rlusd_token.clone(), acquire_amount),
                 vec!["acquire-official-rlusd".to_string()],
                 pk_holder_a.serialize().try_into().unwrap(),
             );
@@ -1897,14 +2096,14 @@ mod tests {
 
             std::thread::sleep(std::time::Duration::from_secs(6));
 
-            // Step 3: Holder A transfers 1 official Testnet RLUSD to Holder B
-            let transfer_amount = IssuedAmount::rlusd_testnet("1").unwrap();
+            // Step 3: Holder A transfers 1 official Testnet RLUSD (1_000_000 smallest units) to Holder B
+            let transfer_amount = 1_000_000;
             let transfer_params = RippleTransactionParameters::new_issued_payment(
                 addr_holder_b.to_hash160().unwrap(),
                 12,
                 seq_a,
                 200,
-                transfer_amount,
+                (rlusd_token.clone(), transfer_amount),
                 vec!["official-rlusd-transfer".to_string()],
                 pk_holder_a.serialize().try_into().unwrap(),
             );
@@ -1935,14 +2134,14 @@ mod tests {
         }
 
         // Step 4: Holder B (`rEHw8JLaSF7EhwtdLcimWe9JQRxt6bgDq6`) transfers 0.5 official RLUSD
-        // back to Holder A (`rJYemKok5Na5MBDWnJVALjYBDH5FZdCVsZ`)
-        let return_amount = IssuedAmount::rlusd_testnet("0.5").unwrap();
+        // (500_000 smallest units with 6 decimals) back to Holder A (`rJYemKok5Na5MBDWnJVALjYBDH5FZdCVsZ`)
+        let return_amount = 500_000;
         let return_params = RippleTransactionParameters::new_issued_payment(
             addr_holder_a.to_hash160().unwrap(),
             12,
             seq_b,
             300,
-            return_amount,
+            (rlusd_token, return_amount),
             vec!["official-rlusd-return-0.5".to_string()],
             pk_holder_b.serialize().try_into().unwrap(),
         );
