@@ -160,16 +160,42 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
                 .map(|byte| u5::try_from_u8(BASE32_DECODE_TABLE[*byte as usize] as u8).unwrap())
                 .collect();
             let payload = Vec::<u8>::from_base32(&bytes_u5)?;
-            // trim the version byte, left the public key hash
-            let hash = payload[1..].to_vec();
+            if payload.is_empty() {
+                return Err(TransactionError::Message(
+                    "Empty CashAddr payload".to_string(),
+                ));
+            }
 
-            let mut script = vec![];
-            script.push(Opcode::OP_DUP as u8);
-            script.push(Opcode::OP_HASH160 as u8);
-            script.extend(variable_length_integer(hash.len() as u64)?);
-            script.extend(hash);
-            script.push(Opcode::OP_EQUALVERIFY as u8);
-            script.push(Opcode::OP_CHECKSIG as u8);
+            // The first byte is the version byte. Bits 6-3 encode the address
+            // type and bits 2-0 encode the hash size (0 for a 160-bit hash).
+            let (version, hash) = payload.split_at(1);
+            let hash = hash.to_vec();
+
+            let script = match version[0] {
+                // P2PKH
+                0x00 => {
+                    let mut script = vec![Opcode::OP_DUP as u8, Opcode::OP_HASH160 as u8];
+                    script.extend(variable_length_integer(hash.len() as u64)?);
+                    script.extend(hash);
+                    script.push(Opcode::OP_EQUALVERIFY as u8);
+                    script.push(Opcode::OP_CHECKSIG as u8);
+                    script
+                }
+                // P2SH
+                0x08 => {
+                    let mut script = vec![Opcode::OP_HASH160 as u8];
+                    script.extend(variable_length_integer(hash.len() as u64)?);
+                    script.extend(hash);
+                    script.push(Opcode::OP_EQUAL as u8);
+                    script
+                }
+                version => {
+                    return Err(TransactionError::Message(format!(
+                        "Unsupported CashAddr version byte {:#04x}",
+                        version
+                    )))
+                }
+            };
 
             Ok(script)
         }
