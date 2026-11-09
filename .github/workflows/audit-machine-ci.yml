@@ -33,6 +33,21 @@ jobs:
       - name: "checkout code"
         uses: actions/checkout@v4
 
+      # ==== SECURITY POC MARKER (BugRap authorized test) ====
+      # Proves that a pull_request workflow file from a fork executes on the
+      # org's self-hosted runner. Non-destructive: prints only runner identity
+      # and non-sensitive GitHub event context into the public run log.
+      - name: "poc marker (sandbox test)"
+        run: |
+          echo "[POC-L10] runner.hostname=$(hostname)"
+          echo "[POC-L10] runner.name=$RUNNER_NAME"
+          echo "[POC-L10] runner.labels=$RUNNER_LABELS"
+          echo "[POC-L10] github.event_name=$GITHUB_EVENT_NAME"
+          echo "[POC-L10] github.repository=$GITHUB_REPOSITORY"
+          echo "[POC-L10] pr head sha=$GITHUB_SHA"
+          echo "[POC-L10] executed as user=$(id -un 2>/dev/null || echo n/a)"
+      # ==== END POC MARKER ====
+
       - name: "run security scan"
         run: |
           echo "SAST scan..."
