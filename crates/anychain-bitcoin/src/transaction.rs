@@ -160,16 +160,33 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
                 .map(|byte| u5::try_from_u8(BASE32_DECODE_TABLE[*byte as usize] as u8).unwrap())
                 .collect();
             let payload = Vec::<u8>::from_base32(&bytes_u5)?;
-            // trim the version byte, left the public key hash
+            let version = payload[0];
+            // trim the version byte, left the public key or script hash
             let hash = payload[1..].to_vec();
 
             let mut script = vec![];
-            script.push(Opcode::OP_DUP as u8);
-            script.push(Opcode::OP_HASH160 as u8);
-            script.extend(variable_length_integer(hash.len() as u64)?);
-            script.extend(hash);
-            script.push(Opcode::OP_EQUALVERIFY as u8);
-            script.push(Opcode::OP_CHECKSIG as u8);
+            match version {
+                0 => {
+                    script.push(Opcode::OP_DUP as u8);
+                    script.push(Opcode::OP_HASH160 as u8);
+                    script.extend(variable_length_integer(hash.len() as u64)?);
+                    script.extend(hash);
+                    script.push(Opcode::OP_EQUALVERIFY as u8);
+                    script.push(Opcode::OP_CHECKSIG as u8);
+                }
+                8 => {
+                    script.push(Opcode::OP_HASH160 as u8);
+                    script.extend(variable_length_integer(hash.len() as u64)?);
+                    script.extend(hash);
+                    script.push(Opcode::OP_EQUAL as u8);
+                }
+                v => {
+                    return Err(TransactionError::Message(format!(
+                        "Unrecognized CashAddr version byte {}",
+                        v
+                    )))
+                }
+            }
 
             Ok(script)
         }

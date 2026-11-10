@@ -67,6 +67,33 @@ fn checksum_bch(feed: Vec<u8>) -> [u8; 5] {
     ret
 }
 
+fn validate_cash_addr_payload(payload: &str) -> Result<u8, AddressError> {
+    let bytes_u5: Vec<u5> = payload
+        .as_bytes()
+        .iter()
+        .map(|byte| match BASE32_DECODE_TABLE.get(*byte as usize) {
+            Some(val) if *val != -1 => u5::try_from_u8(*val as u8).map_err(AddressError::from),
+            _ => Err(AddressError::Message(format!(
+                "Invalid base32 character '{}' for Bitcoin cash",
+                *byte as char
+            ))),
+        })
+        .collect::<Result<Vec<u5>, AddressError>>()?;
+
+    let decoded = Vec::<u8>::from_base32(&bytes_u5)?;
+    if decoded.len() != 21 {
+        return Err(AddressError::InvalidByteLength(decoded.len()));
+    }
+
+    match decoded[0] {
+        0 | 8 => Ok(decoded[0]),
+        v => Err(AddressError::Message(format!(
+            "Unrecognized CashAddr version byte {}",
+            v
+        ))),
+    }
+}
+
 fn compute_checksum_bch(payload: &str, prefix: &str) -> Result<String, AddressError> {
     let mut payload = payload.as_bytes().to_vec();
     for byte in payload.clone() {
@@ -224,13 +251,22 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
         })
     }
 
-    /// Generate a CashAddr address from a hash160
+    /// Generate a CashAddr P2PKH address from a hash160
     pub fn cash_addr_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        Self::cash_addr_from_hash_with_version(hash, 0)
+    }
+
+    /// Generate a CashAddr P2SH address from a hash160
+    pub fn cash_addr_p2sh_from_hash(hash: &[u8]) -> Result<Self, AddressError> {
+        Self::cash_addr_from_hash_with_version(hash, 8)
+    }
+
+    fn cash_addr_from_hash_with_version(hash: &[u8], version: u8) -> Result<Self, AddressError> {
         if hash.len() != 20 {
             return Err(AddressError::Message("Illegal hash160 length".to_string()));
         }
 
-        let mut payload = vec![0u8]; // payload starts with version byte: 0
+        let mut payload = vec![version];
         payload.extend(hash);
 
         let payload: Vec<u8> = payload
@@ -336,8 +372,12 @@ impl<N: BitcoinNetwork> BitcoinAddress<N> {
             && script_pub_key[1] == 20
             && script_pub_key[22] == Opcode::OP_EQUAL as u8
         {
-            // we are handling a p2sh_p2wpkh script
-            BitcoinAddress::<N>::p2sh_p2wpkh_from_hash(&script_pub_key[2..22])
+            // we are handling a p2sh / p2sh_p2wpkh script
+            if N::NAME.starts_with("bitcoin cash") {
+                BitcoinAddress::<N>::cash_addr_p2sh_from_hash(&script_pub_key[2..22])
+            } else {
+                BitcoinAddress::<N>::p2sh_p2wpkh_from_hash(&script_pub_key[2..22])
+            }
         } else if script_pub_key.len() == 34 && script_pub_key[0] == 0 && script_pub_key[1] == 32 {
             // we are handling a p2wsh script
             BitcoinAddress::<N>::p2wsh_from_hash(&script_pub_key[2..])
@@ -359,6 +399,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
     type Err = AddressError;
 
     fn from_str(address: &str) -> Result<Self, Self::Err> {
+        let lower = address.to_ascii_lowercase();
         if address.starts_with("bitcoincash") || address.starts_with("bchtest") {
             // we are processing a bitcoin cash address in CashAddr format
             let prefix = address.split(':').collect::<Vec<&str>>()[0];
@@ -383,18 +424,20 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
                 ));
             }
 
+            let _ = validate_cash_addr_payload(payload)?;
+
             Ok(BitcoinAddress {
                 address: address.to_string(),
                 format: BitcoinFormat::CashAddr,
                 _network: PhantomData,
             })
-        } else if address.starts_with("bc1")
-            || address.starts_with("tb1")
-            || address.starts_with("ltc1")
-            || address.starts_with("tltc1")
+        } else if lower.starts_with("bc1")
+            || lower.starts_with("tb1")
+            || lower.starts_with("ltc1")
+            || lower.starts_with("tltc1")
         {
             // we are processing an address in Bech32 format
-            let (hrp, data, _) = bech32::decode(address)?;
+            let (hrp, data, variant) = bech32::decode(address)?;
 
             if data.is_empty() {
                 return Err(AddressError::InvalidAddress(address.to_owned()));
@@ -404,6 +447,12 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
             let _ = N::from_address_prefix(Prefix::from_prefix(&hrp))?;
 
             let version = data[0].to_u8();
+            match (version, variant) {
+                (0, Variant::Bech32) => {}
+                (1..=16, Variant::Bech32m) => {}
+                _ => return Err(AddressError::InvalidAddress(address.to_owned())),
+            }
+
             let mut program = Vec::from_base32(&data[1..])?;
 
             let mut data = vec![version, program.len() as u8];
@@ -488,6 +537,8 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
                         checksum_gen,
                     ));
                 }
+
+                let _ = validate_cash_addr_payload(payload)?;
 
                 Ok(Self {
                     address: address.to_string(),
@@ -1085,5 +1136,61 @@ mod tests {
         let script = create_script_pub_key(&addr).unwrap();
         let addr = BitcoinAddress::<BitcoinCash>::from_script_pub_key(&script).unwrap();
         println!("{}", addr);
+    }
+
+    #[test]
+    fn test_cash_addr_p2sh_script_roundtrip() {
+        // Known BIP-0185 / CashAddr P2SH test vectors
+        let p2sh_mainnet = "bitcoincash:ppm2qsznhks23z7629mms6s4cwef74vcwvn0h829pq";
+        let expected_hash = hex::decode("76a04053bda0a88bda5177b86a15c3b29f559873").unwrap();
+        let mut expected_script = vec![Opcode::OP_HASH160 as u8, 20];
+        expected_script.extend_from_slice(&expected_hash);
+        expected_script.push(Opcode::OP_EQUAL as u8);
+
+        let addr = BitcoinAddress::<BitcoinCash>::from_str(p2sh_mainnet).unwrap();
+        assert_eq!(addr.format(), BitcoinFormat::CashAddr);
+
+        let script = create_script_pub_key(&addr).unwrap();
+        assert_eq!(script, expected_script);
+
+        let decoded_addr = BitcoinAddress::<BitcoinCash>::from_script_pub_key(&script).unwrap();
+        assert_eq!(decoded_addr.to_string(), p2sh_mainnet);
+
+        // Prefixless P2SH CashAddr
+        let p2sh_no_prefix = "ppm2qsznhks23z7629mms6s4cwef74vcwvn0h829pq";
+        let addr_no_prefix = BitcoinAddress::<BitcoinCash>::from_str(p2sh_no_prefix).unwrap();
+        let script_no_prefix = create_script_pub_key(&addr_no_prefix).unwrap();
+        assert_eq!(script_no_prefix, expected_script);
+
+        // Testnet P2SH CashAddr
+        let p2sh_testnet = "bchtest:ppm2qsznhks23z7629mms6s4cwef74vcwvhanqgjxu";
+        let addr_test = BitcoinAddress::<BitcoinCashTestnet>::from_str(p2sh_testnet).unwrap();
+        let script_test = create_script_pub_key(&addr_test).unwrap();
+        assert_eq!(script_test, expected_script);
+        let decoded_test =
+            BitcoinAddress::<BitcoinCashTestnet>::from_script_pub_key(&script_test).unwrap();
+        assert_eq!(decoded_test.to_string(), p2sh_testnet);
+    }
+
+    #[test]
+    fn test_bech32m_variant_validation() {
+        // Valid BIP-350 Taproot (v1 Bech32m) addresses
+        let valid_p2tr_mainnet = "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0";
+        let addr = BitcoinAddress::<Bitcoin>::from_str(valid_p2tr_mainnet).unwrap();
+        let script = create_script_pub_key(&addr).unwrap();
+        let decoded = BitcoinAddress::<Bitcoin>::from_script_pub_key(&script).unwrap();
+        assert_eq!(decoded.to_string(), valid_p2tr_mainnet);
+
+        // Valid uppercase Bech32 (BIP-173)
+        let valid_upper = "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4";
+        assert!(BitcoinAddress::<Bitcoin>::from_str(valid_upper).is_ok());
+
+        // Invalid BIP-350: Witness v0 encoded with Bech32m instead of Bech32
+        let invalid_v0_bech32m = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh";
+        assert!(BitcoinAddress::<Bitcoin>::from_str(invalid_v0_bech32m).is_err());
+
+        // Invalid BIP-350: Witness v1 (Taproot) encoded with legacy Bech32 instead of Bech32m
+        let invalid_v1_bech32 = "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd";
+        assert!(BitcoinAddress::<Bitcoin>::from_str(invalid_v1_bech32).is_err());
     }
 }
