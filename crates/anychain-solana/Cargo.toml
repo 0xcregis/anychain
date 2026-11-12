@@ -26,15 +26,17 @@ solana-sdk = { workspace = true }
 solana-sdk-ids = { workspace = true }
 solana-system-interface = { workspace = true }
 bincode = { workspace = true }
-
-spl-token = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-associated-token-account = { workspace = true }
 spl-token-group-interface = { workspace = true }
 group = { workspace = true }
 
 [dev-dependencies]
+spl-token = { workspace = true }
 solana-rpc-client = "3.0.0"
 solana-rpc-client-api = "3.1.11"
 anyhow = "1.0"
 tiny-bip39 = "2.0.0"
+
+[lints]
+workspace = true

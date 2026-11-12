@@ -19,7 +19,7 @@ thiserror = { workspace = true }
 ripemd = { workspace = true }
 bech32 = { workspace = true }
 hex = { workspace = true }
-base58 = { workspace = true , optional = true }
+base58 = { workspace = true, optional = true }
 rand_core = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
@@ -27,3 +27,6 @@ sha2 = { workspace = true }
 [features]
 default = ["std"]
 std = ["base58"]
+
+[lints]
+workspace = true
