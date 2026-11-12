@@ -1,6 +1,6 @@
 use crate::{
-    BitcoinAddress, BitcoinAmount, BitcoinFormat, BitcoinNetwork, BitcoinPublicKey, WitnessProgram,
-    BASE32_DECODE_TABLE,
+    decode_bech32_witness_program, decode_cash_addr, BitcoinAddress, BitcoinAmount, BitcoinFormat,
+    BitcoinNetwork, BitcoinPublicKey,
 };
 use anychain_core::{
     crypto::checksum as double_sha2, Transaction, TransactionError, TransactionId,
@@ -13,7 +13,6 @@ use anychain_core::{
 use libsecp256k1::Signature;
 
 use base58::FromBase58;
-use bech32::{u5, FromBase32};
 use core::{fmt, str::FromStr};
 use serde::Serialize;
 pub use sha2::{Digest, Sha256};
@@ -127,53 +126,24 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
             Ok(script)
         }
         BitcoinFormat::P2WSH => {
-            let (_, data, _) = bech32::decode(&address.to_string())?;
-            let (v, script) = data.split_at(1);
-            let script = Vec::from_base32(script)?;
-            let mut script_bytes = vec![v[0].to_u8(), script.len() as u8];
-            script_bytes.extend(script);
-            Ok(script_bytes)
-        }
-        BitcoinFormat::Bech32 => {
-            let (_, data, _) = bech32::decode(&address.to_string())?;
-            let (v, program) = data.split_at(1);
-            let program = Vec::from_base32(program)?;
-            let mut program_bytes = vec![v[0].to_u8(), program.len() as u8];
-            program_bytes.extend(program);
-            Ok(WitnessProgram::new(&program_bytes)?.to_scriptpubkey())
-        }
-        BitcoinFormat::CashAddr => {
-            let address = address.to_string();
-            let prefix = N::to_address_prefix(BitcoinFormat::CashAddr)?.prefix();
-
-            let start = if address.starts_with(&prefix) {
-                prefix.len() + 1
-            } else {
-                0
-            };
-
-            // trim the prefix and the checksum
-            let bytes_u8 = address.as_bytes()[start..address.len() - 8].to_vec();
-
-            let bytes_u5: Vec<u5> = bytes_u8
-                .iter()
-                .map(|byte| u5::try_from_u8(BASE32_DECODE_TABLE[*byte as usize] as u8).unwrap())
-                .collect();
-            let payload = Vec::<u8>::from_base32(&bytes_u5)?;
-            if payload.is_empty() {
+            let wp = decode_bech32_witness_program::<N>(&address.to_string())?;
+            if wp.version != 0 || wp.program.len() != 32 {
                 return Err(TransactionError::Message(
-                    "Empty CashAddr payload".to_string(),
+                    "Invalid P2WSH witness program".to_string(),
                 ));
             }
+            Ok(wp.to_scriptpubkey())
+        }
+        BitcoinFormat::Bech32 => {
+            let wp = decode_bech32_witness_program::<N>(&address.to_string())?;
+            Ok(wp.to_scriptpubkey())
+        }
+        BitcoinFormat::CashAddr => {
+            let (version, hash) = decode_cash_addr::<N>(&address.to_string())?;
 
-            // The first byte is the version byte. Bits 6-3 encode the address
-            // type and bits 2-0 encode the hash size (0 for a 160-bit hash).
-            let (version, hash) = payload.split_at(1);
-            let hash = hash.to_vec();
-
-            let script = match version[0] {
-                // P2PKH
-                0x00 => {
+            let script = match (version, hash.len()) {
+                // P2PKH (20-byte hash160)
+                (0x00, 20) => {
                     let mut script = vec![Opcode::OP_DUP as u8, Opcode::OP_HASH160 as u8];
                     script.extend(variable_length_integer(hash.len() as u64)?);
                     script.extend(hash);
@@ -181,15 +151,23 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(
                     script.push(Opcode::OP_CHECKSIG as u8);
                     script
                 }
-                // P2SH
-                0x08 => {
+                // P2SH20 (20-byte hash160)
+                (0x08, 20) => {
                     let mut script = vec![Opcode::OP_HASH160 as u8];
                     script.extend(variable_length_integer(hash.len() as u64)?);
                     script.extend(hash);
                     script.push(Opcode::OP_EQUAL as u8);
                     script
                 }
-                version => {
+                // P2SH32 (32-byte double-sha256)
+                (0x0b, 32) => {
+                    let mut script = vec![Opcode::OP_HASH256 as u8];
+                    script.extend(variable_length_integer(hash.len() as u64)?);
+                    script.extend(hash);
+                    script.push(Opcode::OP_EQUAL as u8);
+                    script
+                }
+                _ => {
                     return Err(TransactionError::Message(format!(
                         "Unsupported CashAddr version byte {:#04x}",
                         version
@@ -326,6 +304,7 @@ impl SignatureHash {
 pub enum Opcode {
     OP_DUP = 0x76,
     OP_HASH160 = 0xa9,
+    OP_HASH256 = 0xaa,
     OP_CHECKSIG = 0xac,
     OP_EQUAL = 0x87,
     OP_EQUALVERIFY = 0x88,
@@ -338,6 +317,7 @@ impl fmt::Display for Opcode {
         match self {
             Opcode::OP_DUP => write!(f, "OP_DUP"),
             Opcode::OP_HASH160 => write!(f, "OP_HASH160"),
+            Opcode::OP_HASH256 => write!(f, "OP_HASH256"),
             Opcode::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
             Opcode::OP_EQUAL => write!(f, "OP_EQUAL"),
             Opcode::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),

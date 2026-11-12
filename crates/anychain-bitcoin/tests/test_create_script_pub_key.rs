@@ -1,5 +1,6 @@
 use anychain_bitcoin::{
-    create_script_pub_key, BitcoinAddress, BitcoinAmount, BitcoinCash, BitcoinTransactionOutput,
+    create_script_pub_key, Bitcoin, BitcoinAddress, BitcoinAmount, BitcoinCash,
+    BitcoinTransactionOutput,
 };
 use std::str::FromStr;
 
@@ -27,6 +28,10 @@ fn test_create_script_pub_key() {
         "a91476a04053bda0a88bda5177b86a15c3b29f55987387"
     );
     assert_eq!(cash_p2sh_script, legacy_p2sh_script);
+    assert_eq!(
+        BitcoinAddress::<BitcoinCash>::from_script_pub_key(&cash_p2sh_script).unwrap(),
+        cash_p2sh
+    );
 
     // The P2PKH address shares the hash160 but uses the P2PKH script:
     // OP_DUP OP_HASH160 <20-byte hash> OP_EQUALVERIFY OP_CHECKSIG.
@@ -46,6 +51,33 @@ fn test_create_script_pub_key() {
     assert_eq!(output.script_pub_key, legacy_p2sh_script);
     dbg!("expected P2SH: {}", hex::encode(&legacy_p2sh_script));
     dbg!("actual output: {}", hex::encode(&output.script_pub_key));
+}
+
+#[test]
+fn test_bech32m_bip350_outputs() {
+    // Valid Taproot P2TR (witness v1) encoded with Bech32m
+    let p2tr = BitcoinAddress::<Bitcoin>::from_str(
+        "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
+    )
+    .unwrap();
+    let output = BitcoinTransactionOutput::new(p2tr.clone(), BitcoinAmount(50_000)).unwrap();
+    assert_eq!(
+        hex::encode(&output.script_pub_key),
+        "512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    );
+    assert_eq!(
+        BitcoinAddress::<Bitcoin>::from_script_pub_key(&output.script_pub_key).unwrap(),
+        p2tr
+    );
+
+    // Witness v1 encoded with Bech32 (wrong variant) and witness v0 encoded with Bech32m must fail
+    assert!(BitcoinAddress::<Bitcoin>::from_str(
+        "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd"
+    )
+    .is_err());
+    assert!(
+        BitcoinAddress::<Bitcoin>::from_str("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh").is_err()
+    );
 }
 
 #[test]

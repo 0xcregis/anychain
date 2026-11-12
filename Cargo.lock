@@ -172,7 +172,7 @@ dependencies = [
 
 [[package]]
 name = "anychain-bitcoin"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "anychain-core 0.1.8",
  "base58",
