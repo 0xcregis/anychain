@@ -46,7 +46,7 @@ anyhow = "1.0.75"
 base64 = "0.21.5"
 # bytes = "1.0"
 protobuf = { version = "=3.7.2" }
-chrono = "0.4"
+jiff = { version = "1.0", default-features = false, features = ["std"] }
 clap = { version = "4.4.7", features = ["derive"] }
 rustc-hash = "1.1.0"
 hmac = "0.12.1"
