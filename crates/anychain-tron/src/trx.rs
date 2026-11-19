@@ -18,8 +18,8 @@ use crate::{
     TronAddress,
 };
 use anychain_core::Error;
-use chrono::Utc;
 use core::panic;
+use jiff::Timestamp;
 use protobuf::{well_known_types::any::Any, EnumOrUnknown, Message};
 use std::str::FromStr;
 
@@ -67,7 +67,7 @@ fn to_resource_code(r: u8) -> ResourceCode {
 }
 
 pub fn timestamp_millis() -> i64 {
-    Utc::now().timestamp_millis()
+    Timestamp::now().as_millisecond()
 }
 
 pub fn build_contract(ct: &impl ContractPbExt) -> Result<Contract, Error> {

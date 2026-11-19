@@ -1,7 +1,7 @@
 [package]
 name = "anychain-tron"
 description = "A Rust library for Tron-focused cryptocurrency wallets, enabling seamless transactions on the Tron blockchain"
-version = "0.2.14"
+version = "0.2.15"
 keywords = ["tron", "blockchain", "wallet", "transactions"]
 categories = ["cryptography::cryptocurrencies"]
 
@@ -22,7 +22,7 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 base58 = { workspace = true }
 protobuf = { workspace = true }
-chrono = { workspace = true }
+jiff = { workspace = true }
 ethabi = { workspace = true }
 libsecp256k1 = { workspace = true }
 ethereum-types = { workspace = true }
