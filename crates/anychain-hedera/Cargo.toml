@@ -18,6 +18,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 jni = "0.21.1"
 anychain-core = { path = "../anychain-core", version = "0.1.8" }
+data-encoding = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
 pbkdf2 = { workspace = true }
