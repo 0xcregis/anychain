@@ -29,13 +29,21 @@ pub struct AccountId {
 
 impl AccountId {
     pub(crate) fn to_string(&self) -> Result<String, TransactionError> {
-        let acn = match &self.account.clone().unwrap() {
-            Account::AccountNum(acn) => *acn,
-            Account::Alias(_) => {
-                return Err(TransactionError::Message("invalid account id".to_string()))
+        if self.shard_num < 0 || self.realm_num < 0 {
+            return Err(TransactionError::Message("invalid account id".to_string()));
+        }
+
+        match self.account.as_ref() {
+            Some(Account::AccountNum(acn)) if *acn >= 0 => {
+                Ok(format!("{}.{}.{}", self.shard_num, self.realm_num, acn))
             }
-        };
-        Ok(format!("{}.{}.{}", self.shard_num, self.realm_num, acn))
+            Some(Account::Alias(alias_bytes)) => {
+                let alias = crate::address::encode_hip32_alias_bytes(alias_bytes)
+                    .map_err(|e| TransactionError::Message(e.to_string()))?;
+                Ok(format!("{}.{}.{}", self.shard_num, self.realm_num, alias))
+            }
+            _ => Err(TransactionError::Message("invalid account id".to_string())),
+        }
     }
 }
 
@@ -97,14 +105,16 @@ pub struct CryptoCreateTransactionBody {
     pub key: ::core::option::Option<Key>,
     #[prost(uint64, tag = "2")]
     pub initial_balance: u64,
-    #[prost(bool, tag = "11")]
+    #[prost(bool, tag = "8")]
     pub receiver_sig_required: bool,
-    #[prost(message, optional, tag = "13")]
+    #[prost(message, optional, tag = "9")]
     pub auto_renew_period: ::core::option::Option<Duration>,
-    #[prost(string, tag = "16")]
+    #[prost(string, tag = "13")]
     pub memo: ::prost::alloc::string::String,
-    #[prost(int32, tag = "18")]
+    #[prost(int32, tag = "14")]
     pub max_automatic_token_associations: i32,
+    #[prost(bytes = "vec", tag = "18")]
+    pub alias: ::prost::alloc::vec::Vec<u8>,
 }
 
 #[derive(Clone, PartialEq, ::prost::Message)]

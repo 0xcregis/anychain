@@ -18,7 +18,12 @@ impl PublicKey for HederaPublicKey {
     }
 
     fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
-        Ok(HederaAddress(self.to_string()))
+        let pubkey_bytes = self.0.to_bytes();
+        Ok(HederaAddress(crate::address::encode_ed25519_hip32(
+            0,
+            0,
+            &pubkey_bytes,
+        )))
     }
 }
 
