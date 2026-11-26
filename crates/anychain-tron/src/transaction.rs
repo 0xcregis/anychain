@@ -28,8 +28,15 @@ impl TronTransactionParameters {
         hex::decode(hash).unwrap()[8..16].clone_into(&mut self.ref_block_hash)
     }
 
-    pub fn set_contract(&mut self, ct: Contract) {
+    pub fn set_contract(&mut self, mut ct: Contract) {
+        if ct.Permission_id == 0 && self.contract.Permission_id != 0 {
+            ct.Permission_id = self.contract.Permission_id;
+        }
         self.contract = ct;
+    }
+
+    pub fn set_permission_id(&mut self, permission_id: i32) {
+        self.contract.Permission_id = permission_id;
     }
 
     pub fn set_timestamp(&mut self, time: i64) {
@@ -283,5 +290,53 @@ mod tests {
         let transaction = TronTransaction::from_bytes(&hex::decode(raw).unwrap());
         assert!(transaction.is_ok());
         dbg!("{:?}", transaction.unwrap().data);
+    }
+
+    #[test]
+    fn test_permission_id_round_trip() {
+        let addr_from = "TYn6xn1aY3hrsDfLzpyPQtDiKjHEU8Hsxm";
+        let addr_to = "TG7jQ7eGsns6nmQNfcKNgZKyKBFkx7CvXr";
+        let block_height = 43785827;
+        let block_hash = "00000000029c1e638dc7c7c2800e88bb20b8f57adfc4c9f417df8d86c2e8537b";
+
+        let ct0 = trx::build_transfer_contract(addr_from, addr_to, "1000000").unwrap();
+        let mut param0 = TronTransactionParameters::default();
+        param0.set_timestamp(1719572137182);
+        param0.set_ref_block(block_height, block_hash);
+        param0.set_contract(ct0);
+        let tx0 = TronTransaction::new(&param0).unwrap();
+
+        // set_permission_id after set_contract
+        let ct1 = trx::build_transfer_contract(addr_from, addr_to, "1000000").unwrap();
+        let mut param1 = TronTransactionParameters::default();
+        param1.set_timestamp(1719572137182);
+        param1.set_ref_block(block_height, block_hash);
+        param1.set_contract(ct1);
+        param1.set_permission_id(3);
+        let mut tx1 = TronTransaction::new(&param1).unwrap();
+
+        assert_ne!(tx0.to_bytes().unwrap(), tx1.to_bytes().unwrap());
+        assert_ne!(
+            tx0.to_transaction_id().unwrap(),
+            tx1.to_transaction_id().unwrap()
+        );
+
+        let raw_bytes = tx1.to_bytes().unwrap();
+        let parsed_raw = TronTransaction::from_bytes(&raw_bytes).unwrap();
+        assert_eq!(parsed_raw.data.contract.Permission_id, 3);
+
+        let signed_bytes = tx1.sign(vec![1u8; 64], 1).unwrap();
+        let parsed_signed = TronTransaction::from_bytes(&signed_bytes).unwrap();
+        assert_eq!(parsed_signed.data.contract.Permission_id, 3);
+
+        // set_permission_id before set_contract
+        let ct2 = trx::build_transfer_contract(addr_from, addr_to, "1000000").unwrap();
+        let mut param2 = TronTransactionParameters::default();
+        param2.set_timestamp(1719572137182);
+        param2.set_ref_block(block_height, block_hash);
+        param2.set_permission_id(3);
+        param2.set_contract(ct2);
+        let tx2 = TronTransaction::new(&param2).unwrap();
+        assert_eq!(tx2.to_bytes().unwrap(), raw_bytes);
     }
 }
